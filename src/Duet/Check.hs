@@ -25,8 +25,8 @@ freeBvs (RecordT Nil) = pø
 freeBvs (RecordT (x :& xs)) = freeBrcrdvs x ∪ freeBvs (RecordT xs)
 freeBvs (𝕄T _ _ _ me) = freeBmexp me
 freeBvs (𝔻T τ) = freeBvs τ
-freeBvs (τ₁ :+: τ₂) = freeBvs τ₁ ∪ freeBvs τ₂
-freeBvs (τ₁ :×: τ₂) = freeBvs τ₁ ∪ freeBvs τ₂
+freeBvs (τ₁ :⊕: τ₂) = freeBvs τ₁ ∪ freeBvs τ₂
+freeBvs (τ₁ :⊗: τ₂) = freeBvs τ₁ ∪ freeBvs τ₂
 freeBvs (τ₁ :&: τ₂) = freeBvs τ₁ ∪ freeBvs τ₂
 freeBvs ((_ :* τ₁) :⊸: (_ :* τ₂)) = freeBvs τ₁ ∪ freeBvs τ₂
 freeBvs (pargs :⊸⋆: τ) = freeBlpargvs pargs ∪ freeBvs τ
@@ -125,6 +125,91 @@ pmFromSM xM = mkPM $ \ δ γ ᴍ → mapInr (mapFst $ map $ Priv ∘ truncate In
 
 mapPPM ∷ (Priv p₁ RNF → Priv p₂ RNF) → PM p₁ a → PM p₂ a
 mapPPM f xM = mkPM $ \ δ γ ᴍ → mapInr (mapFst $ map f) $ runPM δ γ ᴍ xM
+
+checkTypeLang ∷ TLExp RExpPre → 𝑂 (Type RExpPre)
+checkTypeLang e₀ = case extract e₀ of
+  VarTE x → return $ VarT x
+  ℕˢTE r → return $ ℕˢT r
+  ℝˢTE r → return $ ℝˢT r
+  ℕTE → return ℕT
+  ℝTE → return ℝT
+  𝕀TE r → return $ 𝕀T r
+  𝔹TE → return 𝔹T
+  𝕊TE → return 𝕊T
+  SetTE e → do
+    τ ← checkTypeLang e
+    return $ SetT τ
+  𝕄TE ℓ c rows mexpr → return $ 𝕄T ℓ c rows mexpr
+  𝔻TE e → do
+    τ ← checkTypeLang e
+    return $ 𝔻T τ
+  e₁ :⊕♭: e₂ → do
+    τ₁ ← checkTypeLang e₁
+    τ₂ ← checkTypeLang e₂
+    return $ τ₁ :⊕: τ₂
+  e₁ :⊗♭: e₂ → do
+    τ₁ ← checkTypeLang e₁
+    τ₂ ← checkTypeLang e₂
+    return $ τ₁ :⊗: τ₂
+  e₁ :&♭: e₂ → do
+    τ₁ ← checkTypeLang e₁
+    τ₂ ← checkTypeLang e₂
+    return $ τ₁ :&: τ₂
+  (xτs :* e₁) :⊸♭: (s :* e₂) → do
+    τ₁ ← checkTypeLang e₁
+    τ₂ ← checkTypeLang e₂
+    return $ (xτs :* τ₁) :⊸: (s :* τ₂)
+  (xτs :* τps) :⊸⋆♭: e → do
+    τ ← checkTypeLang e
+    return $ (xτs :* τps) :⊸⋆: τ
+  BoxedTE γ e → do
+    τ ← checkTypeLang e
+    return $ BoxedT γ τ
+  _ → None
+
+checkRExpLang ∷ TLExp RExp → 𝑂 RExp
+checkRExpLang e₀ = siphon e₀ ^$ case extract e₀ of
+  VarTE x → return $ VarRE x
+  NatTE n → return $ NatRE n
+  NNRealTE r → return $ NNRealRE r
+  MaxTE e₁ e₂ → do
+    η₁ ← checkRExpLang e₁
+    η₂ ← checkRExpLang e₂
+    return $ MaxRE η₁ η₂
+  MinTE e₁ e₂ → do
+    η₁ ← checkRExpLang e₁
+    η₂ ← checkRExpLang e₂
+    return $ MinRE η₁ η₂
+  PlusTE e₁ e₂ → do
+    η₁ ← checkRExpLang e₁
+    η₂ ← checkRExpLang e₂
+    return $ PlusRE η₁ η₂
+  TimesTE e₁ e₂ → do
+    η₁ ← checkRExpLang e₁
+    η₂ ← checkRExpLang e₂
+    return $ TimesRE η₁ η₂
+  DivTE e₁ e₂ → do
+    η₁ ← checkRExpLang e₁
+    η₂ ← checkRExpLang e₂
+    return $ DivRE η₁ η₂
+  RootTE e → do
+    η ← checkRExpLang e
+    return $ RootRE η
+  ExpTE e₁ e₂ → do
+    η₁ ← checkRExpLang e₁
+    η₂ ← checkRExpLang e₂
+    return $ ExpRE η₁ η₂
+  LogTE e → do
+    η ← checkRExpLang e
+    return $ LogRE η
+  ExpFnTE e → do
+    η ← checkRExpLang e
+    return $ ExpFnRE η
+  MinusTE e₁ e₂ → do
+    η₁ ← checkRExpLang e₁
+    η₂ ← checkRExpLang e₂
+    return $ MinusRE η₁ η₂
+  _ → None
 
 inferKind ∷ RExpPre → SM p Kind
 inferKind = \case
@@ -226,11 +311,11 @@ checkType τA = case τA of
         return $ κ ⊑ ℕK
       _ → return True
   𝔻T τ → checkType τ
-  τ₁ :+: τ₂ → do
+  τ₁ :⊕: τ₂ → do
     a ← checkType τ₁
     b ← checkType τ₂
     return $ a ⩓ b
-  τ₁ :×: τ₂ → do
+  τ₁ :⊗: τ₂ → do
     a ← checkType τ₁
     b ← checkType τ₂
     return $ a ⩓ b
@@ -689,34 +774,42 @@ inferSens eA = case extract eA of
   --                 return τ₁
   --               False → error $ "type error in AppPE" ⧺ show𝕊 (ηκs,fκs,aτs,τs')
   --     _ → error $ "AppPE expected a function instead of" ⧺ pprender τ
-  AppSE e₁ ηs e₂ → do
-    let η's = map normalizeRExp ηs
+  AppSE e₁ τes e₂ → do
     τ₁ ← inferSens e₁
-    ηκs ← mapM (inferKind ∘ extract) ηs
     σ₂ :* τ₂ ← hijack $ inferSens e₂
     case τ₁ of
       (ακs :* τ₁₁) :⊸: (ς :* τ₁₂) → do
-        let fαs = map fst ακs
-            fκs = map snd ακs
-            αηs = zip fαs η's
-            subT ∷ Type RNF → Type RNF
-            subT τ' = fold τ' (\ (α :* η) τ'' → substType α η τ'') αηs
-            subS ∷ Sens RNF → Sens RNF
-            subS p = fold p (\ (α :* η) p' → map (substRNF α η) p') αηs
-            τ₁₁' = subT τ₁₁
-            ς' = subS ς
-        case (ηκs ≡ fκs) ⩓ (τ₂ ≡ τ₁₁') of
-          True → do
-            tell $ ς' ⨵ σ₂
-            return $ subT τ₁₂
-          False → error $ concat
-            [ "AppSE error: "
-            , pprender (τ₂ :* τ₁₁')
-            , "\n"
-            , pprender (ηκs :* fκs)
-            , "\n"
-            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-            ]
+        -- build a list of triples of αs, τes, and κs
+        -- fail here if either of these things are the wrong length
+        let ατeκs = undefined 
+        mfoldWith  ατeκs (τ₁₁,ς,τ₁₂) $ \ (α :* τe :* κ) (τ₁₁',ς',τ₁₂') → do
+          -- look at κ
+          -- coerce τe into a η (RExp) or τ (Type) based on κ
+          -- do substRExp if κ is a RExp, or substType if κ is a Type
+          -- on each of τ₁₁',ς',τ₁₂'
+          let η's = map normalizeRExp ηs
+          ηκs ← mapM (inferKind ∘ extract) ηs
+          let fαs = map fst ακs
+              fκs = map snd ακs
+              αηs = zip fαs η's
+              subT ∷ Type RNF → Type RNF
+              subT τ' = fold τ' (\ (α :* η) τ'' → substType α η τ'') αηs
+              subS ∷ Sens RNF → Sens RNF
+              subS p = fold p (\ (α :* η) p' → map (substRNF α η) p') αηs
+              τ₁₁' = subT τ₁₁
+              ς' = subS ς
+          case (ηκs ≡ fκs) ⩓ (τ₂ ≡ τ₁₁') of
+            True → do
+              tell $ ς' ⨵ σ₂
+              return $ subT τ₁₂
+            False → error $ concat
+              [ "AppSE error: "
+              , pprender (τ₂ :* τ₁₁')
+              , "\n"
+              , pprender (ηκs :* fκs)
+              , "\n"
+              , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+              ]
       _ → error $ concat
             [ "AppSE error: "
             , pprender (τ₁ :* τ₂)
@@ -768,11 +861,11 @@ inferSens eA = case extract eA of
   TupSE e₁ e₂ → do
     τ₁ ← inferSens e₁
     τ₂ ← inferSens e₂
-    return $ τ₁ :×: τ₂
+    return $ τ₁ :⊗: τ₂
   UntupSE x₁ x₂ e₁ e₂ → do
     σ₁ :* τₜ ← hijack $ inferSens e₁
     case τₜ of
-      (τ₁ :×: τ₂) → do
+      (τ₁ :⊗: τ₂) → do
         σ₂ :* τ₃ ← hijack $ mapEnvL contextTypeL (\ γ → (x₁ ↦ τ₁) ⩌ (x₂ ↦ τ₂) ⩌ γ) $ inferSens e₂
         let (ς₁ :* σ₂') = ifNone (zero :* σ₂) $ dview x₁ σ₂
             (ς₂ :* σ₂'') = ifNone (zero :* σ₂') $ dview x₂ σ₂'
@@ -886,7 +979,7 @@ inferSens eA = case extract eA of
       (𝕄T ℓ₁ c₁ r₁ s₁, 𝕄T ℓ₂ c₂ r₂ s₂) | r₁ ≡ r₂ → do
         let m₁ = 𝕄T ℓ₁ c₁ (RexpRT one) s₁
             m₂ = 𝕄T ℓ₂ c₂ (RexpRT one) s₂
-        return $ 𝕄T LInf UClip r₁ $ ConsME (m₁ :×: m₂) EmptyME
+        return $ 𝕄T LInf UClip r₁ $ ConsME (m₁ :⊗: m₂) EmptyME
       _ → error $ concat
             [ "Zip error: "
             , (pprender $ (τ₁ :* τ₂))
@@ -902,7 +995,7 @@ inferSens eA = case extract eA of
       (ℕˢT ηb, 𝕄T ℓ₁ c₁ r₁₁ s₁, 𝕄T ℓ₂ c₂ r₁₂ s₂) | r₁₁ ≡ r₁₂ → do
         let mt₁ = 𝕄T ℓ₁ c₁ (RexpRT ηb) s₁
             mt₂ = 𝕄T ℓ₂ c₂ (RexpRT ηb) s₂
-            s   = ConsME (mt₁ :×: mt₂) EmptyME
+            s   = ConsME (mt₁ :⊗: mt₂) EmptyME
         return $ 𝕄T LInf UClip (RexpRT ηb) s -- TODO: ηb is wrong here, but doesn't affect sens.
       _ → error $ concat
             [ "Chunks error: "
@@ -1666,8 +1759,8 @@ substTypeR 𝓈 x r' fv = \case
           StarRT → StarRT
     in 𝕄T ℓ c rs' $ substMExpR 𝓈 x r' fv me
   𝔻T τ → 𝔻T $ substTypeR 𝓈 x r' fv τ
-  τ₁ :+: τ₂ → substTypeR 𝓈 x r' fv τ₁ :+: substTypeR 𝓈 x r' fv τ₂
-  τ₁ :×: τ₂ → substTypeR 𝓈 x r' fv τ₁ :×: substTypeR 𝓈 x r' fv τ₂
+  τ₁ :⊕: τ₂ → substTypeR 𝓈 x r' fv τ₁ :⊕: substTypeR 𝓈 x r' fv τ₂
+  τ₁ :⊗: τ₂ → substTypeR 𝓈 x r' fv τ₁ :⊗: substTypeR 𝓈 x r' fv τ₂
   τ₁ :&: τ₂ → substTypeR 𝓈 x r' fv τ₁ :&: substTypeR 𝓈 x r' fv τ₂
   (ακs :* τ₁) :⊸: (s :* τ₂) →
     let 𝓈' = joins [𝓈,pow $ map fst ακs]

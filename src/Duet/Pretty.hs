@@ -134,12 +134,12 @@ instance (Pretty r) ⇒ Pretty (Type r) where
         , ppPun "]"
         ]
       ]
-    τ₁ :+: τ₂ → ppAtLevel 5 $ ppSeparated $ list
+    τ₁ :⊕: τ₂ → ppAtLevel 5 $ ppSeparated $ list
       [ pretty τ₁
       , ppPun "+"
       , ppBump $ pretty τ₂
       ]
-    τ₁ :×: τ₂ → ppAtLevel 6 $ ppSeparated $ list
+    τ₁ :⊗: τ₂ → ppAtLevel 6 $ ppSeparated $ list
       [ pretty τ₁
       , ppPun "×"
       , ppBump $ pretty τ₂

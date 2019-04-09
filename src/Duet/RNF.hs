@@ -42,8 +42,6 @@ interpRExp γ = \case
   ExpFnRE e → exp $ interpRExp γ $ extract e
   MinusRE e₁ e₂ → interpRExp γ (extract e₁) - interpRExp γ (extract e₂)
 
-data TLExp r = Type r | RExp 
-
 data RNF =
     NatRNF ℕ
   | NNRealRNF 𝔻

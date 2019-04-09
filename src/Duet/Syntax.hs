@@ -193,7 +193,8 @@ instance Functor MExp where
 
 type TypeSource r = Annotated FullContext (Type r)
 data Type r =
-    ℕˢT r
+    VarT 𝕏
+  | ℕˢT r
   | ℝˢT r
   | ℕT
   | ℝT
@@ -206,14 +207,61 @@ data Type r =
   | RecordT (𝐿 (𝕊 ∧ Type r))
   | 𝕄T Norm Clip (RowsT r) (MExp r)
   | 𝔻T (Type r)
-  | Type r :+: Type r
-  | Type r :×: Type r
+  | Type r :⊕: Type r
+  | Type r :⊗: Type r
   | Type r :&: Type r
   | (𝐿 (𝕏 ∧ Kind) ∧ Type r) :⊸: (Sens r ∧ Type r)
   | (𝐿 (𝕏 ∧ Kind) ∧ PArgs r) :⊸⋆: Type r
   | BoxedT (𝕏 ⇰ Sens r) (Type r)
-  | VarT 𝕏
   deriving (Eq,Ord,Show)
+
+type TLExp r = Annotated FullContext (TLExpPre r)
+data TLExpPre r =
+    VarTE 𝕏
+  -- Type Stuff
+  | ℕˢTE r
+  | ℝˢTE r
+  | ℕTE
+  | ℝTE
+  | 𝕀TE r
+  | 𝔹TE
+  | 𝕊TE
+  | SetTE (TLExp r)
+  | 𝕄TE Norm Clip (RowsT r) (MExp r)
+  | 𝔻TE (TLExp r)
+  | TLExp r :⊕♭: TLExp r
+  | TLExp r :⊗♭: TLExp r
+  | TLExp r :&♭: TLExp r
+  | (𝐿 (𝕏 ∧ Kind) ∧ TLExp r) :⊸♭: (Sens r ∧ TLExp r)
+  | (𝐿 (𝕏 ∧ Kind) ∧ PArgs r) :⊸⋆♭: TLExp r
+  | BoxedTE (𝕏 ⇰ Sens r) (TLExp r)
+  -- RExp Stuff
+  | NatTE ℕ
+  | NNRealTE 𝔻
+  | MaxTE (TLExp r) (TLExp r)
+  | MinTE (TLExp r) (TLExp r)
+  | PlusTE (TLExp r) (TLExp r)
+  | TimesTE (TLExp r) (TLExp r)
+  | DivTE (TLExp r) (TLExp r)
+  | RootTE (TLExp r)
+  | ExpTE (TLExp r) (TLExp r)
+  | LogTE (TLExp r)
+  | ExpFnTE (TLExp r)
+  | MinusTE (TLExp r) (TLExp r)
+  deriving (Eq,Ord,Show)
+
+-- data TypeLevelLang =
+--     RealExpTLL
+--   | TypeTLL
+--   deriving (Eq,Ord,Show)
+
+-- data STypeLevelLang ∷ TypeLevelLang → ★ where
+--   RealExpSTLL ∷ STypeLevelLang 'RealExpTLL
+--   TypeSTLL ∷ STypeLevelLang 'TypeTLL
+-- 
+-- data TLCheckedExpr ∷ TypeLevelLang → ★ where
+--   RExpTLCE ∷ RExp → TLCheckedExpr 'RealExpTLL
+--   TypeTLCE ∷ Type RExp → TLCheckedExpr 'TypeTLL
 
 instance Functor Type where
   map ∷ (a → b) → Type a → Type b
@@ -231,8 +279,8 @@ instance Functor Type where
     RecordT as → RecordT $ map (mapPair id $ map f) as
     𝕄T ℓ c r₁ r₂ → 𝕄T ℓ c (map f r₁) (map f r₂)
     𝔻T τ → 𝔻T $ map f τ
-    τ₁ :+: τ₂ → map f τ₁ :+: map f τ₂
-    τ₁ :×: τ₂ → map f τ₁ :×: map f τ₂
+    τ₁ :⊕: τ₂ → map f τ₁ :⊕: map f τ₂
+    τ₁ :⊗: τ₂ → map f τ₁ :⊗: map f τ₂
     τ₁ :&: τ₂ → map f τ₁ :&: map f τ₂
     (αks :* τ₁) :⊸: (s :* τ₂) → (αks :* map f τ₁) :⊸: (map f s :*  map f τ₂)
     (αks :* PArgs xτs) :⊸⋆: τ → (αks :* PArgs (map (mapPair (map f) (map f)) xτs)) :⊸⋆: map f τ
@@ -314,7 +362,7 @@ data SExp (p ∷ PRIV) where
   VarSE ∷ 𝕏 → SExp p
   LetSE ∷ 𝕏  → SExpSource p → SExpSource p → SExp p
   SFunSE ∷ 𝐿 (𝕏 ∧ Kind) → 𝕏  → TypeSource RExp → SExpSource p → SExp p
-  AppSE ∷ SExpSource p → 𝐿 RExp → SExpSource p → SExp p
+  AppSE ∷ SExpSource p → 𝐿 (TLExp RExp) → SExpSource p → SExp p
   PFunSE ∷ 𝐿 (𝕏 ∧ Kind) → 𝐿 (𝕏 ∧ TypeSource RExp) → PExpSource p → SExp p
   InlSE ∷ TypeSource RExp → SExpSource p → SExp p
   InrSE ∷ TypeSource RExp → SExpSource p → SExp p
