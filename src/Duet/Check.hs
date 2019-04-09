@@ -778,11 +778,12 @@ inferSens eA = case extract eA of
     τ₁ ← inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
     case τ₁ of
-      (ακs :* τ₁₁) :⊸: (ς :* τ₁₂) → do
-        -- build a list of triples of αs, τes, and κs
-        -- fail here if either of these things are the wrong length
-        let ατeκs = undefined 
-        mfoldWith  ατeκs (τ₁₁,ς,τ₁₂) $ \ (α :* τe :* κ) (τ₁₁',ς',τ₁₂') → do
+      (ακs :* τ₁₁) :⊸: (ς :* τ₁₂)
+        | (count fαs) ≡ (count τes) ≡ (count fκs) → do
+        let fαs = map fst ακs
+            fκs = map snd ακs
+            ατeκs = triples fαs τes fκs
+        r ← mfoldWith ατeκs (τ₁₁,ς,τ₁₂) $ \ (α :* τe :* κ) (τ₁₁',ς',τ₁₂') → do
           -- look at κ
           -- coerce τe into a η (RExp) or τ (Type) based on κ
           -- do substRExp if κ is a RExp, or substType if κ is a Type

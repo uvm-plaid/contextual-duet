@@ -1,4 +1,4 @@
-module Duet.UVMHS 
+module Duet.UVMHS
   ( module UVMHS
   , module Duet.UVMHS
   ) where
@@ -64,3 +64,20 @@ profile f x = do
   s₂ ← HS.getRTSStats
   let (n₂,u₂) = (HS.major_gcs s₂,HS.cumulative_live_bytes s₂)
   return (t₂ ⨺ t₁,dbl (HS.fromIntegral u₂ - HS.fromIntegral u₁ ∷ ℕ) / dbl (HS.fromIntegral n₂ - HS.fromIntegral n₁ ∷ ℕ))
+
+triplesWith ∷ (ToStream a t₁,ToStream b t₂,ToStream c t₃) ⇒ (a → b → c → d) → t₁ → t₂ → t₃ → 𝑆 d
+triplesWith f (stream → 𝑆 s₁₀ g₁) (stream → 𝑆 s₂₀ g₂) (stream → 𝑆 s₃₀ g₃) =
+  𝑆 (s₁₀ :* s₂₀ :* s₃₀) $ \ (s₁ :* s₂ :* s₃) → do
+    (x :* s₁') ← g₁ s₁
+    (y :* s₂') ← g₂ s₂
+    (z :* s₃') ← g₃ s₃
+    return $ f x y z :* (s₁' :* s₂' :* s₃')
+
+triples ∷ (ToStream a t₁,ToStream b t₂,ToStream c t₃) ⇒ t₁ → t₂ → t₃ → 𝑆 (a ∧ b ∧ c)
+triples = triplesWith cons3
+
+cons3 ∷ a → b → c → (a ∧ b ∧ c)
+cons3 a b c = a :* b :* c
+
+add3 ∷ (Plus a) ⇒ a → a → a → a
+add3 a b c = (a + b) + c
