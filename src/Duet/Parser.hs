@@ -155,6 +155,108 @@ parMExp mode = mixfixParser $ concat
   , mix $ MixTerminal $ VarME ^$ parVar
   ]
 
+parTLExp ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (TLExp RExp)
+parTLExp mode = mixfixParserWithContext "tlexp" $ concat
+  [ mixF $ MixFTerminal $ VarTE ^$ parVar
+  -- Type Stuff
+  , mixF $ MixFTerminal $ do
+      parLit "ℕ"
+      parLit "["
+      η ← parRExp
+      parLit "]"
+      return $ ℕˢTE η
+  , mixF $ MixFTerminal $ do
+      parLit "ℝ⁺"
+      parLit "["
+      η ← parRExp
+      parLit "]"
+      return $ ℝˢTE η
+  , mixF $ MixFTerminal $ const ℕTE ^$ parLit "ℕ"
+  , mixF $ MixFTerminal $ const ℝTE ^$ parLit "ℝ"
+  , mixF $ MixFTerminal $ const 𝔹TE ^$ parLit "𝔹"
+  , mixF $ MixFTerminal $ const 𝕊TE ^$ parLit "𝕊"
+  , mixF $ MixFTerminal $ do
+      parLit "𝕀"
+      parLit "["
+      η ← parRExp
+      parLit "]"
+      return $ 𝕀TE η
+  , mixF $ MixFTerminal $ do
+      parLit "𝕄"
+      parLit "["
+      ℓ ← parNorm
+      parLit ","
+      c ← parClip
+      parLit "|"
+      ηₘ ← parRowsT
+      parLit ","
+      ηₙ ← parMExp mode
+      parLit "]"
+      return $ 𝕄TE ℓ c ηₘ ηₙ
+  -- , mixF $ MixFTerminal $ do
+  --     parLit "𝔻"
+  --     return $ 𝔻TE ℝTE
+  , mixF $ MixFTerminal $ do
+      parLit "℘"
+      parLit "("
+      τe ← parTLExp mode
+      parLit ")"
+      return $ SetTE τe
+  -- TODO: support parsing sensitivity and clip
+  , mixF $ MixFPrefix 6 $ const (𝔻TE) ^$ parLit "𝐝"
+  , mixF $ MixFInfixL 3 $ const (:⊕♭:) ^$ parLit "+"
+  , mixF $ MixFInfixL 4 $ const (:⊗♭:) ^$ parLit "×"
+  , mixF $ MixFInfixL 4 $ const (:&♭:) ^$ parLit "&"
+  , mixF $ MixFPrefix 2 $ do
+      parLit "∀"
+      ακs ← pManySepBy (parLit ",") $ do
+        α ← parVar
+        parLit ":"
+        κ ← parKind
+        return $ α :* κ
+      parLit "."
+      τ₁ ← parTLExp mode
+      parLit "⊸"
+      parLit "["
+      s ← parSens
+      parLit "]"
+      return $ \ τ₂ → (ακs :* τ₁) :⊸♭: (s :* τ₂)
+  , mixF $ MixFPrefix 2 $ do
+      parLit "∀"
+      ακs ← pManySepBy (parLit ",") $ do
+        α ← parVar
+        parLit ":"
+        κ ← parKind
+        return $ α :* κ
+      parLit "."
+      τps ← pOneOrMoreSepBy (parLit ",") $ do
+        τ ← parType mode
+        parLit "@"
+        p ← parPriv mode
+        return $ τ :* p
+      return $ (:⊸⋆♭:) $ ακs :* PArgs τps
+  , mixF $ MixFPrefix 3 $ do
+      parLit "box"
+      parLit "["
+      xηs ← pManySepBy (parLit ",") $ do
+        x ← parVar
+        parLit "@"
+        η ← parRExp
+        return (x :* η)
+      parLit "]"
+      return $ \ τ → BoxedTE (map ι $ assoc xηs) τ
+  -- RExp Stuff
+  , mixF $ MixFTerminal $ NatTE ^$ parNat
+  , mixF $ MixFTerminal $ NNRealTE ^$ parNNDbl
+  , mixF $ MixFInfixL 2 $ const MaxTE ^$ parLit "⊔"
+  , mixF $ MixFInfixL 3 $ const MinTE ^$ parLit "⊓"
+  , mixF $ MixFInfixL 4 $ const PlusTE ^$ parLit "+"
+  , mixF $ MixFInfixL 5 $ const TimesTE ^$ parLit "⋅"
+  , mixF $ MixFInfixL 6 $ const DivTE ^$ parLit "/"
+  , mixF $ MixFPrefix 7 $ const RootTE ^$ parLit "√"
+  , mixF $ MixFPrefix 7 $ const LogTE ^$ parLit "㏒"
+  ]
+
 parRExp ∷ Parser Token RExp
 parRExp = mixfixParserWithContext "rexp" $ concat
   [ mixF $ MixFTerminal $ VarRE ^$ parVar
@@ -272,8 +374,8 @@ parType mode = mixfixParser $ concat
   -- TODO: support parsing sensitivity and clip
   , mix $ MixPrefix 6 $ const (BagT L1 UClip) ^$ parLit "bag"
   , mix $ MixPrefix 6 $ const (𝔻T) ^$ parLit "𝐝"
-  , mix $ MixInfixL 3 $ const (:+:) ^$ parLit "+"
-  , mix $ MixInfixL 4 $ const (:×:) ^$ parLit "×"
+  , mix $ MixInfixL 3 $ const (:⊕:) ^$ parLit "+"
+  , mix $ MixInfixL 4 $ const (:⊗:) ^$ parLit "×"
   , mix $ MixInfixL 4 $ const (:&:) ^$ parLit "&"
   , mix $ MixPrefix 2 $ do
       parLit "∀"
@@ -608,10 +710,10 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
   , mixF $ MixFInfixL 10 $ do
        parLit "@"
        parLit "["
-       ks ← pManySepBy (parLit ",") $ parRExp
+       τes ← pManySepBy (parLit ",") $ parTLExp p
        parLit "]"
        parSpace
-       return $ \ e₁ e₂ → AppSE e₁ ks e₂
+       return $ \ e₁ e₂ → AppSE e₁ τes e₂
   , mixF $ MixFPrefix 1 $ do
       parLit "sλ"
       ακs ← pManySepBy (parLit ",") $ do

@@ -761,7 +761,7 @@ inferSens eA = case extract eA of
   --                 fκs = map snd ακs
   --                 αηs = zip fαs η's
   --                 subT ∷ Type RNF → Type RNF
-  --                 subT τ' = fold τ' (\ (α :* η) τ'' → substType α η τ'') αηs
+  --                 subT τ' = fold τ' (\ (α :* η) τ'' → substRExp α η τ'') αηs
   --                 subP ∷ Priv p' RNF → Priv p' RNF
   --                 subP p = fold p (\ (α :* η) p' → map (substRNF α η) p') αηs
   --                 τps' = mapOn τps $ \ (τ' :* p) → (subT τ' :* subP p)
@@ -779,38 +779,43 @@ inferSens eA = case extract eA of
     σ₂ :* τ₂ ← hijack $ inferSens e₂
     case τ₁ of
       (ακs :* τ₁₁) :⊸: (ς :* τ₁₂)
-        | (count fαs) ≡ (count τes) ≡ (count fκs) → do
+        | (count ακs) ≡ (count τes) → do
         let fαs = map fst ακs
             fκs = map snd ακs
             ατeκs = triples fαs τes fκs
         r ← mfoldWith ατeκs (τ₁₁,ς,τ₁₂) $ \ (α :* τe :* κ) (τ₁₁',ς',τ₁₂') → do
           -- look at κ
-          -- coerce τe into a η (RExp) or τ (Type) based on κ
-          -- do substRExp if κ is a RExp, or substType if κ is a Type
-          -- on each of τ₁₁',ς',τ₁₂'
-          let η's = map normalizeRExp ηs
-          ηκs ← mapM (inferKind ∘ extract) ηs
-          let fαs = map fst ακs
-              fκs = map snd ακs
-              αηs = zip fαs η's
-              subT ∷ Type RNF → Type RNF
-              subT τ' = fold τ' (\ (α :* η) τ'' → substType α η τ'') αηs
-              subS ∷ Sens RNF → Sens RNF
-              subS p = fold p (\ (α :* η) p' → map (substRNF α η) p') αηs
-              τ₁₁' = subT τ₁₁
-              ς' = subS ς
-          case (ηκs ≡ fκs) ⩓ (τ₂ ≡ τ₁₁') of
+          case (κ ≡ TypeK) of
+            -- coerce τe into a η (RExp) or τ (Type) based on κ
             True → do
-              tell $ ς' ⨵ σ₂
-              return $ subT τ₁₂
-            False → error $ concat
-              [ "AppSE error: "
-              , pprender (τ₂ :* τ₁₁')
-              , "\n"
-              , pprender (ηκs :* fκs)
-              , "\n"
-              , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-              ]
+              case checkTypeLang τe of
+                None → undefined
+                Some τk → do
+                  -- substType if κ is a Type
+                  (substType α τk τ₁₁',ς',substType α τk τ₁₂')
+            False → do
+              case checkRExpLang τe of
+                None → undefined
+                Some τk → do
+                  -- do substRExp if κ is a RExp
+                  -- on each of τ₁₁',ς',τ₁₂'
+                  (substRExp α (normalizeRExp τk) τ₁₁',map (substRNF α (normalizeRExp τk)) ς',substRExp α (normalizeRExp τk) τ₁₂')
+        case r of
+          (τ₁₁'',ς'',τ₁₂'') → do
+            -- let η's = map normalizeRExp ηs
+            -- ηκs ← mapM (inferKind ∘ extract) ηs
+            case {- (ηκs ≡ fκs) ⩓ -} (τ₂ ≡ τ₁₁'') of
+              True → do
+                tell $ ς'' ⨵ σ₂
+                return τ₁₂''
+              False → error $ concat
+                [ "AppSE error: "
+                , pprender (τ₂ :* τ₁₁'')
+                , "\n"
+                -- , pprender (ηκs :* fκs)
+                -- , "\n"
+                , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+                ]
       _ → error $ concat
             [ "AppSE error: "
             , pprender (τ₁ :* τ₂)
@@ -1205,7 +1210,7 @@ inferPriv eA = case extract eA of
                   fκs = map snd ακs
                   αηs = zip fαs η's
                   subT ∷ Type RNF → Type RNF
-                  subT τ' = fold τ' (\ (α :* η) τ'' → substType α η τ'') αηs
+                  subT τ' = fold τ' (\ (α :* η) τ'' → substRExp α η τ'') αηs
                   subP ∷ Priv p' RNF → Priv p' RNF
                   subP p = fold p (\ (α :* η) p' → map (substRNF α η) p') αηs
                   τps' = mapOn τps $ \ (τ' :* p) → (subT τ' :* subP p)
@@ -1733,19 +1738,44 @@ fac n = n × (fac (n - one))
 choose :: RNF → RNF → RNF
 choose n k = (fac n) / ((fac k) × (fac (n - k)))
 
-substType ∷ 𝕏 → RNF → Type RNF → Type RNF
-substType x r τ = substTypeR pø x r (fvRNF r) τ
+substType ∷ 𝕏 → Type RNF → Type RNF → Type RNF
+substType x r τ = substTypeR pø x r pø τ
+
+substTypeR ∷ 𝑃 𝕏 → 𝕏 → Type RNF → 𝑃 𝕏 → Type RNF → Type RNF
+substTypeR 𝓈 x r' fv = \case
+  SetT τ → SetT $ substTypeR 𝓈 x r' fv τ
+  -- 𝕄T ℓ c rs me →
+  --   let rs' = case rs of
+  --         RexpRT r → RexpRT $ substRNF x (renameRNF (renaming 𝓈 fv) r') r
+  --         StarRT → StarRT
+  --   in 𝕄T ℓ c rs' $ substMExpR 𝓈 x r' fv me
+  𝔻T τ → 𝔻T $ substTypeR 𝓈 x r' fv τ
+  τ₁ :⊕: τ₂ → substTypeR 𝓈 x r' fv τ₁ :⊕: substTypeR 𝓈 x r' fv τ₂
+  τ₁ :⊗: τ₂ → substTypeR 𝓈 x r' fv τ₁ :⊗: substTypeR 𝓈 x r' fv τ₂
+  τ₁ :&: τ₂ → substTypeR 𝓈 x r' fv τ₁ :&: substTypeR 𝓈 x r' fv τ₂
+  (ακs :* τ₁) :⊸: (s :* τ₂) →
+    (ακs :* substTypeR 𝓈 x r' fv τ₁) :⊸: (s :* substTypeR 𝓈 x r' fv τ₂)
+  -- (ακs :* PArgs args) :⊸⋆: τ →
+  --   let 𝓈' = joins [𝓈,pow $ map fst ακs]
+  --   in (ακs :* PArgs (mapOn args $ \ (τ' :* p) → substRExpR 𝓈' x r' fv τ' :* p)) :⊸⋆: substRExpR 𝓈' x r' fv τ
+  -- BoxedT γ τ → BoxedT (mapp (substRNF x (renameRNF (renaming 𝓈 fv) r')) γ) (substRExpR 𝓈 x r' fv τ)
+  VarT x' → case (x ≡ x') of
+    True → r'
+    False → VarT x'
+
+substRExp ∷ 𝕏 → RNF → Type RNF → Type RNF
+substRExp x r τ = substRExpR pø x r (fvRNF r) τ
 
 substMExpR ∷ 𝑃 𝕏 → 𝕏 → RNF → 𝑃 𝕏 → MExp RNF → MExp RNF
 substMExpR 𝓈 x r' fv = \case
   EmptyME → EmptyME
   VarME x' → VarME x'
-  ConsME τ me → ConsME (substTypeR 𝓈 x r' fv τ) (substMExpR 𝓈 x r' fv me)
+  ConsME τ me → ConsME (substRExpR 𝓈 x r' fv τ) (substMExpR 𝓈 x r' fv me)
   AppendME me₁ me₂ → AppendME (substMExpR 𝓈 x r' fv me₁) (substMExpR 𝓈 x r' fv me₂)
-  RexpME r τ → RexpME (substRNF x (renameRNF (renaming 𝓈 fv) r') r) (substTypeR 𝓈 x r' fv τ)
+  RexpME r τ → RexpME (substRNF x (renameRNF (renaming 𝓈 fv) r') r) (substRExpR 𝓈 x r' fv τ)
 
-substTypeR ∷ 𝑃 𝕏 → 𝕏 → RNF → 𝑃 𝕏 → Type RNF → Type RNF
-substTypeR 𝓈 x r' fv = \case
+substRExpR ∷ 𝑃 𝕏 → 𝕏 → RNF → 𝑃 𝕏 → Type RNF → Type RNF
+substRExpR 𝓈 x r' fv = \case
   ℕˢT r → ℕˢT $ substRNF x (renameRNF (renaming 𝓈 fv) r') r
   ℝˢT r → ℝˢT $ substRNF x (renameRNF (renaming 𝓈 fv) r') r
   ℕT → ℕT
@@ -1753,236 +1783,20 @@ substTypeR 𝓈 x r' fv = \case
   𝕀T r → 𝕀T $ substRNF x (renameRNF (renaming 𝓈 fv) r') r
   𝔹T → 𝔹T
   𝕊T → 𝕊T
-  SetT τ → SetT $ substTypeR 𝓈 x r' fv τ
+  SetT τ → SetT $ substRExpR 𝓈 x r' fv τ
   𝕄T ℓ c rs me →
     let rs' = case rs of
           RexpRT r → RexpRT $ substRNF x (renameRNF (renaming 𝓈 fv) r') r
           StarRT → StarRT
     in 𝕄T ℓ c rs' $ substMExpR 𝓈 x r' fv me
-  𝔻T τ → 𝔻T $ substTypeR 𝓈 x r' fv τ
-  τ₁ :⊕: τ₂ → substTypeR 𝓈 x r' fv τ₁ :⊕: substTypeR 𝓈 x r' fv τ₂
-  τ₁ :⊗: τ₂ → substTypeR 𝓈 x r' fv τ₁ :⊗: substTypeR 𝓈 x r' fv τ₂
-  τ₁ :&: τ₂ → substTypeR 𝓈 x r' fv τ₁ :&: substTypeR 𝓈 x r' fv τ₂
+  𝔻T τ → 𝔻T $ substRExpR 𝓈 x r' fv τ
+  τ₁ :⊕: τ₂ → substRExpR 𝓈 x r' fv τ₁ :⊕: substRExpR 𝓈 x r' fv τ₂
+  τ₁ :⊗: τ₂ → substRExpR 𝓈 x r' fv τ₁ :⊗: substRExpR 𝓈 x r' fv τ₂
+  τ₁ :&: τ₂ → substRExpR 𝓈 x r' fv τ₁ :&: substRExpR 𝓈 x r' fv τ₂
   (ακs :* τ₁) :⊸: (s :* τ₂) →
     let 𝓈' = joins [𝓈,pow $ map fst ακs]
-    in (ακs :* substTypeR 𝓈' x r' fv τ₁) :⊸: (map (substRNF x (renameRNF (renaming 𝓈' fv) r')) s :* substTypeR 𝓈' x r' fv τ₂)
+    in (ακs :* substRExpR 𝓈' x r' fv τ₁) :⊸: (map (substRNF x (renameRNF (renaming 𝓈' fv) r')) s :* substRExpR 𝓈' x r' fv τ₂)
   (ακs :* PArgs args) :⊸⋆: τ →
     let 𝓈' = joins [𝓈,pow $ map fst ακs]
-    in (ακs :* PArgs (mapOn args $ \ (τ' :* p) → substTypeR 𝓈' x r' fv τ' :* p)) :⊸⋆: substTypeR 𝓈' x r' fv τ
-  BoxedT γ τ → BoxedT (mapp (substRNF x (renameRNF (renaming 𝓈 fv) r')) γ) (substTypeR 𝓈 x r' fv τ)
-
--- infraRed :: PExp -> KEnv → TEnv -> (TypeSource RNF, PEnv)
---
--- infraRed (PBindE x e₁ e₂) δ γ =
---     let (τ₁, pγ₁) = infraRed e₁ δ γ
---         (τ₂, pγ₂) = infraRed e₂ δ $ (x ↦ τ₁) ⩌ γ
---     in
---     (τ₂, pγ₁ `privAddEnv` pγ₂)
---
---
--- infraRed (PAppE αs e el) δ tenv =
---     let (t, senv) = infer e δ tenv
---     in
---        case t of
---             PFunT aks tps t' ->
---                 let ks  = map (kinferRNF δ) (map normalizeRExp αs)
---                 in
---                 case (elem Nothing ks, iterType el (map fst tps) tenv) of
---                      (False, True) -> (t', privAddEnv (Map.fromList (zip el (map snd tps))) (privMultEnv InfP (privSensCrossEnv senv)) )
---                      (_,_ ) -> error "type error"
---             _ -> error "type error"
--- -- case (e, t) of --      (SPFunE vtl e', PFunT tpl t') -> --        let tl = map fst tpl --            pl = map snd tpl --            vl = map fst vtl
---     --        in undefined
---     --       -- old stuff...
---     --            -- if (iterType el tl tenv)
---     --            --     then (t', (iterPrivU vl pl))
---     --            --     else error "type error"
---
--- -- TODO: actually typecheck that x₁ is a nat
--- infraRed (PLoopE x1 x2 x3 xs x₁ x₂ e) δ tenv =
---     let (t1, senv1) = infer x1 δ tenv
---         (t2, senv2) = infer x2 δ tenv
---         (t3, senv3) = infer x3 δ tenv
---         (t', penv) = infraRed e δ (Map.insert x₁ NatT (Map.insert x₂ t3 tenv))
---         in case (t1, t2, t3 == t', maxPriv (Map.restrictKeys penv (pow xs))) of
---                 (SingNNRealT d1, SingNatT n, True, EDPriv ep d) ->
---                     let ep' =
---                           NatRNF 2
---                           `timesRNF`
---                           ep
---                           `timesRNF`
---                           rootRNF (NatRNF 2
---                                    `timesRNF`
---                                    n
---                                    `timesRNF`
---                                    logRNF (invRNF d1))
---                         d' = (d1 `plusRNF` (n `timesRNF` d))
---                     in (t',(privAddEnv (privMultEnv InfP (privSensCrossEnv senv3))  (privMultEnv (EDPriv ep' d') (privCrossEnv penv))))
---                 (_,_,_,a) -> error $ "type error" ++ (show (t1, t2, t3 == t', (Map.restrictKeys penv (pow xs))))
---
--- infraRed (PSampleE se x1 x2 v1 v2 e) δ tenv =
---     let (t, senv) = infer se δ tenv
---         t1 = tenv Map.! x1
---         t2 = tenv Map.! x2
---         senv' = (privMultEnv InfP (privSensCrossEnv senv))
---     in case (t, t1, t2) of
---             (SingNatT n'', MatrixT l c m n t3, MatrixT l' c' m' n' t4) ->
---                 let (t5, penv) = infraRed e δ (Map.insert v1 (MatrixT l c n'' n t3) (Map.insert v2 (MatrixT l' c' n'' n' t4) tenv))
---                     p1 = penv Map.! v1
---                     p2 = penv Map.! v2
---                     ep = NatRNF 2 `timesRNF` n'' `timesRNF` invRNF m
---                     d =  n'' `timesRNF` invRNF m
---                     priv1 = privMult p1 (EDPriv ep d)
---                     priv2 = privMult p2 (EDPriv ep d)
---                     penv' = (privAddEnv (privMultEnv (EDPriv (NatRNF 0) (NatRNF 0)) (privSensCrossEnv senv)) (Map.insert x2 priv2 (Map.insert x1 priv1 penv)))
---                 in
---                   if NatRNF 0 ⊑ n''   && {-n ⊑ m  &&-}  m == m'
---                     then (t5, penv')
---                     else error $ "type error" ++ Prelude.unlines (map (\x -> (chars $ sho x) ++ "\n") (Map.toList penv'))
---             (_,_,_) -> error $ "type error" ++(show (t, t1, t2))
---
---
--- infraRed (PRandNatE e1 e2) δ tenv =
---     let (t1, senv1) = infer e1 δ tenv
---         (t2, senv2) = infer e2 δ tenv
---     in case (t1, t2) of
---             (NatT, NatT) -> (NatT, privMultEnv InfP (privSensCrossEnv senv1))
---             (_,_) -> error $ "type error" ++ (show (t1, t2))
---
--- infraRed (PGaussE e1 e2 e3 xs e4) δ tenv =
---     let (t1, senv1) = infer e1 δ tenv
---         (t2, senv2) = infer e2 δ tenv
---         (t3, senv3) = infer e3 δ tenv
---         (t4, senv4) = infer e4 δ tenv
---         r = maxSens (Map.restrictKeys senv4 (Set.fromList xs))
---     in
---     case (t1, t2, t3, t4, r) of
---          (SingNNRealT r1, SingNNRealT ep, SingNNRealT delt, RealT, RealSens r') ->
---             if r' ⊑ r1
---                 then (RealT, privAddEnv (privMultEnv InfP (privSensCrossEnv senv1)) (privMultEnv (EDPriv ep delt) (privSensCrossEnv senv4)))
---                 else error "type error"
---          (SingNNRealT r1, SingNNRealT ep, SingNNRealT delt, RealT, InfS) ->
---             (RealT, privAddEnv (privMultEnv InfP (privSensCrossEnv senv1)) (privMultEnv (EDPriv ep delt) (privSensCrossEnv senv4)))
---          (_,_,_,_,_) -> error $ "type error" ++ (show (t1, t2, t3, t4, r))
---
--- infraRed (PMGaussE e1 e2 e3 xs e4) δ tenv =
---     let (t1, senv1) = infer e1 δ tenv
---         (t2, senv2) = infer e2 δ tenv
---         (t3, senv3) = infer e3 δ tenv
---         (t4, senv4) = infer e4 δ tenv
---         r = maxSens (Map.restrictKeys senv4 (Set.fromList xs))
---     in
---     case (t4, t1, t2, t3, r) of
---          (MatrixT L2  c m n RealT, SingNNRealT r1, SingNNRealT e, SingNNRealT d, RealSens r') ->
---            if r' ⊑ r1
---              then (MatrixT L2 c m n RealT, privAddEnv (privMultEnv InfP (privSensCrossEnv senv1)) (privMultEnv (EDPriv e d) (privSensCrossEnv senv4)))
---              else error $ "type error" ++ show (prettyRNF r',prettyRNF r1)
---          (_,_,_,_,_) -> error $ "type error" ++ (show (t4, t1, t2, t3, r))
---
---
---
--- infraRed (PLaplaceE e1 e2 xs e3) δ tenv =
---     let (t1, senv1) = infer e1 δ tenv
---         (t2, senv2) = infer e2 δ tenv
---         (t3, senv3) = infer e3 δ tenv
---         r = maxSens (Map.restrictKeys senv3 (Set.fromList xs))
---     in
---     case (t1, t2, t3, r) of
---          (SingNNRealT r1, SingNNRealT ep, RealT, RealSens r') ->
---             if r1 > r'
---                 then (RealT, privAddEnv (privMultEnv (EDPriv ep (NatRNF 0)) (privSensCrossEnv senv3)) (privMultEnv InfP (privSensCrossEnv senv1)))
---                 else error "type error"
---          (SingNNRealT r1, SingNNRealT ep, RealT, InfS) ->
---             (RealT, privAddEnv (privMultEnv (EDPriv ep (NatRNF 0)) (privSensCrossEnv senv3)) (privMultEnv InfP (privSensCrossEnv senv1)))
---          (_,_,_,_) -> error "type error"
---
--- infraRed (PExpE e1 e2 e3 v4 e) δ tenv =
---     let (t1, senv1) = infer e1 δ tenv
---         (t2, senv2) = infer e2 δ tenv
---         (t3, senv3) = infer e3 δ tenv
---     in
---     case (t1, t2, t3) of
---          (SingNNRealT r1, SingNNRealT ep, MatrixT ℓ c r''' n' tm)
---            -- TODO: fix this check
---            | r''' == NatRNF 1 ->
---             let (t, senv) = infer e δ (Map.insert v4 tm tenv)
---                 s = maxSens senv
---             in  case s of
---                      RealSens r' ->
---                         if r1 > r'
---                             then (tm, privAddEnv (privMultEnv (EDPriv ep (NatRNF 0)) (privSensCrossEnv senv)) (privMultEnv InfP (privSensCrossEnv senv1 )))
---                             else error "type error"
---                      InfS -> (tm, privAddEnv (privMultEnv (EDPriv ep (NatRNF 0)) (privSensCrossEnv senv)) (privMultEnv InfP (privSensCrossEnv senv1 )))
---          (_,_,_) -> error "type error"
---
--- infraRed (PRRespE e1 e2 xs e3) δ tenv =
---     let (t1, senv1) = infer e1 δ tenv
---         (t2, senv2) = infer e2 δ tenv
---         (t3, senv3) = infer e3 δ tenv
---         r = maxSens (Map.restrictKeys senv3 (Set.fromList xs))
---     in
---     case (t1, t2, t3) of
---          (SingNatT n, SingNNRealT ep, NatT) ->
---                if r ⊑ (RealSens n)
---                 then (NatT, privAddEnv (privMultEnv (EDPriv ep (NatRNF 0)) (privSensCrossEnv senv3)) (privMultEnv InfP (privSensCrossEnv senv1)))
---                 else error "type error"
---          (_,_,_) -> error "type error"
---
--- infraRed (PReturnE e) δ γ =
---     let (t, sγ) = infer e δ γ in
---     (t, InfP `privMultEnv` privSensCrossEnv sγ)
---
---
--- iterType :: [Var] -> [TypeSource RNF] -> TEnv  -> Bool
--- iterType vl tl tenv = case (vl,tl) of
---      ([],[]) -> True
---      (v:vl',t:tl') ->  (tenv Map.! v  == t) && (iterType vl' tl' tenv)
---      (_,_) -> False
---
--- -- iterPrivU :: [Var] -> [Priv] -> PEnv
--- -- iterPrivU vl pl = case (vl,pl) of
--- --     ([],[]) -> Map.empty
--- --     (v:vl',p:pl') -> Map.insert v p (iterPrivU vl' pl')
--- --     (_,_) -> error "list error"
---
---
---
--- -- iterSens :: PEnv -> [Var] -> [Priv]
--- -- iterSens penv varl = case varl of
--- --     [] -> []
--- --     v:varl' -> (penv Map.! v):(iterSens penv varl')
---
--- -- iterU :: [Var] -> [TypeSource] -> TEnv
--- -- iterU varl typl = case (varl, typl) of
--- --     ([],[]) -> Map.empty
--- --     (v:varl', t:typl') -> Map.insert v t (iterU varl' typl')
--- --     (_,_) -> error "list error"
---
--- γø = Map.insert "sign" (SFunT NatT (RealSens $ RealRNF 1.0) NatT) dø
---
--- main :: IO ()
--- main = do
---   fns ← getArgs
---   each fns $ \ fn → do
---       e ←  read ^$ chars ^$ (CustomPrelude.readFile ("examples/" ⧺ fn ⧺ ".raw"))
---       shout e
---       let (PFunT αks τps τ,sγ) = infer e dø γø
---       shout τ
---       shout sγ
---       out "--------------------------------------------"
---       each (zip αks τps) $ \case
---         ((v,k),(τ,InfP)) → do
---           out $ "\n Var:  " ⧺ v
---           out $ "TypeSource: " ⧺ sho τ
---           out $ "(ε,δ) privacy bound: " ⧺ "∞"
---         ((v,k),(τ,EDPriv ε δ)) → do
---           out $ "\n Var:  " ⧺ v
---           out $ "TypeSource: " ⧺ sho τ
---           out $ "(ε,δ) privacy bound: " ⧺ prettyRNF ε ⧺ ", " ⧺ prettyRNF δ
---
---   -- undefined
---     -- putStrLn $ show (sgdTest "xs" "ys")
---     -- putStrLn $ show $ infraRed (sgdTest "xs" "ys") env
---   -- e = λ(x:nat).x
---   -- putStrLn $ show $ infer (FunE "x" NatT (VarE "x")) Map.empty
---   -- putStrLn $ show $ infer (FunE "x" NatT (VarE "y")) Map.empty
+    in (ακs :* PArgs (mapOn args $ \ (τ' :* p) → substRExpR 𝓈' x r' fv τ' :* p)) :⊸⋆: substRExpR 𝓈' x r' fv τ
+  BoxedT γ τ → BoxedT (mapp (substRNF x (renameRNF (renaming 𝓈 fv) r')) γ) (substRExpR 𝓈 x r' fv τ)
