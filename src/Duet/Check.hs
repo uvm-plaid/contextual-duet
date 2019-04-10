@@ -126,7 +126,7 @@ pmFromSM xM = mkPM $ \ δ γ ᴍ → mapInr (mapFst $ map $ Priv ∘ truncate In
 mapPPM ∷ (Priv p₁ RNF → Priv p₂ RNF) → PM p₁ a → PM p₂ a
 mapPPM f xM = mkPM $ \ δ γ ᴍ → mapInr (mapFst $ map f) $ runPM δ γ ᴍ xM
 
-checkTypeLang ∷ TLExp RExpPre → 𝑂 (Type RExpPre)
+checkTypeLang ∷ TLExp RExp → 𝑂 (Type RExp)
 checkTypeLang e₀ = case extract e₀ of
   VarTE x → return $ VarT x
   ℕˢTE r → return $ ℕˢT r
@@ -783,23 +783,24 @@ inferSens eA = case extract eA of
         let fαs = map fst ακs
             fκs = map snd ακs
             ατeκs = triples fαs τes fκs
-        r ← mfoldWith ατeκs (τ₁₁,ς,τ₁₂) $ \ (α :* τe :* κ) (τ₁₁',ς',τ₁₂') → do
-          -- look at κ
-          case (κ ≡ TypeK) of
-            -- coerce τe into a η (RExp) or τ (Type) based on κ
-            True → do
-              case checkTypeLang τe of
-                None → undefined
-                Some τk → do
-                  -- substType if κ is a Type
-                  (substType α τk τ₁₁',ς',substType α τk τ₁₂')
-            False → do
-              case checkRExpLang τe of
-                None → undefined
-                Some τk → do
-                  -- do substRExp if κ is a RExp
-                  -- on each of τ₁₁',ς',τ₁₂'
-                  (substRExp α (normalizeRExp τk) τ₁₁',map (substRNF α (normalizeRExp τk)) ς',substRExp α (normalizeRExp τk) τ₁₂')
+        let r = foldWith ατeκs (τ₁₁,ς,τ₁₂) $ \ (α :* τe :* κ) (τ₁₁',ς',τ₁₂') →
+              -- look at κ
+              case (κ ≡ TypeK) of
+                -- coerce τe into a η (RExp) or τ (Type) based on κ
+                True → do
+                  case checkTypeLang τe of
+                    None → undefined
+                    Some τk → do
+                      let τk' = map normalizeRExp τk
+                      -- substType if κ is a Type
+                      (substType α τk' τ₁₁',ς',substType α τk' τ₁₂')
+                False → do
+                  case checkRExpLang τe of
+                    None → undefined
+                    Some τk → do
+                      -- do substRExp if κ is a RExp
+                      -- on each of τ₁₁',ς',τ₁₂'
+                      (substRExp α (normalizeRExp τk) τ₁₁',map (substRNF α (normalizeRExp τk)) ς',substRExp α (normalizeRExp τk) τ₁₂')
         case r of
           (τ₁₁'',ς'',τ₁₂'') → do
             -- let η's = map normalizeRExp ηs
@@ -809,7 +810,7 @@ inferSens eA = case extract eA of
                 tell $ ς'' ⨵ σ₂
                 return τ₁₂''
               False → error $ concat
-                [ "AppSE error: "
+                [ "AppSE error 1: "
                 , pprender (τ₂ :* τ₁₁'')
                 , "\n"
                 -- , pprender (ηκs :* fκs)
@@ -817,7 +818,7 @@ inferSens eA = case extract eA of
                 , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
                 ]
       _ → error $ concat
-            [ "AppSE error: "
+            [ "AppSE error 2: "
             , pprender (τ₁ :* τ₂)
             , "\n"
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
@@ -1743,6 +1744,13 @@ substType x r τ = substTypeR pø x r pø τ
 
 substTypeR ∷ 𝑃 𝕏 → 𝕏 → Type RNF → 𝑃 𝕏 → Type RNF → Type RNF
 substTypeR 𝓈 x r' fv = \case
+  ℕˢT r → ℕˢT r
+  ℝˢT r → ℝˢT r
+  ℕT → ℕT
+  ℝT → ℝT
+  𝕀T r → 𝕀T r
+  𝔹T → 𝔹T
+  𝕊T → 𝕊T
   SetT τ → SetT $ substTypeR 𝓈 x r' fv τ
   -- 𝕄T ℓ c rs me →
   --   let rs' = case rs of
@@ -1762,6 +1770,7 @@ substTypeR 𝓈 x r' fv = \case
   VarT x' → case (x ≡ x') of
     True → r'
     False → VarT x'
+  τ → error $ pprender τ
 
 substRExp ∷ 𝕏 → RNF → Type RNF → Type RNF
 substRExp x r τ = substRExpR pø x r (fvRNF r) τ

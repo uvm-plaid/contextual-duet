@@ -20,7 +20,7 @@ makePrettyUnion ''Token
 tokKeywords ∷ 𝐿 𝕊
 tokKeywords = list
   ["let","in","sλ","pλ","return","on"
-  ,"ℕ","ℝ","ℝ⁺","𝔻","𝕀","𝕄","𝔻𝔽","𝔹","𝕊","★","∷","⋅","[]","⧺","☆K"
+  ,"ℕ","ℝ","ℝ⁺","𝔻","𝕀","𝕄","𝔻𝔽","𝔹","𝕊","★","∷","⋅","[]","⧺","☆"
   ,"∀"
   ,"LR","L2","U"
   ,"real","bag","set","record", "unionAll"
@@ -128,7 +128,7 @@ parKind ∷ Parser Token Kind
 parKind = pNew "kind" $ tries
   [ do parLit "ℕ" ; return ℕK
   , do parLit "ℝ⁺" ; return ℝK
-  , do parLit "☆K" ; return TypeK
+  , do parLit "☆" ; return TypeK
   ]
 
 parRowsT :: Parser Token (RowsT RExp)
@@ -255,6 +255,18 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
   , mixF $ MixFInfixL 6 $ const DivTE ^$ parLit "/"
   , mixF $ MixFPrefix 7 $ const RootTE ^$ parLit "√"
   , mixF $ MixFPrefix 7 $ const LogTE ^$ parLit "㏒"
+  -- Quantity Stuff
+  , mixF $ MixFTerminal $ do parLit "⊥" ; return BotTE
+  , mixF $ MixFTerminal $ do parLit "⊤" ; return TopTE
+  -- Privacy Stuff
+  -- , mixF $ MixFTerminal $ -- ⟨ tle , tle ⟩ 
+  ]
+
+parSens ∷ Parser Token (Sens RExp)
+parSens = tries
+  [ do parLit "⊥" ; return $ Sens Zero
+  , do parLit "⊤" ; return $ Sens Inf
+  , do η ← parRExp ; return $ Sens $ Quantity η
   ]
 
 parRExp ∷ Parser Token RExp
@@ -283,9 +295,6 @@ parClip = tries
   [ do NormClip ^$ parNorm
   , do const UClip ^$ parLit "U"
   ]
-
-parSens ∷ Parser Token (Sens RExp)
-parSens = Sens ∘ Quantity ^$ parRExp
 
 parPriv ∷ PRIV_W p → Parser Token (Priv p RExp)
 parPriv = undefined

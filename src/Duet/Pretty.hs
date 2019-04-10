@@ -39,7 +39,7 @@ instance Pretty Kind where
   pretty = \case
     ℕK → ppKeyPun "ℕ"
     ℝK → ppKeyPun "ℝ⁺"
-    TypeK → ppKeyPun "☆K"
+    TypeK → ppKeyPun "☆"
 
 
 instance Pretty Norm where

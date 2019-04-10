@@ -6,18 +6,6 @@ import Duet.UVMHS
 import Duet.Quantity
 import Duet.RNF
 
-data Kind =
-    ℕK
-  | ℝK
-  | TypeK
-  deriving (Eq,Ord,Show)
-
-instance POrd Kind where
-  ℕK ⊑ ℕK = True
-  ℕK ⊑ ℝK = True
-  ℝK ⊑ ℝK = True
-  _ ⊑ _ = False
-
 data Norm = L1 | L2 | LInf
   deriving (Eq,Ord,Show)
 
@@ -42,7 +30,12 @@ instance (HasPrism (Quantity r) s) ⇒ HasPrism (Sens r) s where
     , view = view hasPrism ∘ unSens
     }
 
-data PRIV = EPS | ED | RENYI | ZC | TC
+data PRIV = 
+    EPS 
+  | ED 
+  | RENYI 
+  | ZC 
+  | TC
   deriving (Eq,Ord,Show)
 
 data PRIV_W (p ∷ PRIV) where
@@ -191,6 +184,21 @@ instance Functor MExp where
     AppendME n m → AppendME (map f n) (map f m)
     RexpME r τ → RexpME (f r) (map f τ)
 
+data Kind =
+    ℕK
+  | ℝK
+  | SensK
+  | PrivK PRIV
+  | TypeK
+  deriving (Eq,Ord,Show)
+
+-- DAVID HATES THIS
+instance POrd Kind where
+  ℕK ⊑ ℕK = True
+  ℕK ⊑ ℝK = True
+  ℝK ⊑ ℝK = True
+  _ ⊑ _ = False
+
 type TypeSource r = Annotated FullContext (Type r)
 data Type r =
     VarT 𝕏
@@ -248,6 +256,9 @@ data TLExpPre r =
   | LogTE (TLExp r)
   | ExpFnTE (TLExp r)
   | MinusTE (TLExp r) (TLExp r)
+  -- Quantity Stuff
+  | BotTE
+  | TopTE
   deriving (Eq,Ord,Show)
 
 -- data TypeLevelLang =
