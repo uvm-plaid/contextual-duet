@@ -21,7 +21,7 @@ tokKeywords ∷ 𝐿 𝕊
 tokKeywords = list
   ["let","in","sλ","pλ","return","on"
   ,"ℕ","ℝ","ℝ⁺","𝔻","𝕀","𝕄","𝔻𝔽","𝔹","𝕊","★","∷","⋅","[]","⧺","☆"
-  ,"∀"
+  ,"∀","⊥","⊤","sens"
   ,"LR","L2","U"
   ,"real","bag","set","record", "unionAll"
   ,"partitionDF","addColDF","mapDF","join₁","joinDF₁","parallel"
@@ -129,6 +129,7 @@ parKind = pNew "kind" $ tries
   [ do parLit "ℕ" ; return ℕK
   , do parLit "ℝ⁺" ; return ℝK
   , do parLit "☆" ; return TypeK
+  , do parLit "sens" ; return SensK
   ]
 
 parRowsT :: Parser Token (RowsT RExp)
@@ -218,7 +219,7 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
       τ₁ ← parTLExp mode
       parLit "⊸"
       parLit "["
-      s ← parSens
+      s ← parSensExp
       parLit "]"
       return $ \ τ₂ → (ακs :* τ₁) :⊸♭: (s :* τ₂)
   , mixF $ MixFPrefix 2 $ do
@@ -259,7 +260,7 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
   , mixF $ MixFTerminal $ do parLit "⊥" ; return BotTE
   , mixF $ MixFTerminal $ do parLit "⊤" ; return TopTE
   -- Privacy Stuff
-  -- , mixF $ MixFTerminal $ -- ⟨ tle , tle ⟩ 
+  -- , mixF $ MixFTerminal $ -- ⟨ tle , tle ⟩
   ]
 
 parSens ∷ Parser Token (Sens RExp)
@@ -269,9 +270,20 @@ parSens = tries
   , do η ← parRExp ; return $ Sens $ Quantity η
   ]
 
+parSensExp ∷ Parser Token (SensExp RExp)
+parSensExp = tries
+  [
+   do x ← parVar ; return $ VarSens x
+  ,do s ← parSens ; return $ SensExp s
+  ]
+
 parRExp ∷ Parser Token RExp
 parRExp = mixfixParserWithContext "rexp" $ concat
-  [ mixF $ MixFTerminal $ VarRE ^$ parVar
+  [ mixF $ MixFTerminal $ do
+      parLit "⟨"
+      x ← parVar
+      parLit "⟩"
+      return $ VarRE x
   , mixF $ MixFTerminal $ NatRE ^$ parNat
   , mixF $ MixFTerminal $ NNRealRE ^$ parNNDbl
   , mixF $ MixFInfixL 2 $ const MaxRE ^$ parLit "⊔"
@@ -397,7 +409,7 @@ parType mode = mixfixParser $ concat
       τ₁ ← parType mode
       parLit "⊸"
       parLit "["
-      s ← parSens
+      s ← parSensExp
       parLit "]"
       return $ \ τ₂ → (ακs :* τ₁) :⊸: (s :* τ₂)
   , mix $ MixPrefix 2 $ do

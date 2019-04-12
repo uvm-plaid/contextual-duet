@@ -24,17 +24,25 @@ newtype Sens r = Sens { unSens ∷ Quantity r }
   ,Top,Meet,MeetLattice
   ,Lattice)
 
+data SensExp r = SensExp (Sens r) | VarSens 𝕏 deriving (Eq,Ord,Show)
+
+instance (One a) ⇒ One (SensExp a) where one = SensExp one
+
+instance Functor SensExp where
+  map f (SensExp s) = SensExp $ map f s
+  map _f (VarSens x) = VarSens x
+
 instance (HasPrism (Quantity r) s) ⇒ HasPrism (Sens r) s where
   hasPrism = Prism
     { construct = Sens ∘ construct hasPrism
     , view = view hasPrism ∘ unSens
     }
 
-data PRIV = 
-    EPS 
-  | ED 
-  | RENYI 
-  | ZC 
+data PRIV =
+    EPS
+  | ED
+  | RENYI
+  | ZC
   | TC
   deriving (Eq,Ord,Show)
 
@@ -134,6 +142,8 @@ newtype Priv p r = Priv { unPriv ∷ Quantity (Pr p r) }
   ,Bot,Join,JoinLattice)
 instance Functor (Priv p) where map f = Priv ∘ mapp f ∘ unPriv
 
+data PrivExp p r = PrivExp (Priv p r) | VarPriv 𝕏 deriving (Eq,Ord,Show)
+
 onPriv ∷ (Quantity (Pr p₁ r₁) → Quantity (Pr p₂ r₂)) → Priv p₁ r₁ → Priv p₂ r₂
 onPriv f = Priv ∘ f ∘ unPriv
 
@@ -218,7 +228,7 @@ data Type r =
   | Type r :⊕: Type r
   | Type r :⊗: Type r
   | Type r :&: Type r
-  | (𝐿 (𝕏 ∧ Kind) ∧ Type r) :⊸: (Sens r ∧ Type r)
+  | (𝐿 (𝕏 ∧ Kind) ∧ Type r) :⊸: (SensExp r ∧ Type r)
   | (𝐿 (𝕏 ∧ Kind) ∧ PArgs r) :⊸⋆: Type r
   | BoxedT (𝕏 ⇰ Sens r) (Type r)
   deriving (Eq,Ord,Show)
@@ -240,7 +250,7 @@ data TLExpPre r =
   | TLExp r :⊕♭: TLExp r
   | TLExp r :⊗♭: TLExp r
   | TLExp r :&♭: TLExp r
-  | (𝐿 (𝕏 ∧ Kind) ∧ TLExp r) :⊸♭: (Sens r ∧ TLExp r)
+  | (𝐿 (𝕏 ∧ Kind) ∧ TLExp r) :⊸♭: (SensExp r ∧ TLExp r)
   | (𝐿 (𝕏 ∧ Kind) ∧ PArgs r) :⊸⋆♭: TLExp r
   | BoxedTE (𝕏 ⇰ Sens r) (TLExp r)
   -- RExp Stuff
@@ -269,7 +279,7 @@ data TLExpPre r =
 -- data STypeLevelLang ∷ TypeLevelLang → ★ where
 --   RealExpSTLL ∷ STypeLevelLang 'RealExpTLL
 --   TypeSTLL ∷ STypeLevelLang 'TypeTLL
--- 
+--
 -- data TLCheckedExpr ∷ TypeLevelLang → ★ where
 --   RExpTLCE ∷ RExp → TLCheckedExpr 'RealExpTLL
 --   TypeTLCE ∷ Type RExp → TLCheckedExpr 'TypeTLL
@@ -296,7 +306,6 @@ instance Functor Type where
     (αks :* τ₁) :⊸: (s :* τ₂) → (αks :* map f τ₁) :⊸: (map f s :*  map f τ₂)
     (αks :* PArgs xτs) :⊸⋆: τ → (αks :* PArgs (map (mapPair (map f) (map f)) xτs)) :⊸⋆: map f τ
     BoxedT σ τ → BoxedT (map (map f) σ) (map f τ)
-    --TODO:QUESTION
     VarT x → VarT x
 
 -----------------

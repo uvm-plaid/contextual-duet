@@ -4,7 +4,7 @@ import Duet
 
 initEnv ∷ 𝕏 ⇰ Type RNF
 initEnv = dict
-  [ var "sign" ↦ ((Nil :* ℝT) :⊸: (ι 1 :* ℝT))
+  [ var "sign" ↦ ((Nil :* ℝT) :⊸: (one :* ℝT))
   -- , var "pmmap" ↦ (A@p ⊸⋆ B) ⊸∞ M[c,ℓ|m,n]A@(mnp) ⊸⋆ M[U,ℓ|m,n]B
   ]
 

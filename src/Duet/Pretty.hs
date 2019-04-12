@@ -15,6 +15,11 @@ instance (Pretty r) ⇒ Pretty (RowsT r) where
     RexpRT r → pretty r
     StarRT → ppKeyPun "★"
 
+instance (Pretty r) ⇒ Pretty (SensExp r) where
+  pretty = \case
+    SensExp m → pretty m
+    VarSens x → pretty x
+
 instance (Pretty r) ⇒ Pretty (MExp r) where
   pretty = \case
     EmptyME → ppKeyPun "[]"
@@ -40,7 +45,7 @@ instance Pretty Kind where
     ℕK → ppKeyPun "ℕ"
     ℝK → ppKeyPun "ℝ⁺"
     TypeK → ppKeyPun "☆"
-
+    SensK → ppKeyPun "sens"
 
 instance Pretty Norm where
   pretty = \case
