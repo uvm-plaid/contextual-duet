@@ -445,7 +445,7 @@ type PExpSource (p ∷ PRIV) = Annotated FullContext (PExp p)
 data PExp (p ∷ PRIV) where
   ReturnPE ∷ SExpSource p → PExp p
   BindPE ∷ 𝕏 → PExpSource p → PExpSource p → PExp p
-  AppPE ∷ SExpSource p → 𝐿 RExp → 𝐿 (SExpSource p) → PExp p
+  AppPE ∷ SExpSource p → 𝐿 (TLExp RExp) → 𝐿 (SExpSource p) → PExp p
   EDLoopPE ∷ SExpSource 'ED → SExpSource 'ED → SExpSource 'ED → 𝐿 𝕏 → 𝕏 → 𝕏 → PExpSource 'ED → PExp 'ED
   LoopPE ∷ SExpSource p → SExpSource p → 𝐿 𝕏 → 𝕏 → 𝕏 → PExpSource p → PExp p
   GaussPE ∷ SExpSource p → GaussParams p → 𝐿 𝕏 → SExpSource p → PExp p

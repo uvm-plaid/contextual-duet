@@ -808,15 +808,12 @@ inferSens eA = case extract eA of
             fκs = map snd ακs
             ατeκs = triples fαs τes fκs
         let r = foldWith ατeκs (τ₁₁,ς,τ₁₂) $ \ (α :* τe :* κ) (τ₁₁',ς',τ₁₂') →
-              -- look at κ
               case κ of
-                -- coerce τe into a η (RExp) or τ (Type) based on κ
                 TypeK → do
                   case checkTypeLang τe of
                     None → undefined
                     Some τk → do
                       let τk' = map normalizeRExp τk
-                      -- substType if κ is a Type
                       (substType α τk' τ₁₁',ς',substType α τk' τ₁₂')
                 SensK → do
                   case checkSensLang τe of
@@ -835,10 +832,7 @@ inferSens eA = case extract eA of
                     None → undefined
                     -- TODO: kind checking
                     Some τk → do
-                      -- do substRExp if κ is a RExp
-                      -- on each of τ₁₁',ς',τ₁₂'
                       (substRExp α (normalizeRExp τk) τ₁₁',map (substRNF α (normalizeRExp τk)) ς',substRExp α (normalizeRExp τk) τ₁₂')
-                --
                 ℝK → do
                   case checkRExpLang τe of
                     None → undefined
@@ -1255,42 +1249,114 @@ inferPriv eA = case extract eA of
             tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₁
             return $ 𝕄T ℓ UClip (RexpRT ηₘ) (RexpME r τ₂)
       _  → undefined -- TypeSource Error
-  AppPE e ηs as → do
-    let η's = map normalizeRExp ηs
+  AppPE e τes as → do
+    -- let η's = map normalizeRExp ηs
     τ ← pmFromSM $ inferSens e
-    ηκs ← pmFromSM $ mapM (inferKind ∘ extract) ηs
+    -- ηκs ← pmFromSM $ mapM (inferKind ∘ extract) ηs
     aστs ← pmFromSM $ mapM (hijack ∘ inferSens) as
     let aσs = map fst aστs
     let aτs = map snd aστs
     case τ of
       ((ακs :* PArgs (τps ∷ 𝐿 (_ ∧ PrivExp p' RNF))) :⊸⋆: τ₁)
-        | (joins (values (joins aσs)) ⊑ ι 1)
-        ⩓ (count ηs ≡ count ακs)
-        ⩓ (count as ≡ count τps)
+        -- | (joins (values (joins aσs)) ⊑ ι 1.0)
+        -- ⩓ (count τes ≡ count ακs)
+        -- ⩓ (count as ≡ count τps)
         → case eqPRIV (priv @ p) (priv @ p') of
             None → error "privacy variants dont match"
             Some Refl → do
               let fαs = map fst ακs
                   fκs = map snd ακs
-                  αηs = zip fαs η's
-                  subT ∷ Type RNF → Type RNF
-                  subT τ' = fold τ' (\ (α :* η) τ'' → substRExp α η τ'') αηs
-                  subP ∷ Priv p' RNF → Priv p' RNF
-                  subP p = fold p (\ (α :* η) p' → map (substRNF α η) p') αηs
-                  τps' = mapOn τps $ \ (τ' :* PrivExp p) → (subT τ' :* subP p)
+                  -- αηs = zip fαs η's
+                  ατeκs = triples fαs τes fκs
+
+                  subF ∷ Type RNF → Type RNF
+                  subF τ' = foldWith ατeκs τ' $ \ (α :* τe :* κ) τ₁₁' →
+                    case κ of
+                      TypeK → do
+                        case checkTypeLang τe of
+                          None → undefined
+                          Some τk → do
+                            let τk' = map normalizeRExp τk
+                            substType α τk' τ₁₁'
+                      SensK → do
+                        case checkSensLang τe of
+                          None → undefined
+                          Some τk → do
+                            let τk' = map normalizeRExp τk
+                            substSens α τk' τ₁₁'
+                      PrivK p' → do
+                        case checkPrivLang (priv @ p) τe of
+                          None → undefined
+                          Some τk → do
+                            let τk' = map normalizeRExp τk
+                            substPriv α τk' τ₁₁'
+                      ℕK → do
+                        case checkRExpLang τe of
+                          None → undefined
+                          -- TODO: kind checking
+                          Some τk → do
+                            substRExp α (normalizeRExp τk) τ₁₁'
+                      ℝK → do
+                        case checkRExpLang τe of
+                          None → undefined
+                          -- TODO: kind checking
+                          Some τk → do
+                            substRExp α (normalizeRExp τk) τ₁₁'
+
+
+                  subP ∷ PrivExp p' RNF → PrivExp p' RNF
+                  subP p = foldWith ατeκs p $ \ (α :* τe :* κ) ς' →
+                    case κ of
+                      TypeK → do
+                        case checkTypeLang τe of
+                          None → undefined
+                          Some τk → do
+                            let τk' = map normalizeRExp τk
+                            ς'
+                      SensK → do
+                        case checkSensLang τe of
+                          None → undefined
+                          Some τk → do
+                            let τk' = map normalizeRExp τk
+                            ς'
+                      PrivK p' → do
+                        case checkPrivLang (priv @ p) τe of
+                          None → undefined
+                          Some τk → do
+                            let τk' = map normalizeRExp τk
+                            substPrivExp ς' τk'
+                      ℕK → do
+                        case checkRExpLang τe of
+                          None → undefined
+                          -- TODO: kind checking
+                          Some τk → do
+                            map (substRNF α (normalizeRExp τk)) ς'
+                      ℝK → do
+                        case checkRExpLang τe of
+                          None → undefined
+                          -- TODO: kind checking
+                          Some τk → do
+                            map (substRNF α (normalizeRExp τk)) ς'
+
+                  τps' = mapOn τps $ \ (τ' :* p) → (subF τ' :* subP p)
                   τs' = map fst τps'
                   ps' = map snd τps'
-              case (ηκs ≡ fκs) ⩓ (aτs ≡ τs') of
+              case {- (ηκs ≡ fκs) ⩓ -} (aτs ≡ τs') of
                 True → do
                   eachWith (zip aσs ps') $ \ (σ :* p) →
-                    tell $ map (Priv ∘ truncate (unPriv p) ∘ unSens) σ
-                  return $ subT τ₁
+                    case p of
+                      PrivExp p' →
+                        tell $ map (Priv ∘ truncate (unPriv p') ∘ unSens) σ
+                      --
+                      VarPriv p' →
+                        return ()
+                  return $ subF τ₁
                 False → error $ concat
                   [ "type error in AppPE\n"
                   , concat $ inbetween "\n"
-                      [ show𝕊 (ηκs ≡ fκs)
-                      , show𝕊 (aτs ≡ τs')
-                      , pprender ηκs
+                      [ {- show𝕊 (ηκs ≡ fκs) -}
+                        show𝕊 (aτs ≡ τs')
+                      -- , pprender ηκs
                       , pprender fκs
                       , pprender aτs
                       , pprender τs'
@@ -1837,7 +1903,7 @@ substPrivR 𝓈 x p' fv = \case
   (ακs :* PArgs args) :⊸⋆: τ → (ακs :* PArgs (map (\ (τ' :* p'') → τ' :* substPrivExp p'' p') args)) :⊸⋆: τ
   BoxedT γ τ → BoxedT γ τ
   VarT x' →  VarT x'
-  τ → error $ pprender τ
+  τ → error $ "substpriv error" ⧺ pprender τ
 
 substSens ∷ 𝕏 → Sens RNF → Type RNF → Type RNF
 substSens x s τ = substSensR pø x s pø τ
@@ -1868,7 +1934,7 @@ substSensR 𝓈 x s' fv = \case
   (ακs :* PArgs args) :⊸⋆: τ → (ακs :* PArgs args) :⊸⋆: τ
   BoxedT γ τ → BoxedT γ τ
   VarT x' →  VarT x'
-  τ → error $ pprender τ
+  τ → error $ "substsens error" ⧺ pprender τ
 
 substType ∷ 𝕏 → Type RNF → Type RNF → Type RNF
 substType x r τ = substTypeR pø x r pø τ
@@ -1894,14 +1960,13 @@ substTypeR 𝓈 x r' fv = \case
   τ₁ :&: τ₂ → substTypeR 𝓈 x r' fv τ₁ :&: substTypeR 𝓈 x r' fv τ₂
   (ακs :* τ₁) :⊸: (s :* τ₂) →
     (ακs :* substTypeR 𝓈 x r' fv τ₁) :⊸: (s :* substTypeR 𝓈 x r' fv τ₂)
-  -- (ακs :* PArgs args) :⊸⋆: τ →
-  --   let 𝓈' = joins [𝓈,pow $ map fst ακs]
-  --   in (ακs :* PArgs (mapOn args $ \ (τ' :* p) → substRExpR 𝓈' x r' fv τ' :* p)) :⊸⋆: substRExpR 𝓈' x r' fv τ
+  (ακs :* PArgs args) :⊸⋆: τ →
+    (ακs :* PArgs (mapOn args $ \ (τ' :* p) → substTypeR 𝓈 x r' fv τ' :* p)) :⊸⋆: substTypeR 𝓈 x r' fv τ
   -- BoxedT γ τ → BoxedT (mapp (substRNF x (renameRNF (renaming 𝓈 fv) r')) γ) (substRExpR 𝓈 x r' fv τ)
   VarT x' → case (x ≡ x') of
     True → r'
     False → VarT x'
-  τ → error $ pprender τ
+  τ → error $ "substtype error" ⧺ pprender τ
 
 substRExp ∷ 𝕏 → RNF → Type RNF → Type RNF
 substRExp x r τ = substRExpR pø x r (fvRNF r) τ

@@ -1,4 +1,4 @@
-let apply = sλ τ₁ : ☆,
+let apply = pλ τ₁ : ☆,
                τ₂ : ☆,
                p  : priv
                .
@@ -10,8 +10,8 @@ in
 pλ εt : ℝ⁺,
    δt : ℝ⁺
    .
-   εv : ℝ⁺[⟨ε⟩],
-   δv : ℝ⁺[⟨δ⟩],
+   εv : ℝ⁺[⟨εt⟩],
+   δv : ℝ⁺[⟨δt⟩],
    x  : ℝ
    ⇒
-   return apply@[ℝ,ℝ,⟨εt,δt⟩] (pλ . x : ℝ ⇒ gauss[1.0,εv,δv] <x> { x }) x
+   apply@[ℝ,ℝ,⟨εt,δt⟩ . (pλ . x : ℝ ⇒ gauss[ℝ⁺[1.0],εv,δv] <x> { x }), x] 

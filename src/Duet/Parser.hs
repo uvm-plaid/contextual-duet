@@ -883,7 +883,7 @@ parPExp p = pWithContext "pexp" $ tries
   , do e ← parSExp p
        parLit "@"
        parLit "["
-       ks ← pManySepBy (parLit ",") $ parRExp
+       ks ← pManySepBy (parLit ",") $ parTLExp p
        parLit "."
        xs ← pManySepBy (parLit ",") $ parSExp p
        parLit "]"

@@ -51,6 +51,8 @@ instance Pretty Kind where
     ℝK → ppKeyPun "ℝ⁺"
     TypeK → ppKeyPun "☆"
     SensK → ppKeyPun "sens"
+    PrivK _ → ppKeyPun "priv"
+
 
 instance Pretty Norm where
   pretty = \case
