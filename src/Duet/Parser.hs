@@ -21,7 +21,7 @@ tokKeywords ∷ 𝐿 𝕊
 tokKeywords = list
   ["let","in","sλ","pλ","return","on"
   ,"ℕ","ℝ","ℝ⁺","𝔻","𝕀","𝕄","𝔻𝔽","𝔹","𝕊","★","∷","⋅","[]","⧺","☆"
-  ,"∀","⊥","⊤","sens"
+  ,"∀","⊥","⊤","sens","priv"
   ,"LR","L2","U"
   ,"real","bag","set","record", "unionAll"
   ,"partitionDF","addColDF","mapDF","join₁","joinDF₁","parallel"
@@ -124,12 +124,13 @@ parNNDbl = pShaped "nn-dbl" $ \ t → do
     True → return d
     False → abort
 
-parKind ∷ Parser Token Kind
-parKind = pNew "kind" $ tries
+parKind ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token Kind
+parKind p = pNew "kind" $ tries
   [ do parLit "ℕ" ; return ℕK
   , do parLit "ℝ⁺" ; return ℝK
   , do parLit "☆" ; return TypeK
   , do parLit "sens" ; return SensK
+  , do parLit "priv" ; return $ PrivK (stripPRIV p)
   ]
 
 parRowsT :: Parser Token (RowsT RExp)
@@ -172,6 +173,13 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
       η ← parRExp
       parLit "]"
       return $ ℝˢTE η
+  , mixF $ MixFTerminal $ do
+      parLit "⟨"
+      η₁ ← parTLExp mode
+      parLit ","
+      η₂ ← parTLExp mode
+      parLit "⟩"
+      return $ PairTE η₁ η₂
   , mixF $ MixFTerminal $ const ℕTE ^$ parLit "ℕ"
   , mixF $ MixFTerminal $ const ℝTE ^$ parLit "ℝ"
   , mixF $ MixFTerminal $ const 𝔹TE ^$ parLit "𝔹"
@@ -213,7 +221,7 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
       ακs ← pManySepBy (parLit ",") $ do
         α ← parVar
         parLit ":"
-        κ ← parKind
+        κ ← parKind mode
         return $ α :* κ
       parLit "."
       τ₁ ← parTLExp mode
@@ -227,14 +235,16 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
       ακs ← pManySepBy (parLit ",") $ do
         α ← parVar
         parLit ":"
-        κ ← parKind
+        κ ← parKind mode
         return $ α :* κ
       parLit "."
+      parLit "("
       τps ← pOneOrMoreSepBy (parLit ",") $ do
         τ ← parType mode
         parLit "@"
-        p ← parPriv mode
+        p ← parPrivExp mode
         return $ τ :* p
+      parLit ")"
       return $ (:⊸⋆♭:) $ ακs :* PArgs τps
   , mixF $ MixFPrefix 3 $ do
       parLit "box"
@@ -308,8 +318,26 @@ parClip = tries
   , do const UClip ^$ parLit "U"
   ]
 
-parPriv ∷ PRIV_W p → Parser Token (Priv p RExp)
-parPriv = undefined
+--
+parPrivExp ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (PrivExp p RExp)
+parPrivExp p = tries
+  [
+   do x ← parVar ; return $ VarPriv x
+  ,do s ← parPriv p ; return $ PrivExp s
+  ]
+
+parPriv ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (Priv p RExp)
+parPriv p = tries
+  [ case p of
+      ED_W → do
+        parLit "⟨"
+        ϵ ← parRExp
+        parLit ","
+        δ ← parRExp
+        parLit "⟩"
+        return $ Priv $ Quantity $ EDPriv ϵ δ
+      _ → abort
+  ]
 
 parSpace ∷ Parser Token ()
 parSpace = pSkip (const False) $ void $ pOneOrMore $ tries
@@ -403,7 +431,7 @@ parType mode = mixfixParser $ concat
       ακs ← pManySepBy (parLit ",") $ do
         α ← parVar
         parLit ":"
-        κ ← parKind
+        κ ← parKind mode
         return $ α :* κ
       parLit "."
       τ₁ ← parType mode
@@ -417,14 +445,17 @@ parType mode = mixfixParser $ concat
       ακs ← pManySepBy (parLit ",") $ do
         α ← parVar
         parLit ":"
-        κ ← parKind
+        κ ← parKind mode
         return $ α :* κ
       parLit "."
+      parLit "("
       τps ← pOneOrMoreSepBy (parLit ",") $ do
         τ ← parType mode
         parLit "@"
-        p ← parPriv mode
+        p ← parPrivExp mode
         return $ τ :* p
+      parLit ")"
+      parLit "⊸⋆"
       return $ (:⊸⋆:) $ ακs :* PArgs τps
   , mix $ MixPrefix 3 $ do
       parLit "box"
@@ -740,7 +771,7 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       ακs ← pManySepBy (parLit ",") $ do
         α ← parVar
         parLit ":"
-        κ ← parKind
+        κ ← parKind p
         return $ α :* κ
       parLit "."
       x ← parVar
@@ -761,7 +792,7 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       ακs ← pManySepBy (parLit ",") $ do
         α ← parVar
         parLit ":"
-        κ ← parKind
+        κ ← parKind p
         return $ α :* κ
       parLit "."
       xτs ← pOneOrMoreSepBy (parLit ",") $ do

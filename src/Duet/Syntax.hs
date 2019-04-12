@@ -144,6 +144,11 @@ instance Functor (Priv p) where map f = Priv ∘ mapp f ∘ unPriv
 
 data PrivExp p r = PrivExp (Priv p r) | VarPriv 𝕏 deriving (Eq,Ord,Show)
 
+instance Functor (PrivExp p) where
+  map f (PrivExp s) = PrivExp $ map f s
+  map _f (VarPriv x) = VarPriv x
+
+
 onPriv ∷ (Quantity (Pr p₁ r₁) → Quantity (Pr p₂ r₂)) → Priv p₁ r₁ → Priv p₂ r₂
 onPriv f = Priv ∘ f ∘ unPriv
 
@@ -154,16 +159,16 @@ instance (HasPrism (Quantity (Pr p r)) s) ⇒ HasPrism (Priv p r) s where
     }
 
 data PArgs r where
-  PArgs ∷ ∀ (p ∷ PRIV) r. (PRIV_C p) ⇒ 𝐿 (Type r ∧ Priv p r) → PArgs r
+  PArgs ∷ ∀ (p ∷ PRIV) r. (PRIV_C p) ⇒ 𝐿 (Type r ∧ PrivExp p r) → PArgs r
 
 instance (Eq r) ⇒ Eq (PArgs r) where
   (==) ∷ PArgs r → PArgs r → 𝔹
-  PArgs (xps₁ ∷ 𝐿 (_ ∧ Priv p₁ _)) == PArgs (xps₂ ∷ 𝐿 (_ ∧ Priv p₂ _)) = case eqPRIV (priv @ p₁) (priv @ p₂) of
+  PArgs (xps₁ ∷ 𝐿 (_ ∧ PrivExp p₁ _)) == PArgs (xps₂ ∷ 𝐿 (_ ∧ PrivExp p₂ _)) = case eqPRIV (priv @ p₁) (priv @ p₂) of
     Some Refl → xps₁ ≡ xps₂
     None → False
 instance (Ord r) ⇒ Ord (PArgs r) where
   compare ∷ PArgs r → PArgs r → Ordering
-  compare (PArgs (xps₁ ∷ 𝐿 (_ ∧ Priv p₁ _))) (PArgs (xps₂ ∷ 𝐿 (_ ∧ Priv p₂ _))) = case eqPRIV (priv @ p₁) (priv @ p₂) of
+  compare (PArgs (xps₁ ∷ 𝐿 (_ ∧ PrivExp p₁ _))) (PArgs (xps₂ ∷ 𝐿 (_ ∧ PrivExp p₂ _))) = case eqPRIV (priv @ p₁) (priv @ p₂) of
     Some Refl → compare xps₁ xps₂
     None → compare (stripPRIV (priv @ p₁)) (stripPRIV (priv @ p₂))
 deriving instance (Show r) ⇒ Show (PArgs r)
@@ -269,6 +274,8 @@ data TLExpPre r =
   -- Quantity Stuff
   | BotTE
   | TopTE
+  -- Privacy Stuff
+  | PairTE (TLExp r) (TLExp r)
   deriving (Eq,Ord,Show)
 
 -- data TypeLevelLang =

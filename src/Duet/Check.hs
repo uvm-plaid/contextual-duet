@@ -53,11 +53,11 @@ unpackBpargs :: PArgs r → 𝑃 𝕏
 unpackBpargs e = case e of
   PArgs tps -> freeBpargs tps
 
-freeBpargs :: 𝐿 (Type r ∧ Priv p r) → 𝑃 𝕏
+freeBpargs :: 𝐿 (Type r ∧ PrivExp p r) → 𝑃 𝕏
 freeBpargs Nil = pø
 freeBpargs (x :& xs) = freeBpargs xs ∪ freeBparg x
 
-freeBparg :: Type r ∧ Priv p r → 𝑃 𝕏
+freeBparg :: Type r ∧ PrivExp p r → 𝑃 𝕏
 freeBparg (x :* _) = freeBvs x
 
 getConsMAt :: (MExp r) → ℕ → (Type r)
@@ -171,6 +171,19 @@ checkSensLang e₀ = case extract e₀ of
     η₂ ← checkRExpLang e₂
     return $ Sens $ Quantity $ siphon e₀ $ MinusRE η₁ η₂
   _ → None
+
+checkPrivLang ∷ (PRIV_C p) ⇒ PRIV_W p → TLExp RExp → 𝑂 (Priv p RExp)
+checkPrivLang p e₀ = case p of
+  ED_W → do
+    case extract e₀ of
+      BotTE → return $ Priv Zero
+      TopTE → return $ Priv Inf
+      PairTE e₁ e₂ → do
+        η₁ ← checkRExpLang e₁
+        η₂ ← checkRExpLang e₂
+        return $ Priv $ Quantity $ EDPriv η₁ η₂
+      _ → error "non pair TLExp while coercing in ED_W mode"
+  _ → undefined
 
 checkTypeLang ∷ TLExp RExp → 𝑂 (Type RExp)
 checkTypeLang e₀ = case extract e₀ of
@@ -378,7 +391,7 @@ checkType τA = case τA of
         -- error $ pprender r
         return $ (⩓) c $ κ ⊑ ℝK
       _ → return False
-  (ακs :* PArgs (τps ∷ 𝐿 (Type RExp ∧ Priv p' RExp))) :⊸⋆: τ → do
+  (ακs :* PArgs (τps ∷ 𝐿 (Type RExp ∧ PrivExp p' RExp))) :⊸⋆: τ → do
    mapEnvL contextKindL (\ δ → assoc ακs ⩌ δ) $ do
      _ :* _a ← hijack $  checkType τ
      map and $ mapM checkTypeP τps
@@ -386,7 +399,7 @@ checkType τA = case τA of
   VarT _x → return True
   _ → error $ "checkType error on " ⧺ pprender τA
 
-checkTypeP ∷ ∀ p₁ p₂. (PRIV_C p₁) ⇒ (Type RExp ∧ Priv p₂ RExp) → SM p₁ 𝔹
+checkTypeP ∷ ∀ p₁ p₂. (PRIV_C p₁) ⇒ (Type RExp ∧ PrivExp p₂ RExp) → SM p₁ 𝔹
 checkTypeP (τ :* p) = do
   a ← checkType τ
   b ← checkKindP p
@@ -394,16 +407,16 @@ checkTypeP (τ :* p) = do
     False → throw (error "kinding error" ∷ TypeError)
     True → return $ True
 
-checkKindP :: ∀ p₁ p₂. Priv p₂ RExp → SM p₁ 𝔹
+checkKindP :: ∀ p₁ p₂. PrivExp p₂ RExp → SM p₁ 𝔹
 checkKindP p = case p of
-  Priv (Quantity (EDPriv ε δ)) → do
+  PrivExp (Priv (Quantity (EDPriv ε δ))) → do
     κ₁ ← inferKind $ extract ε
     κ₂ ← inferKind $ extract δ
     return $ and [κ₁ ⊑ ℝK,κ₂ ⊑ ℝK]
   -- TODO: account for other privacy variants
   _ → return True
 
-inferSens ∷ (PRIV_C p) ⇒ SExpSource p → SM p (Type RNF)
+inferSens ∷ ∀ p. (PRIV_C p) ⇒ SExpSource p → SM p (Type RNF)
 inferSens eA = case extract eA of
   ℕˢSE n → return $ ℕˢT $ ι n
   ℝˢSE d → return $ ℝˢT $ ι d
@@ -785,39 +798,6 @@ inferSens eA = case extract eA of
     τ₁ ← inferSens e₁
     case τ₁ of
       (ακs :* τ') :⊸: (_ς :* ℝT) → return $ (ακs :* τ') :⊸: (one :* 𝔻T ℝT)
-
-  -- AppPE e ηs as → do
-  --   let η's = map normalizeRExp ηs
-  --   τ ← pmFromSM $ inferSens e
-  --   ηκs ← pmFromSM $ mapM (inferKind ∘ extract) ηs
-  --   aστs ← pmFromSM $ mapM (hijack ∘ inferSens) as
-  --   let aσs = map fst aστs
-  --   let aτs = map snd aστs
-  --   case τ of
-  --     ((ακs :* PArgs (τps ∷ 𝐿 (_ ∧ Priv p' RNF))) :⊸⋆: τ₁)
-  --       | (joins (values (joins aσs)) ⊑ ι 1)
-  --       ⩓ (count ηs ≡ count ακs)
-  --       ⩓ (count as ≡ count τps)
-  --       → case eqPRIV (priv @ p) (priv @ p') of
-  --           None → error "privacy variants dont match"
-  --           Some Refl → do
-  --             let fαs = map fst ακs
-  --                 fκs = map snd ακs
-  --                 αηs = zip fαs η's
-  --                 subT ∷ Type RNF → Type RNF
-  --                 subT τ' = fold τ' (\ (α :* η) τ'' → substRExp α η τ'') αηs
-  --                 subP ∷ Priv p' RNF → Priv p' RNF
-  --                 subP p = fold p (\ (α :* η) p' → map (substRNF α η) p') αηs
-  --                 τps' = mapOn τps $ \ (τ' :* p) → (subT τ' :* subP p)
-  --                 τs' = map fst τps'
-  --                 ps' = map snd τps'
-  --             case (ηκs ≡ fκs) ⩓ (aτs ≡ τs') of
-  --               True → do
-  --                 eachWith (zip aσs ps') $ \ (σ :* p) →
-  --                   tell $ map (Priv ∘ truncate (unPriv p) ∘ unSens) σ
-  --                 return τ₁
-  --               False → error $ "type error in AppPE" ⧺ show𝕊 (ηκs,fκs,aτs,τs')
-  --     _ → error $ "AppPE expected a function instead of" ⧺ pprender τ
   AppSE e₁ τes e₂ → do
     τ₁ ← inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
@@ -844,6 +824,12 @@ inferSens eA = case extract eA of
                     Some τk → do
                       let τk' = map normalizeRExp τk
                       (substSens α τk' τ₁₁',substSensExp ς' τk',substSens α τk' τ₁₂')
+                PrivK p' → do
+                  case checkPrivLang (priv @ p) τe of
+                    None → undefined
+                    Some τk → do
+                      let τk' = map normalizeRExp τk
+                      (substPriv α τk' τ₁₁',ς',substPriv α τk' τ₁₂')
                 ℕK → do
                   case checkRExpLang τe of
                     None → undefined
@@ -878,7 +864,6 @@ inferSens eA = case extract eA of
                 -- , "\n"
                 , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
                 ]
-          --
           (τ₁₁'',VarSens ς'',τ₁₂'') → do
             -- error $ pprender (τ₁₁'':*SensExp ς'':*τ₁₂'':*τ₂)
             -- let η's = map normalizeRExp ηs
@@ -918,7 +903,7 @@ inferSens eA = case extract eA of
         False → error $ "Lambda type/scoping error in return expression of type: " ⧺ (pprender τ)
         True → do
           tell $ map (Sens ∘ truncate Inf ∘ unPriv) $ without (pow xs) σ
-          let τps = mapOn xτs' $ \ (x :* τ') → τ' :* ifNone null (σ ⋕? x)
+          let τps = mapOn xτs' $ \ (x :* τ') → τ' :* PrivExp (ifNone null (σ ⋕? x))
           return $ (ακs :* PArgs τps) :⊸⋆: τ
   SetSE es → do
     -- homogeneity check
@@ -1278,7 +1263,7 @@ inferPriv eA = case extract eA of
     let aσs = map fst aστs
     let aτs = map snd aστs
     case τ of
-      ((ακs :* PArgs (τps ∷ 𝐿 (_ ∧ Priv p' RNF))) :⊸⋆: τ₁)
+      ((ακs :* PArgs (τps ∷ 𝐿 (_ ∧ PrivExp p' RNF))) :⊸⋆: τ₁)
         | (joins (values (joins aσs)) ⊑ ι 1)
         ⩓ (count ηs ≡ count ακs)
         ⩓ (count as ≡ count τps)
@@ -1292,7 +1277,7 @@ inferPriv eA = case extract eA of
                   subT τ' = fold τ' (\ (α :* η) τ'' → substRExp α η τ'') αηs
                   subP ∷ Priv p' RNF → Priv p' RNF
                   subP p = fold p (\ (α :* η) p' → map (substRNF α η) p') αηs
-                  τps' = mapOn τps $ \ (τ' :* p) → (subT τ' :* subP p)
+                  τps' = mapOn τps $ \ (τ' :* PrivExp p) → (subT τ' :* subP p)
                   τs' = map fst τps'
                   ps' = map snd τps'
               case (ηκs ≡ fκs) ⩓ (aτs ≡ τs') of
@@ -1757,8 +1742,8 @@ inferPriv eA = case extract eA of
        𝕄T ℓ₂ c₂ (RexpRT ηr₂) (RexpME ηc₂ (𝔻T ℝT)),
        (αs :* as) :⊸⋆: τ₆ ) -- | τ₁ ≡ τ₅
         → case as of
-            (PArgs ((𝕄T ℓ₁' c₁' (RexpRT ηr₁') (RexpME ηc₁' (𝔻T ℝT)) :* (p₁ ∷ Priv p₁ RNF)) :&
-                    (𝕄T ℓ₂' c₂' (RexpRT ηr₂') (RexpME ηc₂' (𝔻T ℝT)) :* (p₂ ∷ Priv p₂ RNF)) :&
+            (PArgs ((𝕄T ℓ₁' c₁' (RexpRT ηr₁') (RexpME ηc₁' (𝔻T ℝT)) :* (p₁ ∷ PrivExp p₁ RNF)) :&
+                    (𝕄T ℓ₂' c₂' (RexpRT ηr₂') (RexpME ηc₂' (𝔻T ℝT)) :* (p₂ ∷ PrivExp p₂ RNF)) :&
                     (τ₂prime :* p₃) :& Nil))
              | (ℓ₁ ≡ ℓ₁') ⩓ (ℓ₂ ≡ ℓ₂') ⩓
                (c₁ ≡ c₁') ⩓ (c₂ ≡ c₂') ⩓
@@ -1766,9 +1751,11 @@ inferPriv eA = case extract eA of
                (ηr₂' ≡ ηb) ⩓ (ηc₂ ≡ ηc₂')
               → case (eqPRIV (priv @ p) (priv @ p₁), eqPRIV (priv @ p) (priv @ p₂)) of
                   (Some Refl, Some Refl) → do
-                    tell $ map (Priv ∘ truncate (unPriv p₁) ∘ unSens) σ₃
-                    tell $ map (Priv ∘ truncate (unPriv p₂) ∘ unSens) σ₄
-                    return τ₂
+                    case (p₁,p₂) of
+                      (PrivExp p₁',PrivExp p₂') → do
+                        tell $ map (Priv ∘ truncate (unPriv p₁') ∘ unSens) σ₃
+                        tell $ map (Priv ∘ truncate (unPriv p₂') ∘ unSens) σ₄
+                        return τ₂
             _ → error $ "Fold error " ⧺ (pprender (τ₃ :* τ₄ :* τ₅))
 
   PMapColPE e₁ x e₂ → do
@@ -1817,6 +1804,41 @@ fac n = n × (fac (n - one))
 choose :: RNF → RNF → RNF
 choose n k = (fac n) / ((fac k) × (fac (n - k)))
 
+substPriv ∷ (PRIV_C p) ⇒ 𝕏 → Priv p RNF → Type RNF → Type RNF
+substPriv x s τ = substPrivR pø x s pø τ
+
+substPrivExp ∷ ∀ p p'. (PRIV_C p, PRIV_C p') ⇒ PrivExp p' RNF → Priv p RNF → PrivExp p' RNF
+substPrivExp pe pr =
+  -- let a ∷ PrivExp p' RNF = pe in
+  -- let b ∷ Priv p RNF = pr in
+  case eqPRIV (priv @ p) (priv @ p') of
+    None → error "privacy variants dont match"
+    Some Refl → do
+      case pe of
+        PrivExp pr' → PrivExp pr'
+        VarPriv _𝕩 → PrivExp pr
+
+substPrivR ∷ (PRIV_C p) ⇒ 𝑃 𝕏 → 𝕏 → Priv p RNF → 𝑃 𝕏 → Type RNF → Type RNF
+substPrivR 𝓈 x p' fv = \case
+  ℕˢT r → ℕˢT r
+  ℝˢT r → ℝˢT r
+  ℕT → ℕT
+  ℝT → ℝT
+  𝕀T r → 𝕀T r
+  𝔹T → 𝔹T
+  𝕊T → 𝕊T
+  SetT τ → SetT τ
+  𝕄T ℓ c rs me → 𝕄T ℓ c rs me
+  𝔻T τ → 𝔻T τ
+  τ₁ :⊕: τ₂ → τ₁ :⊕: τ₂
+  τ₁ :⊗: τ₂ → τ₁ :⊗: τ₂
+  τ₁ :&: τ₂ → τ₁ :&: τ₂
+  (ακs :* τ₁) :⊸: (s :* τ₂) → (ακs :* τ₁) :⊸: (s :* τ₂)
+  (ακs :* PArgs args) :⊸⋆: τ → (ακs :* PArgs (map (\ (τ' :* p'') → τ' :* substPrivExp p'' p') args)) :⊸⋆: τ
+  BoxedT γ τ → BoxedT γ τ
+  VarT x' →  VarT x'
+  τ → error $ pprender τ
+
 substSens ∷ 𝕏 → Sens RNF → Type RNF → Type RNF
 substSens x s τ = substSensR pø x s pø τ
 
@@ -1843,13 +1865,10 @@ substSensR 𝓈 x s' fv = \case
   (ακs :* τ₁) :⊸: (s :* τ₂) → case s of
     SensExp _sr → (ακs :* τ₁) :⊸: (s :* τ₂)
     VarSens 𝕩 → (ακs :* τ₁) :⊸: (SensExp s' :* τ₂)
-  -- (ακs :* PArgs args) :⊸⋆: τ →
-  --   let 𝓈' = joins [𝓈,pow $ map fst ακs]
-  --   in (ακs :* PArgs (mapOn args $ \ (τ' :* p) → substRExpR 𝓈' x r' fv τ' :* p)) :⊸⋆: substRExpR 𝓈' x r' fv τ
-  -- BoxedT γ τ → BoxedT (mapp (substRNF x (renameRNF (renaming 𝓈 fv) r')) γ) (substRExpR 𝓈 x r' fv τ)
+  (ακs :* PArgs args) :⊸⋆: τ → (ακs :* PArgs args) :⊸⋆: τ
+  BoxedT γ τ → BoxedT γ τ
   VarT x' →  VarT x'
   τ → error $ pprender τ
-
 
 substType ∷ 𝕏 → Type RNF → Type RNF → Type RNF
 substType x r τ = substTypeR pø x r pø τ

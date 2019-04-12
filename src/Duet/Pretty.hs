@@ -20,6 +20,11 @@ instance (Pretty r) ⇒ Pretty (SensExp r) where
     SensExp m → pretty m
     VarSens x → pretty x
 
+instance (Pretty r) ⇒ Pretty (PrivExp p r) where
+  pretty = \case
+    PrivExp m → pretty m
+    VarPriv x → pretty x
+
 instance (Pretty r) ⇒ Pretty (MExp r) where
   pretty = \case
     EmptyME → ppKeyPun "[]"
