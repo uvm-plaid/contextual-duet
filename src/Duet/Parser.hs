@@ -274,10 +274,14 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
   ]
 
 parSens ∷ Parser Token (Sens RExp)
-parSens = tries
-  [ do parLit "⊥" ; return $ Sens Zero
-  , do parLit "⊤" ; return $ Sens Inf
-  , do η ← parRExp ; return $ Sens $ Quantity η
+parSens = mixfixParser $ concat
+  [ mix $ MixTerminal $ const (Sens Zero) ^$ parLit "⊥"
+  , mix $ MixTerminal $ const (Sens Inf) ^$ parLit "⊤"
+  , mix $ MixTerminal $ do
+      parLit "⟨"
+      η ← parRExp
+      parLit "⟩"
+      return $ Sens $ Quantity η
   ]
 
 parSensExp ∷ Parser Token (SensExp RExp)
@@ -290,9 +294,7 @@ parSensExp = tries
 parRExp ∷ Parser Token RExp
 parRExp = mixfixParserWithContext "rexp" $ concat
   [ mixF $ MixFTerminal $ do
-      parLit "⟨"
       x ← parVar
-      parLit "⟩"
       return $ VarRE x
   , mixF $ MixFTerminal $ NatRE ^$ parNat
   , mixF $ MixFTerminal $ NNRealRE ^$ parNNDbl

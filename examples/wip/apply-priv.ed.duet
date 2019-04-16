@@ -10,8 +10,9 @@ in
 pλ εt : ℝ⁺,
    δt : ℝ⁺
    .
-   εv : ℝ⁺[⟨εt⟩],
-   δv : ℝ⁺[⟨δt⟩],
-   x  : ℝ
+   εv : ℝ⁺[εt],
+   δv : ℝ⁺[δt],
+   x₁  : ℝ
    ⇒
-   apply@[ℝ,ℝ,⟨εt,δt⟩ . (pλ . x : ℝ ⇒ gauss[ℝ⁺[1.0],εv,δv] <x> { x }), x] 
+   let applied = pλ . x₂ : ℝ ⇒ gauss[ℝ⁺[1.0],εv,δv] <x₂> { x₂ } in
+   apply@[ℝ,ℝ,⟨εt,δt⟩ . applied, x₁]

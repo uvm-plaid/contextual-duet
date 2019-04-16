@@ -101,20 +101,20 @@ mkSM f = SM $ ReaderT $ \ (Context δ γ ᴍ) → WriterT $ ErrorT $ ID $ f δ �
 runSM ∷ 𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → SM p a → TypeError ∨ ((𝕏 ⇰ Sens RNF) ∧ a)
 runSM δ γ ᴍ = unID ∘ unErrorT ∘ unWriterT ∘ runReaderT (Context δ γ ᴍ) ∘ unSM
 
-newtype PM (p ∷ PRIV) a = PM { unPM ∷ ReaderT Context (WriterT (𝕏 ⇰ Priv p RNF) (ErrorT TypeError ID)) a }
+newtype PM (p ∷ PRIV) a = PM { unPM ∷ ReaderT Context (WriterT (𝕏 ⇰ PrivExp p RNF) (ErrorT TypeError ID)) a }
   deriving
   (Functor
   ,Return,Bind,Monad
   ,MonadError TypeError
   ,MonadReader Context
-  ,MonadWriter (𝕏 ⇰ Priv p RNF))
+  ,MonadWriter (𝕏 ⇰ PrivExp p RNF))
 
-mkPM ∷ (𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → TypeError ∨ ((𝕏 ⇰ Priv p RNF) ∧ a)) → PM p a
+mkPM ∷ (𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → TypeError ∨ ((𝕏 ⇰ PrivExp p RNF) ∧ a)) → PM p a
 mkPM f = PM $ ReaderT $ \ (Context δ γ ᴍ) → WriterT $ ErrorT $ ID $ f δ γ ᴍ
 
 --      kind env   type env    expression   type error    sens costs     expressions' type
 --         ⌄⌄         ⌄⌄           ⌄⌄         ⌄⌄             ⌄⌄            ⌄⌄
-runPM ∷ 𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → PM p a → TypeError ∨ ((𝕏 ⇰ Priv p RNF) ∧ a)
+runPM ∷ 𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → PM p a → TypeError ∨ ((𝕏 ⇰ PrivExp p RNF) ∧ a)
 runPM δ γ ᴍ = unID ∘ unErrorT ∘ unWriterT ∘ runReaderT (Context δ γ ᴍ) ∘ unPM
 
 smFromPM ∷ PM p a → SM p a
@@ -123,7 +123,7 @@ smFromPM xM = mkSM $ \ δ γ ᴍ → mapInr (mapFst $ map $ Sens ∘ truncate In
 pmFromSM ∷ SM p a → PM p a
 pmFromSM xM = mkPM $ \ δ γ ᴍ → mapInr (mapFst $ map $ Priv ∘ truncate Inf ∘ unSens) $ runSM δ γ ᴍ xM
 
-mapPPM ∷ (Priv p₁ RNF → Priv p₂ RNF) → PM p₁ a → PM p₂ a
+mapPPM ∷ (PrivExp p₁ RNF → PrivExp p₂ RNF) → PM p₁ a → PM p₂ a
 mapPPM f xM = mkPM $ \ δ γ ᴍ → mapInr (mapFst $ map f) $ runPM δ γ ᴍ xM
 
 checkSensLang ∷ TLExp RExp → 𝑂 (Sens RExp)
@@ -1258,9 +1258,9 @@ inferPriv eA = case extract eA of
     let aτs = map snd aστs
     case τ of
       ((ακs :* PArgs (τps ∷ 𝐿 (_ ∧ PrivExp p' RNF))) :⊸⋆: τ₁)
-        -- | (joins (values (joins aσs)) ⊑ ι 1.0)
-        -- ⩓ (count τes ≡ count ακs)
-        -- ⩓ (count as ≡ count τps)
+        | (joins (values (joins aσs)) ⊑ ι 1.0)
+        ⩓ (count τes ≡ count ακs)
+        ⩓ (count as ≡ count τps)
         → case eqPRIV (priv @ p) (priv @ p') of
             None → error "privacy variants dont match"
             Some Refl → do
@@ -1367,6 +1367,8 @@ inferPriv eA = case extract eA of
       _ → error $ concat $ inbetween "\n"
                       [ "AppPE expected a function instead of"
                       , pprender τ
+                      , "aσs is:"
+                      , pprender aσs
                       , "aστs is:"
                       , pprender aστs
                       , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
