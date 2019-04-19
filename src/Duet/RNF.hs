@@ -43,21 +43,18 @@ interpRExp γ = \case
   MinusRE e₁ e₂ → interpRExp γ (extract e₁) - interpRExp γ (extract e₂)
 
 data RNF =
-    NatRNF ℕ
-  | NNRealRNF 𝔻
+    NNRealRNF 𝔻
+  | TopRNF
+  | BotRNF
   | SymRNF (𝑃 {- max -} (𝑃 {- min -} RSP))
   deriving (Eq,Ord,Show)
-newtype RSP = RSP { unRSP ∷ (RAtom ⇰ {- prod -} ℕ) ⇰ {- sum -} ℕ }
+newtype RSP = RSP { unRSP ∷ (𝔹 {- top? -} ∧ (RAtom ⇰ {- prod -} 𝔻)) ⇰ {- sum -} 𝔻 }
   deriving (Eq,Ord,Show)
 data RAtom =
-    NNRealRA 𝔻
-  | VarRA 𝕏
+    VarRA 𝕏
   | InvRA RSP
-  | RootRA RSP
-  | ExpRA RSP RSP
+  | EFnRA RSP
   | LogRA RSP
-  | ExpFnRA RSP
-  | MinusRA RNF RNF
   deriving (Eq,Ord,Show)
 
 makePrisms ''RNF
