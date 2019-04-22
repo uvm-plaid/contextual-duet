@@ -25,14 +25,14 @@ data RNFMins = RNFMins
   deriving (Eq,Ord,Show)
 
 -- γ̇ ∈ RNFSums ⩴ c +̇ γ
--- γ ∈ RNFProds ⇰ 𝔻 ᐪ
+-- γ ∈ RNFProds ⇰ 𝔻
 data RNFSums = RNFSums
   { rnfSumsConstant ∷ AddBot 𝔻
   , rnfSumsSymbolic ∷ RNFProds ⇰ AddTop 𝔻 -- (at least one inside)
   }
   deriving (Eq,Ord,Show)
 
--- δ̇ ∈ RNFProds ⩴ δ
+-- δ̇ ∈ RNFProds ⩴ b ×̇ δ
 -- δ ∈ RNFAtom ⇰ 𝔻
 data RNFProds = RNFProds
   { rnfProdsSymbolic ∷ RNFAtom ⇰ 𝔻 -- (at least one inside)
@@ -42,7 +42,8 @@ data RNFProds = RNFProds
 -- ε ∈ RNFAtom
 data RNFAtom =
     VarRA 𝕏
-  | PowRA 𝔻 RNFSums -- (at least two in sum)
+  | InvRA RNFSums -- (at least two in sum)
+  | RootRA RNFSums -- (at least two in sum)
   | LogRA RNFSums -- (at least two in sum)
   | EfnRA RNFSums -- (at least two in sum)
   deriving (Eq,Ord,Show)
@@ -105,8 +106,10 @@ maxRNF e₁ e₂ = case (e₁,e₂) of
 -- └─────┘
 minRNFMaxsConstant ∷ 𝔻 → 𝑃 RNFMins → 𝑃 RNFMins
 minRNFMaxsConstant c α =
-  -- c ⊓̃ α ≜ { c ⊓ (c′ ⊓̇ β) | c′ ⊓̇ β ∈ α }
-  --       = { (c ⊓ c′) ⊓̇ β | c′ ⊓̇ β ∈ α }
+  -- c ⊓̃ [(c₁′ ⊓̇ β₁) ⊔ ⋯ ⊔ (cₘ′ ⊓̇ βₘ)] 
+  --   ≜ [c ⊓ (c₁′ ⊓̇ β₁)] ⊔ ⋯ ⊔ [c ⊓ (cₘ′ ⊓̇ βₘ)]
+  --   = [(c ⊓ c₁′) ⊓̇ β₁] ⊔ ⋯ ⊔ [(c ⊓ cₘ′) ⊓̇ βₘ]
+  --   = { (c ⊓ c′) ⊓̇ β | c′ ⊓̇ β ∈ α }
   pow $ do
     RNFMins c' β ← iter α
     return $ RNFMins (AddTop c ⊓ c') β
@@ -116,8 +119,22 @@ minRNFMaxsConstant c α =
 -- └─────┘
 minRNFMaxs ∷ 𝑃 RNFMins → 𝑃 RNFMins → 𝑃 RNFMins
 minRNFMaxs α₁ α₂ = 
-  -- α₁ ⊓̃ α₂ ≜ { (c₁ ⊓̇ β₁) ⊓ (c₂ ⊓̇ β₂) | c₁ ⊓̇ β₁ ∈ α₁ , c₂ ⊓̇ β₂ ∈ α₂ }
-  --         = { (c₁ ⊓ c₂) ⊓̇ (β₁ ∪ β₂) | c₁ ⊓̇ β₁ ∈ α₁ , c₂ ⊓̇ β₂ ∈ α₂ } 
+  -- [(cᴸ₁ ⊓̇ βᴸ₁) ⊔ ⋯ ⊔ (cᴸₘ ⊓̇ βᴸₘ)] ⊓̃ [(cᴿ₁ ⊓̇ βᴿ₁) ⊔ ⋯ ⊔ (cᴿₙ ⊓̇ βᴿₙ)]
+  --   ≜ [(cᴸ₁ ⊓̇ βᴸ₁) ⊓ (cᴿ₁ ⊓̇ βᴿ₁)] 
+  --     ⊔ ⋯ ⊔ 
+  --     [(cᴸ₁ ⊓̇ βᴸ₁) ⊓ (cᴿₙ ⊓̇ βᴿₙ)]
+  --     ⊔
+  --     [(cᴸₘ ⊓̇ βᴸₘ) ⊓ (cᴿ₁ ⊓̇ βᴿ₁)] 
+  --     ⊔ ⋯ ⊔ 
+  --     [(cᴸₘ ⊓̇ βᴸₘ) ⊓ (cᴿₙ ⊓̇ βᴿₙ)]
+  --   = [(cᴸ₁ ⊓ cᴿ₁) ⊓̇ (βᴸ₁ ∪ βᴿ₁)] 
+  --     ⊔ ⋯ ⊔ 
+  --     [(cᴸ₁ ⊓ cᴿₙ) ⊓̇ (βᴸ₁ ∪ βᴿₙ)]
+  --     ⊔
+  --     [(cᴸₘ ⊓ cᴿ₁) ⊓̇ (βᴸₘ ∪ βᴿ₁)] 
+  --     ⊔ ⋯ ⊔ 
+  --     [(cᴸₘ ⊓ cᴿₙ) ⊓̇ (βᴸₘ ∪ βᴿₙ)]
+  --  = { (cᴸ ⊓ cᴿ) ⊓̇ (βᴸ ∪ βᴿ) | cᴸ ⊓̇ βᴸ ← α₁ , cᴿ ⊓̇ βᴿ ← α₂ }
   pow $ do
     RNFMins c₁ β₁ ← iter α₁
     RNFMins c₂ β₂ ← iter α₂
@@ -158,8 +175,10 @@ minRNF e₁ e₂ = case (e₁,e₂) of
 -- └─────┘
 sumRNFMaxsConstant ∷ 𝔻 → 𝑃 RNFMins → 𝑃 RNFMins
 sumRNFMaxsConstant c α = 
-  -- c +̃ α ≜ { c + (c′ ⊓̇ β) | c′ ⊓̇ β ∈ α }
-  --       = { (c + c′) ⊓̇ (c +̃ β) | c′ ⊓̇ β ∈ α }
+  -- c +̃ [(c₁′ ⊓̇ β₁) ⊔ ⋯ ⊔ (cₘ′ ⊓̇ βₘ)] 
+  --   ≜ [c +̃ (c₁′ ⊓̇ β₁)] ⊔ ⋯ ⊔ [c +̃ (cₘ′ ⊓̇ βₘ)]
+  --   = [(c + c₁′) ⊓̇ (c +̃ β₁)] ⊔ ⋯ ⊔ [(c + cₘ′) ⊓̇ (c +̃ βₘ)]
+  --   = { (c + c′) ⊓̇ (c +̃ β) | c′ ⊓̇ β ∈ α }
   pow $ do
     RNFMins c' β ← iter α
     return $ RNFMins (AddTop c + c') $ sumRNFMinsConstant c β
@@ -169,8 +188,10 @@ sumRNFMaxsConstant c α =
 -- └─────┘
 sumRNFMinsConstant ∷ 𝔻 → 𝑃 RNFSums → 𝑃 RNFSums
 sumRNFMinsConstant c β = 
-  -- c +̃ β ≜ { c + (c′ +̇ γ) | c′ +̇ γ ∈ β }
-  --       = { (c + c′) +̇ γ | c′ +̇ γ ∈ β }
+  -- c +̃ [(c₁′ +̇ γ₁) ⊓ ⋯ ⊓ (cₘ′ +̇ γₘ)] 
+  --   ≜ [c +̃ (c₁′ +̇ γ₁)] ⊓ ⋯ ⊓ [c +̃ (cₘ′ +̇ γₘ)]
+  --   = [(c + c₁′) +̇ γ₁] ⊓ ⋯ ⊓ [(c + cₘ′) +̇ γₘ]
+  --   = { (c + c′) +̇ γ | c′ +̇ γ ∈ β }
   pow $ do
     RNFSums c' γ ← iter β
     return $ RNFSums (AddBot c + c') γ
@@ -180,9 +201,18 @@ sumRNFMinsConstant c β =
 -- └─────┘
 sumRNFMaxs ∷ 𝑃 RNFMins → 𝑃 RNFMins → 𝑃 RNFMins
 sumRNFMaxs α₁ α₂ = 
-  -- α₁ +̃ α₂ ≜ { (c₁ ⊓̇ β₁) + (c₂ ⊓̇ β₂) | c₁ ⊓̇ β₁ ∈ α₂ , c₂ ⊓̇ β₂ ∈ α₂ }
-  --         ≜ { (c₁ + c₂) ⊓ (c₁ + β₁) ⊓ (c₂ + β₂) ⊓ (β₁ + β₂) | c₁ ⊓̇ β₁ ∈ α₂ , c₂ ⊓̇ β₂ ∈ α₂ }
-  --         ≜ { (c₁ + c₂) ⊓̇ [(c₁ +̃ β₁) ∪ (c₂ +̃ β₂) ∪ (β₁ +̃ β₂)] | c₁ ⊓̇ β₁ ∈ α₂ , c₂ ⊓̇ β₂ ∈ α₂ }
+  -- [(cᴸ₁ ⊓̇ βᴸ₁) ⊔ ⋯ ⊔ (cᴸₘ ⊓̇ βᴸₘ)] +̃ [(cᴿ₁ ⊓̇ βᴿ₁) ⊔ ⋯ ⊔ (cᴿₙ ⊓̇ βᴿₙ)]
+  --   ≜ [(cᴸ₁ ⊓̇ βᴸ₁) + (cᴿ₁ ⊓̇ βᴿ₁)] ⊔ ⋯ ⊔ [(cᴸ₁ ⊓̇ βᴸ₁) + (cᴿₙ ⊓̇ βᴿₙ)]
+  --     ⊔ ⋯ ⊔
+  --     [(cᴸₘ ⊓̇ βᴸₘ) + (cᴿ₁ ⊓̇ βᴿ₁)] ⊔ ⋯ ⊔ ([cᴸₘ ⊓̇ βᴸₘ) + (cᴿₙ ⊓̇ βᴿₙ)]
+  --   = [(cᴸ₁ + cᴿ₁) ⊓̇ ((cᴸ₁ +̃ βᴿ₁) ∪ (cᴿ₁ +̃ βᴸ₁) ∪ (βᴸ₁ +̃ βᴿ₁))] 
+  --     ⊔ ⋯ ⊔ 
+  --     [(cᴸ₁ + cᴿₙ) ⊓̇ ((cᴸ₁ +̃ βᴿₙ) ∪ (cᴿₙ +̃ βᴸ₁) ∪ (βᴸ₁ +̃ βᴿₙ))]
+  --     ⊔
+  --     [(cᴸₘ + cᴿ₁) ⊓̇ ((cᴸₘ +̃ βᴿ₁) ∪ (cᴿ₁ +̃ βᴸₘ) ∪ (βᴸₘ +̃ βᴿ₁))]
+  --     ⊔ ⋯ ⊔ 
+  --     [(cᴸₘ + cᴿₙ) ⊓̇ ((cᴸₘ +̃ βᴿₙ) ∪ (cᴿₙ +̃ βᴸₘ) ∪ (βᴸₘ +̃ βᴿₙ))]
+  --  = { (cᴸ + cᴿ) ⊓̇ [(cᴸ +̃ βᴿ) ∪ (cᴿ +̃ βᴸ) ∪ (βᴸ +̃ βᴿ)] | cᴸ ⊓̇ βᴸ ← α₁ , cᴿ ⊓̇ βᴿ ← α₂ }
   pow $ do
     RNFMins c₁ β₁ ← iter α₁
     RNFMins c₂ β₂ ← iter α₂
@@ -198,7 +228,7 @@ sumRNFMaxs α₁ α₂ =
 sumRNFMins ∷ 𝑃 RNFSums → 𝑃 RNFSums → 𝑃 RNFSums
 sumRNFMins β₁ β₂ =
   -- β₁ +̃ β₂ ≜ { (c₁ +̇ γ₁) + (c₂ +̇ γ₂) | c₁ +̇ γ₁ ∈ β₁ , c₂ +̇ γ₂ ∈ β₂ }
-  --         = { (c₁ + c₂) +̇ (γ₁ + γ₂) | c₁ +̇ γ₁ ∈ β₁ , c₂ +̇ γ₂ ∈ β₂ }
+  --         = { (c₁ + c₂) +̇ (γ₁ ∪ γ₂) | c₁ +̇ γ₁ ∈ β₁ , c₂ +̇ γ₂ ∈ β₂ }
   pow $ do
     RNFSums c₁ γ₁ ← iter β₁
     RNFSums c₂ γ₂ ← iter β₂
@@ -253,8 +283,8 @@ prodRNFMinsTop β =
   -- ⊤ ×̃ β ≜ { ⊤ ×̃ (c′ +̇ γ) | c′ +̇ γ ∈ β }
   --       = { (⊤ × c′) +̇ (⊤ ×̃ γ) | c′ +̇ γ ∈ β }
   map pow $ mapM id $ do
-     RNFSums c γ ← iter β
-     return $ case c of
+     RNFSums c' γ ← iter β
+     return $ case c' of
        -- ⊥ +̇ (⊤ ×̃ γ)
        Bot → AddTop $ RNFSums Bot $ prodRNFSumsTop γ
        -- ⊤
@@ -263,13 +293,13 @@ prodRNFMinsTop β =
 -- ┌─────┐
 -- │⊤ ×̃ γ│
 -- └─────┘
-prodRNFSumsTop ∷ RNFProds ⇰ AddTop 𝔻 → RNFProds ⇰ AddTop 𝔻
+prodRNFSumsTop ∷ RNFProds ⇰ 𝔻 ∧ 𝔹 → RNFProds ⇰ 𝔻 ∧ 𝔹 
 prodRNFSumsTop γ = 
-  -- ⊤ ×̃ γ ≜ { ⊤ ×̃ (c′ ×̇ δ) | c′ ×̇ δ ∈ γ }
-  --       = { (⊤ × c′) ×̇ δ | c′ ×̇ δ ∈ γ }
+  -- ⊤ ×̃ γ ≜ { ⊤ ×̃ (c′,b ×̇ δ) | c′,b ×̇ δ ∈ γ }
+  --       = { c′,ᴛ ×̇ δ | c′ ×̇ δ ∈ γ }
   sum $ do
-    RNFProds δ :* _c ← iter γ
-    return $ RNFProds δ ↦ Top
+    RNFProds δ :* (c' :* _) ← iter γ
+    return $ RNFProds δ ↦ (c' :* True)
 
 -- ┌─────┐
 -- │c ×̃ α│
@@ -297,13 +327,13 @@ prodRNFMinsConstant c β =
 -- ┌─────┐
 -- │c ×̃ γ│
 -- └─────┘
-prodRNFSumsConstant ∷ 𝔻 → RNFProds ⇰ AddTop 𝔻 → RNFProds ⇰ AddTop 𝔻
+prodRNFSumsConstant ∷ 𝔻 → RNFProds ⇰ 𝔻 ∧ 𝔹 → RNFProds ⇰ 𝔻 ∧ 𝔹 
 prodRNFSumsConstant c γ = 
-  -- c ×̃ γ ≜ { c ×̃ (c′ ×̇ δ) | c′ ×̇ δ ∈ γ }
-  --       = { (c × c′) ×̃ δ | c′ ×̇ δ ∈ γ }
+  -- c ×̃ γ ≜ { c ×̃ (c′ ×̇ δ) | c′,b ×̇ δ ∈ γ }
+  --       = { (c × c′),b ×̃ δ | c′ ×̇ δ ∈ γ }
   sum $ do
-    RNFProds δ :* c' ← iter γ
-    return $ RNFProds δ ↦ (AddTop c × c')
+    RNFProds δ :* (c':* b) ← iter γ
+    return $ RNFProds δ ↦ ((c × c') :* b)
 
 -- ┌─────┐
 -- │α ×̃ α│
@@ -342,14 +372,14 @@ prodRNFMins β₁ β₂ =
 -- ┌─────┐
 -- │γ ×̃ γ│
 -- └─────┘
-prodRNFSums ∷ RNFProds ⇰ AddTop 𝔻 → RNFProds ⇰ AddTop 𝔻 → RNFProds ⇰ AddTop 𝔻
+prodRNFSums ∷ RNFProds ⇰ 𝔻 ∧ 𝔹 → RNFProds ⇰ 𝔻 ∧ 𝔹 → RNFProds ⇰ 𝔻 ∧ 𝔹
 prodRNFSums γ₁ γ₂ =
-  -- γ₁ ×̃ γ₂ ≜ { (c₁ ×̇ δ₁) × (c₂ ×̇ δ₂) | c₁ ×̇ δ₁ ∈ γ₁ , c₂ ×̇ δ₂ ∈ γ₂ }
-  --         = { c₁ × c₂ ×̇ (δ₁ ∪ δ₂) | c₁ ×̇ δ₁ ∈ γ₁ , c₂ ×̇ δ₂ ∈ γ₂ }
+  -- γ₁ ×̃ γ₂ ≜ { (c₁,b₁ ×̇ δ₁) × (c₂,b₂ ×̇ δ₂) | c₁,b₁ ×̇ δ₁ ∈ γ₁ , c₂,b₂ ×̇ δ₂ ∈ γ₂ }
+  --         = { c₁ × c₂,b₁∨b₂ ×̇ (δ₁ ∪ δ₂) | c₁,b₁ ×̇ δ₁ ∈ γ₁ , c₂,b₂ ×̇ δ₂ ∈ γ₂ }
   sum $ do
-    RNFProds δ₁ :* c₁  ← iter γ₁
-    RNFProds δ₂ :* c₂  ← iter γ₂
-    return $ RNFProds (δ₁ + δ₂) ↦ (c₁ × c₂)
+    RNFProds δ₁ :* (c₁ :* b₁) ← iter γ₁
+    RNFProds δ₂ :* (c₂ :* b₂) ← iter γ₂
+    return $ RNFProds (δ₁ + δ₂) ↦ ((c₁ × c₂) :* (b₁ ⩔ b₂))
 
 -- ┌─────┐
 -- │e ×̃ e│
@@ -401,65 +431,34 @@ prodRNF e₁ e₂ = case (e₁,e₂) of
     , prodRNFMaxs α₁ α₂
     ]
 
------------
--- POWER --
------------
+-------------
+-- INVERSE --
+-------------
 
--- LEFT OFF HERE
-
--- ┌─────┐
--- │α ^̃ c│
--- └─────┘
-powerRNFMaxs ∷ 𝑃 RNFMins → 𝑃 RNFMins
-powerRNFMaxs α =
+-- ┌────┐
+-- │1/̃ α│
+-- └────┘
+invRNFMaxs ∷ 𝑃 RNFMins → 𝑃 RNFMins
+invRNFMaxs α =
   -- 1/̃ α ≜ { 1/̃(c ⊓̇ β) | c ⊓̇ β ∈ α }
   --      = { (1/c) ⊓̇ (1/̃β) | c ⊓̇ β ∈ α }
-  pow $ do
-    RNFMins c β ← iter α
-    return $ RNFMins (AddTop 1.0 / c) $ invRNFMins β
-
--- ┌────┐
--- │1/̃ β│
--- └────┘
-invRNFMins ∷ 𝑃 RNFSums → 𝑃 RNFSums
-invRNFMins β = 
-  -- 1/̃ β ≜ { 1/̃ (c +̇ γ) | c +̇ γ ∈ β }
-  -- where
-  --   1/̃ (c +̇ γ) ≜ (1/c′) ×̇ 1/̃δ        when  c = 0  and  γ = {c′ × δ}
-  --              ≜ 1/̇ (c +̇ γ)          otherwise
-  pow $ do
-    RNFSums c γ ← iter β
-    case (c,list γ) of
-      (Bot,(RNFProds δ :* c') :& Nil) → return $ RNFSums Bot $ RNFProds (invRNFProds δ) ↦ (AddTop 1.0 / c')
-      _ → return $ RNFSums Bot $ RNFProds ((InvRA $ RNFSums c γ) ↦ 1.0) ↦ AddTop 1.0
-
--- ┌────┐
--- │1/̃ γ│
--- └────┘
-invRNFProds ∷ RNFAtom ⇰ 𝔻 → RNFAtom ⇰ 𝔻 
-invRNFProds δ = 
-  -- 1/̃ δ ≜ { 1/̃(ε ^̇ c) | ε ^̇ c ∈ δ }
-  --      ≜ (1/ε) ^̇ c | ε ^̇ c ∈ δ }
-  sum $ do
-    ε :* c ← iter δ
-    return $ invRNFAtom ε ↦ c
-
--- ┌────┐
--- │1/̃ ε│
--- └────┘
-invRNFAtom ∷ RNFAtom → RNFAtom
-invRNFAtom (InvRA γ̇) = _ γ̇
+  undefined
+  -- pow $ do
+  --   RNFMins c β ← iter α
+  --   return $ RNFMins
 
 -- ┌────┐
 -- │1/̃ e│
 -- └────┘
 invRNF ∷ RNF → RNF
 invRNF e = case e of
-  -- 1/̃ ⊥ ≜ ⊥
-  ConstantRNF BotBT → ConstantRNF BotBT
-  -- 1/̃ ⊤ ≜ ⊤
-  ConstantRNF TopBT → ConstantRNF TopBT
+  -- 1/̃ ⊥ ≜ ⊤
+  ConstantRNF BotBT → ConstantRNF TopBT
+  -- 1/̃ ⊤ ≜ ⊥
+  ConstantRNF TopBT → ConstantRNF BotBT
   -- 1/̃ c ≜ 1/c
   ConstantRNF (AddBT c) → ConstantRNF $ AddBT $ 1.0 / c
+  -- 1/̃(⊥ ⊔̇ α) ≜ ⊤
+  SymRNF (RNFMaxs Bot α) → ConstantRNF TopBT
   -- 1/̃(c ⊔̇ α) ≜ (1/c) ⊔̇ (1/̃ α)
-  SymRNF (RNFMaxs c α) → SymRNF $ RNFMaxs (AddBot 1.0 / c) $ invRNFMaxs α
+  SymRNF (RNFMaxs (AddBot c) α) → SymRNF $ RNFMaxs (AddBot $ 1.0 / c) $ invRNFMaxs

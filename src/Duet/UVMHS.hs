@@ -83,10 +83,47 @@ add3 ∷ (Plus a) ⇒ a → a → a → a
 add3 a b c = (a + b) + c
 
 deriving instance (Show a) ⇒ Show (AddTop a)
+deriving instance (Show a) ⇒ Show (AddBot a)
+deriving instance (Show a) ⇒ Show (AddBT a)
+
 instance (Plus a) ⇒ Plus (AddTop a) where
   Top + _ = Top
   _ + Top = Top
-  AddTop a + AddTop b = AddTop (a + b)
+  AddTop x + AddTop y = AddTop $ x + y
+instance (Plus a) ⇒ Plus (AddBot a) where
+  Bot + y = y
+  x + Bot = x
+  AddBot x + AddBot y = AddBot $ x + y
+instance (Times a) ⇒ Times (AddTop a) where
+  Top × _ = Top
+  _ × Top = Top
+  AddTop x × AddTop y = AddTop $ x × y
+instance (Times a) ⇒ Times (AddBot a) where
+  Bot × _ = Bot
+  _ × Bot = Bot
+  AddBot x × AddBot y = AddBot $ x × y
+instance (Divide a) ⇒ Divide (AddBot a) where
+  Bot / _ = Bot
+  _ / Bot = Bot
+  AddBot x / AddBot y = AddBot $ x / y
+instance (Divide a) ⇒ Divide (AddTop a) where
+  Top / _ = Top
+  _ / Top = Top
+  AddTop x / AddTop y = AddTop $ x / y
+
+instance Zero 𝔹 where zero = False
+instance Plus 𝔹 where (+) = (⩔)
+instance One 𝔹 where one = True
+instance Times 𝔹 where (×) = (⩓)
+instance Additive 𝔹
+instance Multiplicative 𝔹
+
+instance (Zero a,Zero b) ⇒ Zero (a ∧ b) where zero = zero :* zero
+instance (Plus a,Plus b) ⇒ Plus (a ∧ b) where (x₁ :* y₁) + (x₂ :* y₂) = (x₁ + x₂) :* (y₁ + y₂)
+instance (One a,One b) ⇒ One (a ∧ b) where one = one :* one
+instance (Times a,Times b) ⇒ Times (a ∧ b) where (x₁ :* y₁) × (x₂ :* y₂) = (x₁ × x₂) :* (y₁ × y₂)
+instance (Additive a,Additive b) ⇒ Additive (a ∧ b)
+instance (Multiplicative a,Multiplicative b) ⇒ Multiplicative (a ∧ b)
 
 truncate ∷ 𝔻 → ℤ
 truncate = HS.truncate
