@@ -110,6 +110,20 @@ instance (Divide a) ⇒ Divide (AddTop a) where
   Top / _ = Top
   _ / Top = Top
   AddTop x / AddTop y = AddTop $ x / y
+instance (Exponential a) ⇒ Exponential (AddBot a) where
+  Bot ^ _ = Bot
+  _ ^ Bot = Bot
+  AddBot x ^ AddBot y = AddBot $ x ^ y
+instance (Exponential a) ⇒ Exponential (AddTop a) where
+  Top ^ _ = Top
+  _ ^ Top = Top
+  AddTop x ^ AddTop y = AddTop $ x ^ y
+instance (ExponentialFn a) ⇒ ExponentialFn (AddBot a) where
+  exp Bot = Bot
+  exp (AddBot x) = AddBot $ exp x
+instance (ExponentialFn a) ⇒ ExponentialFn (AddTop a) where
+  exp Top = Top
+  exp (AddTop x) = AddTop $ exp x
 
 instance Zero 𝔹 where zero = False
 instance Plus 𝔹 where (+) = (⩔)
