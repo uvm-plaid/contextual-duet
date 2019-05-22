@@ -86,10 +86,14 @@ deriving instance (Show a) ⇒ Show (AddTop a)
 deriving instance (Show a) ⇒ Show (AddBot a)
 deriving instance (Show a) ⇒ Show (AddBT a)
 
+instance (Zero a) ⇒ Zero (AddTop a) where
+  zero = AddTop zero
 instance (Plus a) ⇒ Plus (AddTop a) where
   Top + _ = Top
   _ + Top = Top
   AddTop x + AddTop y = AddTop $ x + y
+instance (Additive a) ⇒ Additive (AddTop a)
+
 instance (Plus a) ⇒ Plus (AddBot a) where
   Bot + y = y
   x + Bot = x
@@ -144,3 +148,19 @@ truncate = HS.truncate
 
 abs ∷ ℤ → ℕ
 abs = natΩ ∘ HS.abs
+
+ratAbs ∷ ℚ → 𝕋
+ratAbs q = rio (abs (ratNum q)) / rio (ratDen q)
+
+fp ∷ (Eq a) ⇒ a → (a → a) → a
+fp x f =
+  let x' = f x
+  in case x' ≡ x of
+    True → x' 
+    False → fp x' f
+
+instance ToNatO 𝔻 where
+  natO d = do
+    let z = truncate d
+    guard (dbl z ≡ d)
+    natO z
