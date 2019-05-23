@@ -1021,6 +1021,12 @@ e3' = normalizeRNF $
 
 -- Substitution --
 
+e1subst ∷ RNF
+e1subst = substRNF (var "x") (dblRNF 3.0) e1
+
+e1subst' ∷ RNF
+e1subst' = substRNF (var "x") (substRNF (var "x") e1 e1) e1
+
 substRNF ∷ 𝕏 → RNF → RNF → RNF
 substRNF _ _ (ConstantRNF a) = ConstantRNF a
 substRNF x r' (SymRNF maxs) = substRNFMaxs x r' maxs
