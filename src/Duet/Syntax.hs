@@ -4,7 +4,7 @@ module Duet.Syntax where
 import Duet.UVMHS
 
 import Duet.Quantity
-import Duet.RNF
+import Duet.RNF2
 
 data Norm = L1 | L2 | LInf
   deriving (Eq,Ord,Show)
@@ -12,7 +12,7 @@ data Norm = L1 | L2 | LInf
 data Clip = NormClip Norm | UClip
   deriving (Eq,Ord,Show)
 
-newtype Sens r = Sens { unSens ∷ Quantity r }
+newtype Sens r = Sens { unSens ∷ r }
   deriving
   (Eq,Ord,Show,Functor
   ,Zero,Plus,Additive
@@ -24,13 +24,12 @@ newtype Sens r = Sens { unSens ∷ Quantity r }
   ,Top,Meet,MeetLattice
   ,Lattice)
 
-data SensExp r = SensExp (Sens r) | VarSens 𝕏 deriving (Eq,Ord,Show)
+data SensExp r = SensExp (Sens r) deriving (Eq,Ord,Show)
 
 instance (One a) ⇒ One (SensExp a) where one = SensExp one
 
 instance Functor SensExp where
   map f (SensExp s) = SensExp $ map f s
-  map _f (VarSens x) = VarSens x
 
 instance (HasPrism (Quantity r) s) ⇒ HasPrism (Sens r) s where
   hasPrism = Prism
@@ -135,19 +134,17 @@ instance Functor (Pr p) where
   map f (ZCPriv ρ) = ZCPriv $ f ρ
   map f (TCPriv ρ ω) = TCPriv (f ρ) (f ω)
 
-newtype Priv p r = Priv { unPriv ∷ Quantity (Pr p r) }
+newtype Priv p r = Priv { unPriv ∷ Pr p r }
   deriving
   (Eq,Ord,Show
   ,Null,Append,Monoid
   ,Bot,Join,JoinLattice)
 instance Functor (Priv p) where map f = Priv ∘ mapp f ∘ unPriv
 
-data PrivExp p r = PrivExp (Priv p r) | VarPriv 𝕏 deriving (Eq,Ord,Show)
+data PrivExp p r = PrivExp (Priv p r) deriving (Eq,Ord,Show)
 
 instance Functor (PrivExp p) where
   map f (PrivExp s) = PrivExp $ map f s
-  map _f (VarPriv x) = VarPriv x
-
 
 onPriv ∷ (Quantity (Pr p₁ r₁) → Quantity (Pr p₂ r₂)) → Priv p₁ r₁ → Priv p₂ r₂
 onPriv f = Priv ∘ f ∘ unPriv

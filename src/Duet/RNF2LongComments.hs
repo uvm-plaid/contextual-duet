@@ -1,9 +1,9 @@
-module Duet.RNF2 where
+module Duet.RNF2LongComments where
 
 import Duet.UVMHS
 
 -- e ∈ RNF ⩴ ⊥ | ⊤ | r | α̇
-data RNF = 
+data RNF =
     ConstantRNF (AddBT 𝔻)
   | SymRNF RNFMaxs
   deriving (Eq,Ord,Show)
@@ -53,7 +53,7 @@ data RNFAtom =
 -------------
 
 litRNF ∷ 𝔻 → RNF
-litRNF d 
+litRNF d
   | d ≡ 0.0 = ConstantRNF BotBT
   | otherwise = ConstantRNF $ AddBT d
 
@@ -62,11 +62,11 @@ litRNF d
 --------------
 
 varRNF ∷ 𝕏 → RNF
-varRNF x = 
+varRNF x =
   -- 0 ⊔̇ (⊤ ⊓̇ (0 +̇ (1 ×̇ x¹)))
-  SymRNF 
-  $ RNFMaxs Bot $ single 
-  $ RNFMins Top $ single 
+  SymRNF
+  $ RNFMaxs Bot $ single
+  $ RNFMins Top $ single
   $ RNFSums Bot $ single $ flip (:*) (AddTop 1.0)
   $ RNFProds $ single $ flip (:*) 1.0
   $ VarRA x
@@ -106,7 +106,7 @@ maxRNF e₁ e₂ = case (e₁,e₂) of
 -- └─────┘
 minRNFMaxsConstant ∷ 𝔻 → 𝑃 RNFMins → 𝑃 RNFMins
 minRNFMaxsConstant c α =
-  -- c ⊓̃ [(c₁′ ⊓̇ β₁) ⊔ ⋯ ⊔ (cₘ′ ⊓̇ βₘ)] 
+  -- c ⊓̃ [(c₁′ ⊓̇ β₁) ⊔ ⋯ ⊔ (cₘ′ ⊓̇ βₘ)]
   --   ≜ [c ⊓ (c₁′ ⊓̇ β₁)] ⊔ ⋯ ⊔ [c ⊓ (cₘ′ ⊓̇ βₘ)]
   --   = [(c ⊓ c₁′) ⊓̇ β₁] ⊔ ⋯ ⊔ [(c ⊓ cₘ′) ⊓̇ βₘ]
   --   = { (c ⊓ c′) ⊓̇ β | c′ ⊓̇ β ∈ α }
@@ -118,21 +118,21 @@ minRNFMaxsConstant c α =
 -- │α ⊓̃ α│
 -- └─────┘
 minRNFMaxs ∷ 𝑃 RNFMins → 𝑃 RNFMins → 𝑃 RNFMins
-minRNFMaxs α₁ α₂ = 
+minRNFMaxs α₁ α₂ =
   -- [(cᴸ₁ ⊓̇ βᴸ₁) ⊔ ⋯ ⊔ (cᴸₘ ⊓̇ βᴸₘ)] ⊓̃ [(cᴿ₁ ⊓̇ βᴿ₁) ⊔ ⋯ ⊔ (cᴿₙ ⊓̇ βᴿₙ)]
-  --   ≜ [(cᴸ₁ ⊓̇ βᴸ₁) ⊓ (cᴿ₁ ⊓̇ βᴿ₁)] 
-  --     ⊔ ⋯ ⊔ 
+  --   ≜ [(cᴸ₁ ⊓̇ βᴸ₁) ⊓ (cᴿ₁ ⊓̇ βᴿ₁)]
+  --     ⊔ ⋯ ⊔
   --     [(cᴸ₁ ⊓̇ βᴸ₁) ⊓ (cᴿₙ ⊓̇ βᴿₙ)]
   --     ⊔
-  --     [(cᴸₘ ⊓̇ βᴸₘ) ⊓ (cᴿ₁ ⊓̇ βᴿ₁)] 
-  --     ⊔ ⋯ ⊔ 
+  --     [(cᴸₘ ⊓̇ βᴸₘ) ⊓ (cᴿ₁ ⊓̇ βᴿ₁)]
+  --     ⊔ ⋯ ⊔
   --     [(cᴸₘ ⊓̇ βᴸₘ) ⊓ (cᴿₙ ⊓̇ βᴿₙ)]
-  --   = [(cᴸ₁ ⊓ cᴿ₁) ⊓̇ (βᴸ₁ ∪ βᴿ₁)] 
-  --     ⊔ ⋯ ⊔ 
+  --   = [(cᴸ₁ ⊓ cᴿ₁) ⊓̇ (βᴸ₁ ∪ βᴿ₁)]
+  --     ⊔ ⋯ ⊔
   --     [(cᴸ₁ ⊓ cᴿₙ) ⊓̇ (βᴸ₁ ∪ βᴿₙ)]
   --     ⊔
-  --     [(cᴸₘ ⊓ cᴿ₁) ⊓̇ (βᴸₘ ∪ βᴿ₁)] 
-  --     ⊔ ⋯ ⊔ 
+  --     [(cᴸₘ ⊓ cᴿ₁) ⊓̇ (βᴸₘ ∪ βᴿ₁)]
+  --     ⊔ ⋯ ⊔
   --     [(cᴸₘ ⊓ cᴿₙ) ⊓̇ (βᴸₘ ∪ βᴿₙ)]
   --  = { (cᴸ ⊓ cᴿ) ⊓̇ (βᴸ ∪ βᴿ) | cᴸ ⊓̇ βᴸ ← α₁ , cᴿ ⊓̇ βᴿ ← α₂ }
   pow $ do
@@ -163,7 +163,7 @@ minRNF e₁ e₂ = case (e₁,e₂) of
   (SymRNF (RNFMaxs c₁ α₁),SymRNF (RNFMaxs c₂ α₂)) →  SymRNF $ RNFMaxs (c₁ ⊓ c₂) $ concat
     [ flip (elimAddBot pø) c₁ $ \ c₁' → minRNFMaxsConstant c₁' α₂
     , flip (elimAddBot pø) c₂ $ \ c₂' → minRNFMaxsConstant c₂' α₁
-    , minRNFMaxs α₁ α₂ 
+    , minRNFMaxs α₁ α₂
     ]
 
 ----------
@@ -174,8 +174,8 @@ minRNF e₁ e₂ = case (e₁,e₂) of
 -- │c +̃ α│
 -- └─────┘
 sumRNFMaxsConstant ∷ 𝔻 → 𝑃 RNFMins → 𝑃 RNFMins
-sumRNFMaxsConstant c α = 
-  -- c +̃ [(c₁′ ⊓̇ β₁) ⊔ ⋯ ⊔ (cₘ′ ⊓̇ βₘ)] 
+sumRNFMaxsConstant c α =
+  -- c +̃ [(c₁′ ⊓̇ β₁) ⊔ ⋯ ⊔ (cₘ′ ⊓̇ βₘ)]
   --   ≜ [c +̃ (c₁′ ⊓̇ β₁)] ⊔ ⋯ ⊔ [c +̃ (cₘ′ ⊓̇ βₘ)]
   --   = [(c + c₁′) ⊓̇ (c +̃ β₁)] ⊔ ⋯ ⊔ [(c + cₘ′) ⊓̇ (c +̃ βₘ)]
   --   = { (c + c′) ⊓̇ (c +̃ β) | c′ ⊓̇ β ∈ α }
@@ -187,8 +187,8 @@ sumRNFMaxsConstant c α =
 -- │c +̃ β│
 -- └─────┘
 sumRNFMinsConstant ∷ 𝔻 → 𝑃 RNFSums → 𝑃 RNFSums
-sumRNFMinsConstant c β = 
-  -- c +̃ [(c₁′ +̇ γ₁) ⊓ ⋯ ⊓ (cₘ′ +̇ γₘ)] 
+sumRNFMinsConstant c β =
+  -- c +̃ [(c₁′ +̇ γ₁) ⊓ ⋯ ⊓ (cₘ′ +̇ γₘ)]
   --   ≜ [c +̃ (c₁′ +̇ γ₁)] ⊓ ⋯ ⊓ [c +̃ (cₘ′ +̇ γₘ)]
   --   = [(c + c₁′) +̇ γ₁] ⊓ ⋯ ⊓ [(c + cₘ′) +̇ γₘ]
   --   = { (c + c′) +̇ γ | c′ +̇ γ ∈ β }
@@ -200,17 +200,17 @@ sumRNFMinsConstant c β =
 -- │α +̃ α│
 -- └─────┘
 sumRNFMaxs ∷ 𝑃 RNFMins → 𝑃 RNFMins → 𝑃 RNFMins
-sumRNFMaxs α₁ α₂ = 
+sumRNFMaxs α₁ α₂ =
   -- [(cᴸ₁ ⊓̇ βᴸ₁) ⊔ ⋯ ⊔ (cᴸₘ ⊓̇ βᴸₘ)] +̃ [(cᴿ₁ ⊓̇ βᴿ₁) ⊔ ⋯ ⊔ (cᴿₙ ⊓̇ βᴿₙ)]
   --   ≜ [(cᴸ₁ ⊓̇ βᴸ₁) + (cᴿ₁ ⊓̇ βᴿ₁)] ⊔ ⋯ ⊔ [(cᴸ₁ ⊓̇ βᴸ₁) + (cᴿₙ ⊓̇ βᴿₙ)]
   --     ⊔ ⋯ ⊔
   --     [(cᴸₘ ⊓̇ βᴸₘ) + (cᴿ₁ ⊓̇ βᴿ₁)] ⊔ ⋯ ⊔ ([cᴸₘ ⊓̇ βᴸₘ) + (cᴿₙ ⊓̇ βᴿₙ)]
-  --   = [(cᴸ₁ + cᴿ₁) ⊓̇ ((cᴸ₁ +̃ βᴿ₁) ∪ (cᴿ₁ +̃ βᴸ₁) ∪ (βᴸ₁ +̃ βᴿ₁))] 
-  --     ⊔ ⋯ ⊔ 
+  --   = [(cᴸ₁ + cᴿ₁) ⊓̇ ((cᴸ₁ +̃ βᴿ₁) ∪ (cᴿ₁ +̃ βᴸ₁) ∪ (βᴸ₁ +̃ βᴿ₁))]
+  --     ⊔ ⋯ ⊔
   --     [(cᴸ₁ + cᴿₙ) ⊓̇ ((cᴸ₁ +̃ βᴿₙ) ∪ (cᴿₙ +̃ βᴸ₁) ∪ (βᴸ₁ +̃ βᴿₙ))]
   --     ⊔
   --     [(cᴸₘ + cᴿ₁) ⊓̇ ((cᴸₘ +̃ βᴿ₁) ∪ (cᴿ₁ +̃ βᴸₘ) ∪ (βᴸₘ +̃ βᴿ₁))]
-  --     ⊔ ⋯ ⊔ 
+  --     ⊔ ⋯ ⊔
   --     [(cᴸₘ + cᴿₙ) ⊓̇ ((cᴸₘ +̃ βᴿₙ) ∪ (cᴿₙ +̃ βᴸₘ) ∪ (βᴸₘ +̃ βᴿₙ))]
   --  = { (cᴸ + cᴿ) ⊓̇ [(cᴸ +̃ βᴿ) ∪ (cᴿ +̃ βᴸ) ∪ (βᴸ +̃ βᴿ)] | cᴸ ⊓̇ βᴸ ← α₁ , cᴿ ⊓̇ βᴿ ← α₂ }
   pow $ do
@@ -257,7 +257,7 @@ sumRNF e₁ e₂ = case (e₁,e₂) of
   (SymRNF (RNFMaxs c₁ α₁),SymRNF (RNFMaxs c₂ α₂)) → SymRNF $ RNFMaxs (c₁ + c₂) $ concat
     [ flip (elimAddBot pø) c₁ $ \ c₁' → sumRNFMaxsConstant c₁' α₂
     , flip (elimAddBot pø) c₂ $ \ c₂' → sumRNFMaxsConstant c₂' α₁
-    , sumRNFMaxs α₁ α₂ 
+    , sumRNFMaxs α₁ α₂
     ]
 
 -----------
@@ -268,7 +268,7 @@ sumRNF e₁ e₂ = case (e₁,e₂) of
 -- │⊤ ×̃ α│
 -- └─────┘
 prodRNFMaxsTop ∷ 𝑃 RNFMins → AddTop (𝑃 RNFMins)
-prodRNFMaxsTop α = 
+prodRNFMaxsTop α =
   -- ⊤ ×̃ α ≜ { ⊤ × (c′ ⊓̇ β) | c′ ⊓̇ β ∈ α }
   --       = { ⊤ ⊓̇ (⊤ ×̃ β) | c′ ⊓̇ β ∈ α }
   map pow $ mapM id $ do
@@ -279,7 +279,7 @@ prodRNFMaxsTop α =
 -- │⊤ ×̃ β│
 -- └─────┘
 prodRNFMinsTop ∷ 𝑃 RNFSums → AddTop (𝑃 RNFSums)
-prodRNFMinsTop β = 
+prodRNFMinsTop β =
   -- ⊤ ×̃ β ≜ { ⊤ ×̃ (c′ +̇ γ) | c′ +̇ γ ∈ β }
   --       = { (⊤ × c′) +̇ (⊤ ×̃ γ) | c′ +̇ γ ∈ β }
   map pow $ mapM id $ do
@@ -293,8 +293,8 @@ prodRNFMinsTop β =
 -- ┌─────┐
 -- │⊤ ×̃ γ│
 -- └─────┘
-prodRNFSumsTop ∷ RNFProds ⇰ 𝔻 ∧ 𝔹 → RNFProds ⇰ 𝔻 ∧ 𝔹 
-prodRNFSumsTop γ = 
+prodRNFSumsTop ∷ RNFProds ⇰ 𝔻 ∧ 𝔹 → RNFProds ⇰ 𝔻 ∧ 𝔹
+prodRNFSumsTop γ =
   -- ⊤ ×̃ γ ≜ { ⊤ ×̃ (c′,b ×̇ δ) | c′,b ×̇ δ ∈ γ }
   --       = { c′,ᴛ ×̇ δ | c′ ×̇ δ ∈ γ }
   sum $ do
@@ -305,7 +305,7 @@ prodRNFSumsTop γ =
 -- │c ×̃ α│
 -- └─────┘
 prodRNFMaxsConstant ∷ 𝔻 → 𝑃 RNFMins → 𝑃 RNFMins
-prodRNFMaxsConstant c α = 
+prodRNFMaxsConstant c α =
   -- c ×̃ α ≜ { c × (c′ ⊓̇ β) | c′ ⊓̇ β ∈ α }
   --       = { (c × c′) ⊓̇ (c ×̃ β) | c′ ⊓̇ β ∈ α }
   pow $ do
@@ -317,7 +317,7 @@ prodRNFMaxsConstant c α =
 -- │c ×̃ β│
 -- └─────┘
 prodRNFMinsConstant ∷ 𝔻 → 𝑃 RNFSums → 𝑃 RNFSums
-prodRNFMinsConstant c β = 
+prodRNFMinsConstant c β =
   -- c ×̃ β ≜ { c ×̃ (c′ +̇ γ) | c′ +̇ γ ∈ β }
   --       = { (c × c′) +̇ (c ×̃ γ) | c′ +̇ γ ∈ β }
   pow  $ do
@@ -327,8 +327,8 @@ prodRNFMinsConstant c β =
 -- ┌─────┐
 -- │c ×̃ γ│
 -- └─────┘
-prodRNFSumsConstant ∷ 𝔻 → RNFProds ⇰ 𝔻 ∧ 𝔹 → RNFProds ⇰ 𝔻 ∧ 𝔹 
-prodRNFSumsConstant c γ = 
+prodRNFSumsConstant ∷ 𝔻 → RNFProds ⇰ 𝔻 ∧ 𝔹 → RNFProds ⇰ 𝔻 ∧ 𝔹
+prodRNFSumsConstant c γ =
   -- c ×̃ γ ≜ { c ×̃ (c′ ×̇ δ) | c′,b ×̇ δ ∈ γ }
   --       = { (c × c′),b ×̃ δ | c′ ×̇ δ ∈ γ }
   sum $ do
@@ -339,7 +339,7 @@ prodRNFSumsConstant c γ =
 -- │α ×̃ α│
 -- └─────┘
 prodRNFMaxs ∷ 𝑃 RNFMins → 𝑃 RNFMins → 𝑃 RNFMins
-prodRNFMaxs α₁ α₂ = 
+prodRNFMaxs α₁ α₂ =
   -- α₁ ×̃ α₂ ≜ { (c₁ ⊓̇ β₁) × (c₂ ⊓̇ β₂) | c₁ ⊓̇ β₁ ∈ α₂ , c₂ ⊓̇ β₂ ∈ α₂ }
   --         ≜ { (c₁ × c₂) ⊓ (c₁ × β₁) ⊓ (c₂ × β₂) ⊓ (β₁ × β₂) | c₁ ⊓̇ β₁ ∈ α₂ , c₂ ⊓̇ β₂ ∈ α₂ }
   --         ≜ { (c₁ × c₂) ⊓̇ [(c₁ ×̃ β₁) ∪ (c₂ ×̃ β₂) ∪ (β₁ ×̃ β₂)] | c₁ ⊓̇ β₁ ∈ α₂ , c₂ ⊓̇ β₂ ∈ α₂ }
