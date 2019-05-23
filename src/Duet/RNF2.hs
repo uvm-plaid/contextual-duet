@@ -1022,49 +1022,45 @@ e3' = normalizeRNF $
 -- Substitution --
 
 substRNF ∷ 𝕏 → RNF → RNF → RNF
-substRNF _ _ ConstantRNF a = ConstantRNF a
+substRNF _ _ (ConstantRNF a) = ConstantRNF a
 substRNF x r' (SymRNF maxs) = substRNFMaxs x r' maxs
 
 substRNFMaxs ∷ 𝕏 → RNF → RNFMaxs → RNF
-substRNFMaxs x r' (RNFMaxs d pmins) = fold (dblRNF d) maxRNF $ do
+substRNFMaxs x r' (RNFMaxs d pmins) = fold (addBot2RNF d) maxRNF $ do
   (RNFMins c psums) ← list pmins
   return $ fold (addTop2RNF c) minRNF $ do
-    sums ← psums
+    sums ← list psums
     return $ substRNFSums x r' sums
 
 substRNFSums ∷ 𝕏 → RNF → RNFSums → RNF
 substRNFSums x r' (RNFSums d γ) = do
-  fold (addBot2RNF d) plusRNF $ do
+  fold (addBot2RNF d) sumRNF $ do
     (prods :* sca) ← list γ
-    return $ timesRNF (addTop2RNF sca) $ substRNFProds x r' prods
+    return $ prodRNF (addTop2RNF sca) $ substRNFProds x r' prods
 
 substRNFProds ∷ 𝕏 → RNF → RNFProds → RNF
-substRNFProds x r' (RNFProds δ̂ δ̌) = do
-  δ̂' ← fold (dblRNF 1.0) timesRNF $ do
-          (sums :* q) ← list δ̌
-          return $ powerRNF q substRNFSums x r' sums
-  δ̌' ← fold (dblRNF 1.0) timesRNF $ do
-          (atom :* q) ← list δ̌
-          return $ powerRNF q substRAtom x r' atom
-  return timesRNF δ̂' δ̌'
+substRNFProds x r' (RNFProds δ̂ δ̌) =
+  let δ̂' = fold (dblRNF 1.0) prodRNF $ map (\(sums :* q) → powerRNF q $ substRNFSums x r' sums) $ list δ̂ in
+  let δ̌' = fold (dblRNF 1.0) prodRNF $ map (\(atom :* q) → powerRNF q $ substRAtom x r' atom) $ list δ̌
+  in prodRNF δ̂' δ̌'
 
 substRAtom ∷ 𝕏 → RNF → RNFAtom → RNF
 substRAtom x r' = \case
   VarRA y → case x ≡ y of
     True → r'
     False → varRNF y
-  LogRA xs² → logRNF $ substRNFSums x r' xs²
-  ExpFnRA xs¹ → expFnRNF $ substRNFProds x r' xs¹
+  -- LogRA xs² → logRNF $ substRNFSums x r' xs²
+  -- EfnRA xs¹ → expFnRNF $ substRNFProds x r' xs¹
 
 addBT2RNF ∷ AddBT 𝔻 → RNF
 addBT2RNF BotBT = bot
 addBT2RNF TopBT = top
-addBT2RNF AddBT d = dblRNF d
+addBT2RNF (AddBT d) = dblRNF d
 
 addBot2RNF ∷ AddBot 𝔻 → RNF
 addBot2RNF Bot = bot
-addBot2RNF AddBot d = dbl d
+addBot2RNF (AddBot d) = dblRNF d
 
 addTop2RNF ∷ AddTop 𝔻 → RNF
 addTop2RNF Top = top
-addTop2RNF AddTop d = dbl d
+addTop2RNF (AddTop d) = dblRNF d
