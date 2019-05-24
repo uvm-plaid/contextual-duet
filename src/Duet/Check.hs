@@ -6,59 +6,58 @@ import Duet.UVMHS
 
 import Duet.Pretty ()
 import Duet.Syntax
-import Duet.RNF
-import Duet.Quantity
+import Duet.RNF2
 
-freeBvs :: Type r → 𝑃 𝕏
-freeBvs (ℕˢT _) = pø
-freeBvs (ℝˢT _) = pø
-freeBvs ℕT = pø
-freeBvs ℝT = pø
-freeBvs (𝕀T _) = pø
-freeBvs 𝔹T = pø
-freeBvs 𝕊T = pø
-freeBvs (𝔻𝔽T Nil) = pø
-freeBvs (𝔻𝔽T (x :& xs)) = freeBrcrdvs x ∪ freeBvs (𝔻𝔽T xs)
-freeBvs (BagT _ _ τ) = freeBvs τ
-freeBvs (SetT τ) = freeBvs τ
-freeBvs (RecordT Nil) = pø
-freeBvs (RecordT (x :& xs)) = freeBrcrdvs x ∪ freeBvs (RecordT xs)
-freeBvs (𝕄T _ _ _ me) = freeBmexp me
-freeBvs (𝔻T τ) = freeBvs τ
-freeBvs (τ₁ :⊕: τ₂) = freeBvs τ₁ ∪ freeBvs τ₂
-freeBvs (τ₁ :⊗: τ₂) = freeBvs τ₁ ∪ freeBvs τ₂
-freeBvs (τ₁ :&: τ₂) = freeBvs τ₁ ∪ freeBvs τ₂
-freeBvs ((_ :* τ₁) :⊸: (_ :* τ₂)) = freeBvs τ₁ ∪ freeBvs τ₂
-freeBvs (pargs :⊸⋆: τ) = freeBlpargvs pargs ∪ freeBvs τ
-freeBvs (BoxedT σ τ) = keys σ ∪ freeBvs τ
---TODO:QUESTION
-freeBvs (VarT x) = pø
+-- freeBvs :: Type r → 𝑃 𝕏
+-- freeBvs (ℕˢT _) = pø
+-- freeBvs (ℝˢT _) = pø
+-- freeBvs ℕT = pø
+-- freeBvs ℝT = pø
+-- freeBvs (𝕀T _) = pø
+-- freeBvs 𝔹T = pø
+-- freeBvs 𝕊T = pø
+-- freeBvs (𝔻𝔽T Nil) = pø
+-- freeBvs (𝔻𝔽T (x :& xs)) = freeBrcrdvs x ∪ freeBvs (𝔻𝔽T xs)
+-- freeBvs (BagT _ _ τ) = freeBvs τ
+-- freeBvs (SetT τ) = freeBvs τ
+-- freeBvs (RecordT Nil) = pø
+-- freeBvs (RecordT (x :& xs)) = freeBrcrdvs x ∪ freeBvs (RecordT xs)
+-- freeBvs (𝕄T _ _ _ me) = freeBmexp me
+-- freeBvs (𝔻T τ) = freeBvs τ
+-- freeBvs (τ₁ :⊕: τ₂) = freeBvs τ₁ ∪ freeBvs τ₂
+-- freeBvs (τ₁ :⊗: τ₂) = freeBvs τ₁ ∪ freeBvs τ₂
+-- freeBvs (τ₁ :&: τ₂) = freeBvs τ₁ ∪ freeBvs τ₂
+-- freeBvs ((_ :* τ₁) :⊸: (_ :* τ₂)) = freeBvs τ₁ ∪ freeBvs τ₂
+-- freeBvs (pargs :⊸⋆: τ) = freeBlpargvs pargs ∪ freeBvs τ
+-- freeBvs (BoxedT σ τ) = keys σ ∪ freeBvs τ
+-- --TODO:QUESTION
+-- freeBvs (VarT x) = pø
 
 
-freeBmexp :: (MExp r) → 𝑃 𝕏
-freeBmexp me = case me of
-  EmptyME → pø
-  VarME _ → pø
-  ConsME τ me₁ → freeBvs τ ∪ freeBmexp me₁
-  AppendME me₁ me₂  → freeBmexp me₁ ∪ freeBmexp me₂
-  RexpME _ τ → freeBvs τ
-
-freeBrcrdvs :: 𝕊 ∧ Type r → 𝑃 𝕏
-freeBrcrdvs (_ :* x) = freeBvs x
-
-freeBlpargvs :: 𝐿 (𝕏 ∧ Kind) ∧ PArgs r → 𝑃 𝕏
-freeBlpargvs (_ :* pargs) = unpackBpargs pargs
-
-unpackBpargs :: PArgs r → 𝑃 𝕏
-unpackBpargs e = case e of
-  PArgs tps -> freeBpargs tps
-
-freeBpargs :: 𝐿 (Type r ∧ PrivExp p r) → 𝑃 𝕏
-freeBpargs Nil = pø
-freeBpargs (x :& xs) = freeBpargs xs ∪ freeBparg x
-
-freeBparg :: Type r ∧ PrivExp p r → 𝑃 𝕏
-freeBparg (x :* _) = freeBvs x
+-- freeBmexp :: (MExp r) → 𝑃 𝕏
+-- freeBmexp me = case me of
+--   EmptyME → pø
+--   VarME _ → pø
+--   ConsME τ me₁ → freeBvs τ ∪ freeBmexp me₁
+--   AppendME me₁ me₂  → freeBmexp me₁ ∪ freeBmexp me₂
+--   RexpME _ τ → freeBvs τ
+-- 
+-- freeBrcrdvs :: 𝕊 ∧ Type r → 𝑃 𝕏
+-- freeBrcrdvs (_ :* x) = freeBvs x
+-- 
+-- freeBlpargvs :: 𝐿 (𝕏 ∧ Kind) ∧ PArgs r → 𝑃 𝕏
+-- freeBlpargvs (_ :* pargs) = unpackBpargs pargs
+-- 
+-- unpackBpargs :: PArgs r → 𝑃 𝕏
+-- unpackBpargs e = case e of
+--   PArgs tps -> freeBpargs tps
+-- 
+-- freeBpargs :: 𝐿 (Type r ∧ Pr p r) → 𝑃 𝕏
+-- freeBpargs Nil = pø
+-- freeBpargs (x :& xs) = freeBpargs xs ∪ freeBparg x
+-- 
+-- freeBparg :: Type r ∧ Pr p r → 𝑃 𝕏
+-- freeBparg (x :* _) = freeBvs x
 
 getConsMAt :: (MExp r) → ℕ → (Type r)
 getConsMAt EmptyME _ = error "matrix/dataframe column index error"
@@ -101,20 +100,20 @@ mkSM f = SM $ ReaderT $ \ (Context δ γ ᴍ) → WriterT $ ErrorT $ ID $ f δ �
 runSM ∷ 𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → SM p a → TypeError ∨ ((𝕏 ⇰ Sens RNF) ∧ a)
 runSM δ γ ᴍ = unID ∘ unErrorT ∘ unWriterT ∘ runReaderT (Context δ γ ᴍ) ∘ unSM
 
-newtype PM (p ∷ PRIV) a = PM { unPM ∷ ReaderT Context (WriterT (𝕏 ⇰ PrivExp p RNF) (ErrorT TypeError ID)) a }
+newtype PM (p ∷ PRIV) a = PM { unPM ∷ ReaderT Context (WriterT (𝕏 ⇰ Pr p RNF) (ErrorT TypeError ID)) a }
   deriving
   (Functor
   ,Return,Bind,Monad
   ,MonadError TypeError
   ,MonadReader Context
-  ,MonadWriter (𝕏 ⇰ PrivExp p RNF))
+  ,MonadWriter (𝕏 ⇰ Pr p RNF))
 
-mkPM ∷ (𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → TypeError ∨ ((𝕏 ⇰ PrivExp p RNF) ∧ a)) → PM p a
+mkPM ∷ (𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → TypeError ∨ ((𝕏 ⇰ Pr p RNF) ∧ a)) → PM p a
 mkPM f = PM $ ReaderT $ \ (Context δ γ ᴍ) → WriterT $ ErrorT $ ID $ f δ γ ᴍ
 
 --      kind env   type env    expression   type error    sens costs     expressions' type
 --         ⌄⌄         ⌄⌄           ⌄⌄         ⌄⌄             ⌄⌄            ⌄⌄
-runPM ∷ 𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → PM p a → TypeError ∨ ((𝕏 ⇰ PrivExp p RNF) ∧ a)
+runPM ∷ 𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → PM p a → TypeError ∨ ((𝕏 ⇰ Pr p RNF) ∧ a)
 runPM δ γ ᴍ = unID ∘ unErrorT ∘ unWriterT ∘ runReaderT (Context δ γ ᴍ) ∘ unPM
 
 smFromPM ∷ PM p a → SM p a
@@ -123,7 +122,7 @@ smFromPM xM = mkSM $ \ δ γ ᴍ → mapInr (mapFst $ map $ Sens ∘ truncate In
 pmFromSM ∷ SM p a → PM p a
 pmFromSM xM = mkPM $ \ δ γ ᴍ → mapInr (mapFst $ map $ Priv ∘ truncate Inf ∘ unSens) $ runSM δ γ ᴍ xM
 
-mapPPM ∷ (PrivExp p₁ RNF → PrivExp p₂ RNF) → PM p₁ a → PM p₂ a
+mapPPM ∷ (Pr p₁ RNF → Pr p₂ RNF) → PM p₁ a → PM p₂ a
 mapPPM f xM = mkPM $ \ δ γ ᴍ → mapInr (mapFst $ map f) $ runPM δ γ ᴍ xM
 
 checkSensLang ∷ TLExp RExp → 𝑂 (Sens RExp)
@@ -172,7 +171,7 @@ checkSensLang e₀ = case extract e₀ of
     return $ Sens $ Quantity $ siphon e₀ $ MinusRE η₁ η₂
   _ → None
 
-checkPrivLang ∷ (PRIV_C p) ⇒ PRIV_W p → TLExp RExp → 𝑂 (Priv p RExp)
+checkPrivLang ∷ (PRIV_C p) ⇒ PRIV_W p → TLExp RExp → 𝑂 (Pr p RExp)
 checkPrivLang p e₀ = case p of
   ED_W → do
     case extract e₀ of
@@ -270,136 +269,125 @@ checkRExpLang e₀ = siphon e₀ ^$ case extract e₀ of
     return $ MinusRE η₁ η₂
   _ → None
 
+checkSchemaVar ∷ 𝕏 → SM p Kind
+checkSchemaVar x = do
+  ᴍ ← askL contextMExpL
+  case ᴍ ⋕? x of
+    Some _m → skip
+    None → error $ concat
+      [ "Schema variable lookup error: failed to find " ⧺ (pprender x) ⧺ " in the environment:\n"
+      , pprender ᴍ
+      ]
+
+inferKindVar ∷ 𝕏 → SM p Kind
+inferKindVar x = do
+  δ ← askL contextKindL
+  case δ ⋕? x of
+    Some κ → return κ
+    None → error $ concat
+      [ "Kind variable lookup error: failed to find " ⧺ (pprender x) ⧺ " in the environment:\n"
+      , pprender δ
+      ]
+
+checkSens ∷ Sens RExpPre → SM p ()
+checkSens (Sens r) = checkKind ℝT r
+
+checkPriv ∷ Pr p RExpPre → SM p ()
+-- multiple cases..
+checkPriv _ = undefined
+
+checkKind ∷ Kind → RExpPre → SM p ()
+checkKind κ r = do
+  κ' ← inferKind r
+  when (not $ κ' ⊑ κ) $ error "kind error"
+
 inferKind ∷ RExpPre → SM p Kind
 inferKind = \case
-  VarRE x → do
-    δ ← askL contextKindL
-    case δ ⋕? x of
-      Some κ → return κ
-      None → error $ concat
-            [ "Kind variable lookup error: failed to find " ⧺ (pprender x) ⧺ " in the environment:\n"
-            , pprender δ
-            -- , "\n"
-            -- , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-            ]
-
-  NatRE _ → return $ ℕK
-  NNRealRE _ → return $ ℝK
+  VarRE x → inferKindVar x
+  ConstRE BotBT → ℕK
+  ConstRE TopBT → ℝK
+  ConstRE (AddBT r) 
+    | dbl (trucate r) ≡ r → ℕK
+    | otherwise           → ℝK
   MaxRE e₁ e₂ → do
     κ₁ ← inferKind $ extract e₁
     κ₂ ← inferKind $ extract e₂
-    case (κ₁,κ₂) of
-      (ℕK,ℕK) → return ℕK
-      (ℝK,ℝK) → return ℝK
-      _ → error "TYPE ERROR"
+    return $ κ₁ ⊔ κ₂
   MinRE e₁ e₂ → do
     κ₁ ← inferKind $ extract e₁
     κ₂ ← inferKind $ extract e₂
-    case (κ₁,κ₂) of
-      (ℕK,ℕK) → return ℕK
-      (ℝK,ℝK) → return ℝK
-      _ → error "TYPE ERROR"
+    return $ κ₁ ⊔ κ₂
   PlusRE e₁ e₂ → do
     κ₁ ← inferKind $ extract e₁
     κ₂ ← inferKind $ extract e₂
-    case (κ₁,κ₂) of
-      (ℕK,ℕK) → return ℕK
-      (ℝK,ℝK) → return ℝK
-      _ → error "TYPE ERROR"
+    return $ κ₁ ⊔ κ₂
   TimesRE e₁ e₂ → do
     κ₁ ← inferKind $ extract e₁
     κ₂ ← inferKind $ extract e₂
-    case (κ₁,κ₂) of
-      (ℕK,ℕK) → return ℕK
-      (ℝK,ℝK) → return ℝK
-      _ → error "TYPE ERROR"
-  DivRE e₁ e₂ → do
-    κ₁ ← inferKind $ extract e₁
-    κ₂ ← inferKind $ extract e₂
-    case (κ₁,κ₂) of
-      (ℝK,ℝK) → return ℝK
-      (ℝK,ℕK) → return ℝK
-      _ → error "TYPE ERROR"
-  RootRE e → do
-    κ ← inferKind $ extract e
-    case κ of
-      ℝK → return ℝK
-      _ → error "TYPE ERROR"
+    return $ κ₁ ⊔ κ₂
+  PowRE q e → do
+    κ ← inferKind e
+    case den q ≡ 1 of
+      True → κ
+      False → ℝT
+  EfnRE e → do
+    void $ inferKind e
+    return ℝT
   LogRE e → do
-    κ ← inferKind $ extract e
-    case κ of
-      ℝK → return ℝK
-      _ → error "TYPE ERROR"
-  MinusRE e₁ e₂ → do
-    κ₁ ← inferKind $ extract e₁
-    κ₂ ← inferKind $ extract e₂
-    case (κ₁,κ₂) of
-      (ℕK,ℕK) → return ℕK
-      (ℝK,ℝK) → return ℝK
-      _ → error "TYPE ERROR"
+    void $ inferKind e
+    return ℝT
 
--- this will be written monadically
-checkType ∷ ∀ p. (PRIV_C p) ⇒ Type RExp → SM p 𝔹
+checkType ∷ ∀ p. (PRIV_C p) ⇒ Type RExp → SM p ()
 checkType τA = case τA of
-  ℕˢT η → do
-    κ ← inferKind $ extract η
-    return $ κ ⊑ ℕK
-  ℝˢT η → do
-    κ ← inferKind $ extract η
-    return $ κ ⊑ ℝK
-  ℕT → return True
-  ℝT → return True
-  𝕀T η → do
-    κ ← inferKind $ extract η
-    return $ κ ⊑ ℕK
-  𝔹T → return True
-  𝕊T → return True
+  ℕˢT η → checkKind ℕK η
+  ℝˢT η → checkKind ℝK η
+  ℕT → skip
+  ℝT → skip
+  𝕀T η → checkKind ℕK η
+  𝔹T → skip
+  𝕊T → skip
   SetT τ → checkType τ
   𝕄T _ℓ _c rows me → do
-    case (rows, me) of
-      ((RexpRT r₁), (RexpME r₂ τ)) → do
-        κ₁ ← inferKind $ extract r₁
-        κ₂ ← inferKind $ extract r₂
-        a ← checkType τ
-        return $ and [a,κ₁ ⊑ ℕK,κ₂ ⊑ ℕK]
-      ((RexpRT r), _) → do
-        κ ← inferKind $ extract r
-        return $ κ ⊑ ℕK
-      _ → return True
+    case rows of
+      RexpRT r → do
+        checkKind ℕK r
+      StarRT → skip
+    case me of
+      EmptyME → skip
+      VarME x → checkSchemaVar x
+      ConsME (τ ∷ Type r) (me ∷ MExp r) → undefined
+      AppendME (me₁ ∷ MExp r) (me₂ ∷ MExp r) → undefined
+      RexpME r τ → do
+        checkKind ℕK r
+        checkType τ
   𝔻T τ → checkType τ
   τ₁ :⊕: τ₂ → do
-    a ← checkType τ₁
-    b ← checkType τ₂
-    return $ a ⩓ b
+    checkType τ₁
+    checkType τ₂
   τ₁ :⊗: τ₂ → do
-    a ← checkType τ₁
-    b ← checkType τ₂
-    return $ a ⩓ b
+    checkType τ₁
+    checkType τ₂
   τ₁ :&: τ₂ → do
-    a ← checkType τ₁
-    b ← checkType τ₂
-    return $ a ⩓ b
+    checkType τ₁
+    checkType τ₂
   (ακs :* τ₁) :⊸: (s :* τ₂) → do
-    a ← checkType τ₁
-    b ← checkType τ₂
-    let c = a ⩓ b
-    case s of
-      VarSens _ → return $ True ⩓ c
-      SensExp (Sens Inf) → return $ True ⩓ c
-      SensExp (Sens (Quantity r)) → do
-        κ ← inferKind $ extract r
-        -- error $ pprender r
-        return $ (⩓) c $ κ ⊑ ℝK
-      _ → return False
-  (ακs :* PArgs (τps ∷ 𝐿 (Type RExp ∧ PrivExp p' RExp))) :⊸⋆: τ → do
+    mapEnvL contextKindL (\ δ → assoc ακs ⩌ δ) $ do
+      checkType τ₁
+      checkType τ₂
+      checkSens s
+  (ακs :* xτs) :⊸⋆: (PEnv pσ :* τ) → do
    mapEnvL contextKindL (\ δ → assoc ακs ⩌ δ) $ do
-     _ :* _a ← hijack $  checkType τ
-     map and $ mapM checkTypeP τps
+     mapOn xτs $ \ (x :* τ) → checkType τ
+     mapEnvL contextTypeL (\ γ → assoc xτs ⩌ γ) $ do
+       mapOn pσ $ \ (x' :* p) → do
+         checkVar x'
+         checkPriv p
+       checkType τ
   BoxedT _σ τ → checkType τ
   VarT _x → return True
   _ → error $ "checkType error on " ⧺ pprender τA
 
-checkTypeP ∷ ∀ p₁ p₂. (PRIV_C p₁) ⇒ (Type RExp ∧ PrivExp p₂ RExp) → SM p₁ 𝔹
+checkTypeP ∷ ∀ p₁ p₂. (PRIV_C p₁) ⇒ (Type RExp ∧ Pr p₂ RExp) → SM p₁ 𝔹
 checkTypeP (τ :* p) = do
   a ← checkType τ
   b ← checkKindP p
@@ -407,9 +395,9 @@ checkTypeP (τ :* p) = do
     False → throw (error "kinding error" ∷ TypeError)
     True → return $ True
 
-checkKindP :: ∀ p₁ p₂. PrivExp p₂ RExp → SM p₁ 𝔹
+checkKindP :: ∀ p₁ p₂. Pr p₂ RExp → SM p₁ 𝔹
 checkKindP p = case p of
-  PrivExp (Priv (Quantity (EDPriv ε δ))) → do
+  Pr (Priv (Quantity (EDPriv ε δ))) → do
     κ₁ ← inferKind $ extract ε
     κ₂ ← inferKind $ extract δ
     return $ and [κ₁ ⊑ ℝK,κ₂ ⊑ ℝK]
@@ -897,7 +885,7 @@ inferSens eA = case extract eA of
         False → error $ "Lambda type/scoping error in return expression of type: " ⧺ (pprender τ)
         True → do
           tell $ map (Sens ∘ truncate Inf ∘ unPriv) $ without (pow xs) σ
-          let τps = mapOn xτs' $ \ (x :* τ') → τ' :* PrivExp (ifNone null (σ ⋕? x))
+          let τps = mapOn xτs' $ \ (x :* τ') → τ' :* Pr (ifNone null (σ ⋕? x))
           return $ (ακs :* PArgs τps) :⊸⋆: τ
   SetSE es → do
     -- homogeneity check
@@ -1257,7 +1245,7 @@ inferPriv eA = case extract eA of
     let aσs = map fst aστs
     let aτs = map snd aστs
     case τ of
-      ((ακs :* PArgs (τps ∷ 𝐿 (_ ∧ PrivExp p' RNF))) :⊸⋆: τ₁)
+      ((ακs :* PArgs (τps ∷ 𝐿 (_ ∧ Pr p' RNF))) :⊸⋆: τ₁)
         | (joins (values (joins aσs)) ⊑ ι 1.0)
         ⩓ (count τes ≡ count ακs)
         ⩓ (count as ≡ count τps)
@@ -1304,7 +1292,7 @@ inferPriv eA = case extract eA of
                             substRExp α (normalizeRExp τk) τ₁₁'
 
 
-                  subP ∷ PrivExp p' RNF → PrivExp p' RNF
+                  subP ∷ Pr p' RNF → Pr p' RNF
                   subP p = foldWith ατeκs p $ \ (α :* τe :* κ) ς' →
                     case κ of
                       TypeK → do
@@ -1345,7 +1333,7 @@ inferPriv eA = case extract eA of
                 True → do
                   eachWith (zip aσs ps') $ \ (σ :* p) →
                     case p of
-                      PrivExp p' →
+                      Pr p' →
                         tell $ map (Priv ∘ truncate (unPriv p') ∘ unSens) σ
                       --
                       VarPriv p' →
@@ -1810,8 +1798,8 @@ inferPriv eA = case extract eA of
        𝕄T ℓ₂ c₂ (RexpRT ηr₂) (RexpME ηc₂ (𝔻T ℝT)),
        (αs :* as) :⊸⋆: τ₆ ) -- | τ₁ ≡ τ₅
         → case as of
-            (PArgs ((𝕄T ℓ₁' c₁' (RexpRT ηr₁') (RexpME ηc₁' (𝔻T ℝT)) :* (p₁ ∷ PrivExp p₁ RNF)) :&
-                    (𝕄T ℓ₂' c₂' (RexpRT ηr₂') (RexpME ηc₂' (𝔻T ℝT)) :* (p₂ ∷ PrivExp p₂ RNF)) :&
+            (PArgs ((𝕄T ℓ₁' c₁' (RexpRT ηr₁') (RexpME ηc₁' (𝔻T ℝT)) :* (p₁ ∷ Pr p₁ RNF)) :&
+                    (𝕄T ℓ₂' c₂' (RexpRT ηr₂') (RexpME ηc₂' (𝔻T ℝT)) :* (p₂ ∷ Pr p₂ RNF)) :&
                     (τ₂prime :* p₃) :& Nil))
              | (ℓ₁ ≡ ℓ₁') ⩓ (ℓ₂ ≡ ℓ₂') ⩓
                (c₁ ≡ c₁') ⩓ (c₂ ≡ c₂') ⩓
@@ -1820,7 +1808,7 @@ inferPriv eA = case extract eA of
               → case (eqPRIV (priv @ p) (priv @ p₁), eqPRIV (priv @ p) (priv @ p₂)) of
                   (Some Refl, Some Refl) → do
                     case (p₁,p₂) of
-                      (PrivExp p₁',PrivExp p₂') → do
+                      (Pr p₁',Pr p₂') → do
                         tell $ map (Priv ∘ truncate (unPriv p₁') ∘ unSens) σ₃
                         tell $ map (Priv ∘ truncate (unPriv p₂') ∘ unSens) σ₄
                         return τ₂
@@ -1875,16 +1863,16 @@ choose n k = (fac n) / ((fac k) × (fac (n - k)))
 substPriv ∷ (PRIV_C p) ⇒ 𝕏 → Priv p RNF → Type RNF → Type RNF
 substPriv x s τ = substPrivR pø x s pø τ
 
-substPrivExp ∷ ∀ p p'. (PRIV_C p, PRIV_C p') ⇒ PrivExp p' RNF → Priv p RNF → PrivExp p' RNF
+substPrivExp ∷ ∀ p p'. (PRIV_C p, PRIV_C p') ⇒ Pr p' RNF → Priv p RNF → Pr p' RNF
 substPrivExp pe pr =
-  -- let a ∷ PrivExp p' RNF = pe in
+  -- let a ∷ Pr p' RNF = pe in
   -- let b ∷ Priv p RNF = pr in
   case eqPRIV (priv @ p) (priv @ p') of
     None → error "privacy variants dont match"
     Some Refl → do
       case pe of
-        PrivExp pr' → PrivExp pr'
-        VarPriv _𝕩 → PrivExp pr
+        Pr pr' → Pr pr'
+        VarPriv _𝕩 → Pr pr
 
 substPrivR ∷ (PRIV_C p) ⇒ 𝑃 𝕏 → 𝕏 → Priv p RNF → 𝑃 𝕏 → Type RNF → Type RNF
 substPrivR 𝓈 x p' fv = \case

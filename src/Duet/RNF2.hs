@@ -46,7 +46,7 @@ data RNFProds = RNFProds
 data RNFAtom =
     VarRA 𝕏
   | LogRA RNFSums
-  | EfnRA RNFProds
+  | EfnRA (AddTop 𝔻) RNFProds
   deriving (Eq,Ord,Show)
 
 makePrettySum ''RNF
@@ -602,24 +602,11 @@ prodRNFIrreds ∷ RNFSums ⇰ ℚ → RNFSums ⇰ ℚ → AddTop RNFSums
 prodRNFIrreds δ̂₁ δ̂₂ =
   -- δ̂₁ ×̃ δ̂₂ = ∏{γ̇ ^̇ d | γ̇ ^̇ d ∈ δ̂₁} × ∏{γ̇ ^̇ d | γ̇ ^̇ d ∈ δ̂₂}
   --         ≜ ∏{γ̇ ^̃ d | γ̇ ^̇ d ∈ (δ̂₁ ⊎ δ̂₂)}
-  --
-  -- δ̂₁ = (a + b)^½ × (c + d)^½
-  -- δ̂₂ = (a + b)^½ × (d + e)^½
-  -- γ̇₀ = (c + d)^½ × (d + e)^½
-  -- δ̂s = (a + b)^1
-  -- γ̇ₙ = (a + b)^̃1 ×̃ (c + d)^½ × (d + e)^½
-  --    ≈ a × (c + d)^½ × (d + e)^½
-  --    + b × (c + d)^½ × (d + e)^½
   let k₁ = keys δ̂₁
       k₂ = keys δ̂₂
-      -- irreducibles that only appear in one side and not the other
       γ̇₀ = oneProd $ RNFProds (without k₂ δ̂₁ ⊎ without k₁ δ̂₂) dø
-      -- stuff they have in common
       δ̂s = interWith (+) δ̂₁ δ̂₂
   in
-  --         initial loop value
-  --           |               current loop value
-  --           ⌄               ⌄
   mfoldWith δ̂s γ̇₀ $ \ (γ̇ :* d) γ̇ᵢ → do
     γ̇' ← powerRNFSums d γ̇
     prodRNFSums γ̇ᵢ γ̇'
@@ -630,7 +617,6 @@ prodRNFIrreds δ̂₁ δ̂₂ =
 prodRNFSumsAtoms ∷ RNFAtom ⇰ ℚ → RNFSums → RNFProds ⇰ AddTop 𝔻
 prodRNFSumsAtoms δ̌ (RNFSums d γ) =
   -- δ̌ ×̃ (d +̇ γ) ≜ δ̌ ×̃ d + δ̌ ×̃ γ
-  -- sumRNFSums (prodRNFAtomsConstant d δ̌) $
   sum
     [ flip (elimAddBot dø) d $ \ d' → RNFProds dø δ̌ ↦ AddTop d'
     , prodRNFSumsAtomsSym δ̌ γ
@@ -730,8 +716,6 @@ powerRNFMinsSym c β =
 -- └─────┘
 powerRNFSums ∷ ℚ → RNFSums → AddTop RNFSums
 powerRNFSums c γ̇ = case γ̇ of
-  -- γ̇ = (3x²) ^ ½ == √3x
-  --     (3x² + y) ^ ½ ==
   RNFSums Bot (stream → (uncons𝑆 → Some ((δ̇ :* d) :* (uncons𝑆 → None)))) → do
     γ̇' ← powerRNFProds c δ̇
     elimAddTop prodRNFSumsTop (kreturn ∘ prodRNFSumsConstant) d γ̇'
@@ -787,108 +771,171 @@ powerRNF c e = case e of
   -- α̇ ^̃ c
   SymRNF α̇ → elimAddTop (ConstantRNF TopBT) SymRNF $ powerRNFMaxs c α̇
 
--- -----------------
--- -- EXPONENTIAL --
--- -----------------
---
--- -- ┌────┐
--- -- │𝑒^̃ α│
--- -- └────┘
--- efnRNFMaxs ∷ 𝑃 RNFMins → 𝑃 RNFMins
--- efnRNFMaxs α =
---   -- 𝑒^̃ α ≜ { 𝑒^̃ (c ⊓̇ β) | c ⊓̇ β ∈ α }
---   --      = { (𝑒 ^ c) ⊓̇ (𝑒^̃ β)) | c ⊓̇ β ∈ α }
---   pow $ do
---     RNFMins c β ← iter α
---     return $ RNFMins (exp c) $ efnRNFMins β
---
--- -- ┌────┐
--- -- │𝑒^̃ β│
--- -- └────┘
--- efnRNFMins ∷ 𝑃 RNFSums → 𝑃 RNFSums
--- efnRNFMins β =
---   -- 𝑒^̃ β ≜ { 𝑒^̃(c +̇ γ) | c +̇ γ ∈ β }
---   --      = { 0 +̇ {(𝑒^c) ×̇ (𝑒^̃ γ) | c +̇ γ ∈ β }}
---   pow $ do
---     RNFSums c γ ← iter β
---     return $ RNFSums Bot $ RNFProds (efnRNFSums γ) ↦ AddTop (elimAddBot 1.0 exp c)
---
--- -- ┌────┐
--- -- │𝑒^̃ γ│
--- -- └────┘
--- efnRNFSums ∷ RNFProds ⇰ AddTop 𝔻 → RNFAtom ⇰ ℚ
--- efnRNFSums γ =
---   -- 𝑒^̃ γ ≜ Π{ 𝑒^̃ (c ×̇ δ) | c ×̇ δ ∈ γ }
---   sum $ do
---     RNFProds δ :* c ← iter γ
---     return $ EfnRA c (RNFProds δ) ↦ one
---
--- -- ┌────┐
--- -- │𝑒^̃ e│
--- -- └────┘
--- efnRNF ∷ RNF → RNF
--- efnRNF e =
---   case e of
---   -- 𝑒^̃ ⊥ ≜ ⊥
---   ConstantRNF BotBT → ConstantRNF BotBT
---   -- 𝑒^̃ ⊤ ≜ ⊤
---   ConstantRNF TopBT → ConstantRNF TopBT
---   -- 𝑒^̃ c ≜ 𝑒 ^ c
---   ConstantRNF (AddBT c) → ConstantRNF $ AddBT $ exp c
---   -- (c ⊔̇ α) ^̃ q ≜ (c ^ q) ⊔̇ (α ^̃ q)
---   SymRNF (RNFMaxs c α) → SymRNF $ RNFMaxs (exp c) $ efnRNFMaxs α
---
--- ---------
--- -- LOG --
--- ---------
---
--- -- ┌────┐
--- -- │㏒̃ α│
--- -- └────┘
--- logRNFMaxs ∷ 𝑃 RNFMins → 𝑃 RNFMins
--- logRNFMaxs α =
---   -- ㏒̃ α ≜ { ㏒̃ (c ⊓̇ β) | c ⊓̇ β ∈ α }
---   --      = { (㏒̃^ c) ⊓̇ (㏒̃ β)) | c ⊓̇ β ∈ α }
---   pow $ do
---     RNFMins c β ← iter α
---     return $ RNFMins (exp c) $ logRNFMins β
---
--- -- ┌────┐
--- -- │㏒̃ β│
--- -- └────┘
--- logRNFMins ∷ 𝑃 RNFSums → 𝑃 RNFSums
--- logRNFMins β =
---   -- ㏒̃ β ≜ { ㏒̃ (c +̇ γ) | c +̇ γ ∈ β }
---   --      = { ㏒̇ (c +̇ γ) | c +̇ γ ∈ β }
---   pow $ do
---     RNFSums c γ ← iter β
---     return $ RNFSums Bot $ RNFProds (LogRA (RNFSums c γ) ↦ one) ↦ AddTop 1.0
---
--- -- -- ┌────┐
--- -- -- │㏒ γ│
--- -- -- └────┘
--- -- logRNFSums ∷ RNFProds ⇰ AddTop 𝔻 → RNFAtom ⇰ ℚ
--- -- logRNFSums γ =
--- --   -- ㏒ γ ≜ Π{ ㏒ (c ×̇ δ) | c ×̇ δ ∈ γ }
--- --   sum $ do
--- --     RNFProds δ :* c ← iter γ
--- --     undefined
--- --     -- return $ LogRA c (RNFProds δ) ↦ one
---
--- -- ┌────┐
--- -- │㏒ e│
--- -- └────┘
--- logRNF ∷ RNF → RNF
--- logRNF e =
---   case e of
---   -- ㏒ ⊥ ≜ ⊥
---   ConstantRNF BotBT → ConstantRNF BotBT
---   -- ㏒ ⊤ ≜ ⊤
---   ConstantRNF TopBT → ConstantRNF TopBT
---   -- ㏒ c ≜ ㏒^ c
---   ConstantRNF (AddBT c) → ConstantRNF $ AddBT $ exp c
---   -- (c ⊔̇ α) ^̃ q ≜ (c ^ q) ⊔̇ (α ^̃ q)
---   SymRNF (RNFMaxs c α) → SymRNF $ RNFMaxs (exp c) $ logRNFMaxs α
+-----------------
+-- EXPONENTIAL --
+-----------------
+
+-- ┌────┐
+-- │𝑒^̃ α̇│
+-- └────┘
+efnRNFMaxs ∷ RNFMaxs → RNFMaxs
+efnRNFMaxs (RNFMaxs c α) =
+  -- 𝑒^̃ (c ⊔̇ α) ≜ (𝑒^̃ c) ⊔̇ (𝑒^̃ α)
+  RNFMaxs (exp c) $ efnRNFMaxsSym α
+
+-- ┌────┐
+-- │𝑒^̃ α│
+-- └────┘
+efnRNFMaxsSym ∷ 𝑃 RNFMins → 𝑃 RNFMins
+efnRNFMaxsSym α =
+  -- 𝑒^̃ α ≜ ⨆{ 𝑒^̃ (c ⊓̇ β) | c ⊓̇ β ∈ α }
+  --      = ⨆{ (𝑒 ^ c) ⊓̇ (𝑒^̃ β)) | c ⊓̇ β ∈ α }
+  pow $ do
+    β̇ ← iter α
+    return $ efnRNFMins β̇
+
+-- ┌────┐
+-- │𝑒^̃ β̇│
+-- └────┘
+efnRNFMins ∷ RNFMins → RNFMins
+efnRNFMins (RNFMins c β) =
+  -- 𝑒^̃ (c ⊓̇ α) ≜ (𝑒^̃ c) ⊓̇ (𝑒^̃ α)
+  RNFMins (exp c) $ efnRNFMinsSym β
+
+-- ┌────┐
+-- │𝑒^̃ β│
+-- └────┘
+efnRNFMinsSym ∷ 𝑃 RNFSums → 𝑃 RNFSums
+efnRNFMinsSym β =
+  -- 𝑒^̃ β ≜ ⨅{ 𝑒^̃(c +̇ γ) | c +̇ γ ∈ β }
+  --      = ⨅{ 0 +̇ {(𝑒^c) ×̇ (𝑒^̃ γ) | c +̇ γ ∈ β }}
+  pow $ do
+    γ̇ ← iter β
+    return $ efnRNFSums γ̇
+
+-- ┌────┐
+-- │𝑒^̃ γ̇│
+-- └────┘
+efnRNFSums ∷ RNFSums → RNFSums
+efnRNFSums (RNFSums c γ) = 
+  -- 𝑒^̃ (c +̇ γ) ≜ (e^̃ c) ×̇ ∅ ×̇ (e^̃ γ)
+  RNFSums Bot $ RNFProds dø (efnRNFSumsSym γ) ↦ AddTop (elimAddBot 1.0 exp c)
+
+-- ┌────┐
+-- │𝑒^̃ γ│
+-- └────┘
+efnRNFSumsSym ∷ RNFProds ⇰ AddTop 𝔻 → RNFAtom ⇰ ℚ
+efnRNFSumsSym γ =
+  -- 𝑒^̃ γ ≜ Π{ 𝑒^̃ (c ×̇ δ̂ ×̇ δ̌) | c ×̇ δ̂ ×̇ δ̌ ∈ γ }
+  sum $ do
+    RNFProds δ̂ δ̌ :* c ← iter γ
+    return $ EfnRA c (RNFProds δ̂ δ̌) ↦ one
+
+-- ┌────┐
+-- │𝑒^̃ e│
+-- └────┘
+efnRNF ∷ RNF → RNF
+efnRNF e =
+  case e of
+  -- 𝑒^̃ ⊥ ≜ ⊥
+  ConstantRNF BotBT → ConstantRNF BotBT
+  -- 𝑒^̃ ⊤ ≜ ⊤
+  ConstantRNF TopBT → ConstantRNF TopBT
+  -- 𝑒^̃ c ≜ 𝑒 ^ c
+  ConstantRNF (AddBT c) → ConstantRNF $ AddBT $ exp c
+  -- (c ⊔̇ α) ^̃ q ≜ (c ^ q) ⊔̇ (α ^̃ q)
+  SymRNF α̇ → SymRNF $ efnRNFMaxs α̇
+
+---------
+-- LOG --
+---------
+
+-- ┌────┐
+-- │㏒ α̇│
+-- └────┘
+logRNFMaxs ∷ RNFMaxs → AddTop RNFMaxs
+logRNFMaxs (RNFMaxs c α) = do
+  -- ㏒ (c ⊔̇ α) ≜ (㏒ c) ⊔̇ (㏒ α)
+  α' ← logRNFMaxsSym α
+  return $ RNFMaxs (log c) α'
+
+-- ┌────┐
+-- │㏒ α│
+-- └────┘
+logRNFMaxsSym ∷ 𝑃 RNFMins → AddTop (𝑃 RNFMins)
+logRNFMaxsSym α =
+  -- ㏒ α ≜ ⨆{ ㏒ (c ⊓̇ β) | c ⊓̇ β ∈ α }
+  --      = ⨆{ (㏒^ c) ⊓̇ (㏒ β)) | c ⊓̇ β ∈ α }
+  pow ^$ mapM id $ do
+    β̇ ← iter α
+    return $ logRNFMins β̇
+
+-- ┌────┐
+-- │㏒ β̇│
+-- └────┘
+logRNFMins ∷ RNFMins → AddTop RNFMins
+logRNFMins (RNFMins c β) = do
+  -- ㏒ (c ⊓̇ α) ≜ (㏒ c) ⊓̇ (㏒ α)
+  β' ← logRNFMinsSym β
+  return $ RNFMins (log c) β'
+
+-- ┌────┐
+-- │㏒ β│
+-- └────┘
+logRNFMinsSym ∷ 𝑃 RNFSums → AddTop (𝑃 RNFSums)
+logRNFMinsSym β =
+  -- ㏒ β ≜ ⨅{ ㏒(c +̇ γ) | c +̇ γ ∈ β }
+  pow ^$ mapM id $ do
+    γ̇ ← iter β
+    return $ logRNFSums γ̇
+
+-- ┌────┐
+-- │㏒ γ̇│
+-- └────┘
+logRNFSums ∷ RNFSums → AddTop RNFSums
+logRNFSums γ̇ = case γ̇ of 
+  RNFSums Bot (stream → (uncons𝑆 → Some ((δ̇ :* d) :* (uncons𝑆 → None)))) → do
+    d' ← d
+    return $ RNFSums (AddBot d') $ logRNFProds δ̇
+  _ → return $ RNFSums Bot $ RNFProds dø (LogRA γ̇ ↦ one) ↦ one
+
+-- ┌────┐
+-- │㏒ δ̇│
+-- └────┘
+logRNFProds ∷ RNFProds → RNFProds ⇰ AddTop 𝔻
+logRNFProds (RNFProds δ̂ δ̌) = 
+  sum
+  [ sum $ do 
+      γ̇ :* c ← list δ̂
+      return $ RNFProds dø (LogRA γ̇ ↦ c) ↦ one
+  , sum $ do 
+      α :* c ← list δ̌
+      let c' :* δ̇ = logRNFAtom α
+      return $ δ̇ ↦ c' -- (c × c')
+  ]
+
+logRNFAtom ∷ RNFAtom → (AddTop 𝔻 ∧ RNFProds)
+logRNFAtom = \case
+  EfnRA c δ̇ → c :* δ̇
+  α → one :* oneAtom α
+
+-- ┌────┐
+-- │㏒ e│
+-- └────┘
+logRNF ∷ RNF → RNF
+logRNF e =
+  case e of
+  -- ㏒ ⊥ ≜ ⊥
+  ConstantRNF BotBT → ConstantRNF BotBT
+  -- ㏒ ⊤ ≜ ⊤
+  ConstantRNF TopBT → ConstantRNF TopBT
+  -- ㏒ c ≜ ㏒^ c
+  ConstantRNF (AddBT c) → ConstantRNF $ AddBT $ exp c
+  -- (c ⊔̇ α) ^̃ q ≜ (c ^ q) ⊔̇ (α ^̃ q)
+  SymRNF α̇ → elimAddTop (ConstantRNF TopBT) SymRNF $ logRNFMaxs α̇
+
+trRNF ∷ RNF → RNF
+trRNF = undefined
 
 instance HasPrism RNF ℕ where
   hasPrism = Prism (dblRNF ∘ dbl) $ \case
@@ -928,7 +975,8 @@ instance POrd RNF where
 
 -- instance Pretty RNF where pretty = undefined
 
-data RExp =
+type RExp = Annotated FullContext RExpPre
+data RExpPre =
     VarRE 𝕏
   | ConstRE (AddBT 𝔻)
   | MaxRE RExp RExp
@@ -938,50 +986,45 @@ data RExp =
   | PowRE ℚ RExp
   | EfnRE RExp
   | LogRE RExp
-  deriving (Eq,Ord)
-makePrettySum ''RExp
+  deriving (Eq,Ord,Show)
+makePrettySum ''RExpPre
 
---  Lens for A inside C
--- getters
--- C → A
--- setters
--- A → C → C
+varRE ∷ 𝕏 → RExp
+varRE = Annotated null ∘ VarRE
 
--- Prism for A inside C
--- constructors
--- A → C
--- views
--- C → 𝑂 A
---
---
--- (1 + 1) ⌉ 4 ⌈
--- tr (1 + 1) × 4
--- (tr 1 ⊔ tr 1) × 4
--- 1 × 4
---
--- (1 + 0) ⌉ 4 ⌈
--- tr (1 + 0) × 4
--- (tr 1 ⊔ tr 0) × 4
--- 1 × 4
---
--- (1 × 2) ⌉ 4 ⌈
--- tr (1 × 2) × 4
--- (tr 1 ⊓ tr 2) × 4
--- (1 ⊓ 1) × 4
--- 1 × 4
---
--- (∞ × 0) ⌉ 4 ⌈
--- tr (∞ × 0) × 4
--- (tr ∞ ⊓ tr 0) × 4
--- (1 ⊓ 0) × 4
--- 0 × 4
+constRE ∷ AddBT 𝔻 → RExp
+constRE = Annotated null ∘ ConstRE
+
+maxRE ∷ RExp → RExp → RExp
+maxRE = Annotated null ∘∘ MaxRE
+
+minRE ∷ RExp → RExp → RExp
+minRE = Annotated null ∘∘ MinRE
+
+plusRE ∷ RExp → RExp → RExp
+plusRE = Annotated null ∘∘ PlusRE
+
+timesRE ∷ RExp → RExp → RExp
+timesRE = Annotated null ∘∘ TimesRE
+
+powRE ∷ ℚ → RExp → RExp
+powRE = Annotated null ∘∘ PowRE
+
+efnRE ∷ RExp → RExp
+efnRE = Annotated null ∘ EfnRE
+
+logRE ∷ RExp → RExp
+logRE = Annotated null ∘ LogRE
 
 -- add exp
 -- add log
 -- add ind
 
 normalizeRNF ∷ RExp → RNF
-normalizeRNF = \case
+normalizeRNF = normalizeRNFPre ∘ extract
+
+normalizeRNFPre ∷ RExpPre → RNF
+normalizeRNFPre = \case
   VarRE x → varRNF x
   ConstRE c → ConstantRNF c
   MaxRE η₁ η₂ → normalizeRNF η₁ ⊔ normalizeRNF η₂
@@ -989,35 +1032,35 @@ normalizeRNF = \case
   PlusRE η₁ η₂ → normalizeRNF η₁ + normalizeRNF η₂
   TimesRE η₁ η₂ → normalizeRNF η₁ × normalizeRNF η₂
   PowRE c η → powerRNF c $ normalizeRNF η
-  EfnRE η → undefined
-  LogRE η → undefined
+  EfnRE η → efnRNF $ normalizeRNF η
+  LogRE η → logRNF $ normalizeRNF η
 
 e1 ∷ RNF
-e1 = normalizeRNF $ VarRE (var "x") `TimesRE` VarRE (var "x")
+e1 = normalizeRNF $ varRE (var "x") `timesRE` varRE (var "x")
 
 e2 ∷ RNF
-e2 = normalizeRNF $ PowRE (rat 1 / rat 2) $ (VarRE (var "x") `TimesRE` VarRE (var "x")) `PlusRE` VarRE (var "y")
+e2 = normalizeRNF $ powRE (rat 1 / rat 2) $ (varRE (var "x") `timesRE` varRE (var "x")) `plusRE` varRE (var "y")
 
 -- ((a^½ + b^½) ^ ½) × ((a^½ + b^½) ^ ½)
 -- ==
 -- (a^½ + b^½)
 e3 ∷ RNF
 e3 = normalizeRNF $
-  PowRE (rat 1 / rat 2)
-    ((PowRE (rat 1 / rat 2) (VarRE (var "a")))
-     `PlusRE`
-     (PowRE (rat 1 / rat 2) (VarRE (var "b"))))
-  `TimesRE`
-  PowRE (rat 1 / rat 2)
-    ((PowRE (rat 1 / rat 2) (VarRE (var "a")))
-     `PlusRE`
-     (PowRE (rat 1 / rat 2) (VarRE (var "b"))))
+  powRE (rat 1 / rat 2)
+    ((powRE (rat 1 / rat 2) (varRE (var "a")))
+     `plusRE`
+     (powRE (rat 1 / rat 2) (varRE (var "b"))))
+  `timesRE`
+  powRE (rat 1 / rat 2)
+    ((powRE (rat 1 / rat 2) (varRE (var "a")))
+     `plusRE`
+     (powRE (rat 1 / rat 2) (varRE (var "b"))))
 
 e3' ∷ RNF
 e3' = normalizeRNF $
-    (PowRE (rat 1 / rat 2) (VarRE (var "a")))
-    `PlusRE`
-    (PowRE (rat 1 / rat 2) (VarRE (var "b")))
+    (powRE (rat 1 / rat 2) (varRE (var "a")))
+    `plusRE`
+    (powRE (rat 1 / rat 2) (varRE (var "b")))
 
 -- Substitution --
 

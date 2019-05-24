@@ -3,7 +3,6 @@ module Duet.Syntax where
 
 import Duet.UVMHS
 
-import Duet.Quantity
 import Duet.RNF2
 
 data Norm = L1 | L2 | LInf
@@ -14,7 +13,7 @@ data Clip = NormClip Norm | UClip
 
 newtype Sens r = Sens { unSens ∷ r }
   deriving
-  (Eq,Ord,Show,Functor
+  (Eq,Ord,Show
   ,Zero,Plus,Additive
   ,One,Times,Multiplicative
   ,Null,Append,Monoid
@@ -24,14 +23,9 @@ newtype Sens r = Sens { unSens ∷ r }
   ,Top,Meet,MeetLattice
   ,Lattice)
 
-data SensExp r = SensExp (Sens r) deriving (Eq,Ord,Show)
+instance Functor Sens where map f = Sens ∘ f ∘ unSens
 
-instance (One a) ⇒ One (SensExp a) where one = SensExp one
-
-instance Functor SensExp where
-  map f (SensExp s) = SensExp $ map f s
-
-instance (HasPrism (Quantity r) s) ⇒ HasPrism (Sens r) s where
+instance (HasPrism r s) ⇒ HasPrism (Sens r) s where
   hasPrism = Prism
     { construct = Sens ∘ construct hasPrism
     , view = view hasPrism ∘ unSens
@@ -134,42 +128,20 @@ instance Functor (Pr p) where
   map f (ZCPriv ρ) = ZCPriv $ f ρ
   map f (TCPriv ρ ω) = TCPriv (f ρ) (f ω)
 
-newtype Priv p r = Priv { unPriv ∷ Pr p r }
-  deriving
-  (Eq,Ord,Show
-  ,Null,Append,Monoid
-  ,Bot,Join,JoinLattice)
-instance Functor (Priv p) where map f = Priv ∘ mapp f ∘ unPriv
+data PEnv r where
+  PEnv ∷ ∀ (p ∷ PRIV) r. (PRIV_C p) ⇒ 𝕏 ⇰ Pr p r → PEnv r
 
-data PrivExp p r = PrivExp (Priv p r) deriving (Eq,Ord,Show)
-
-instance Functor (PrivExp p) where
-  map f (PrivExp s) = PrivExp $ map f s
-
-onPriv ∷ (Quantity (Pr p₁ r₁) → Quantity (Pr p₂ r₂)) → Priv p₁ r₁ → Priv p₂ r₂
-onPriv f = Priv ∘ f ∘ unPriv
-
-instance (HasPrism (Quantity (Pr p r)) s) ⇒ HasPrism (Priv p r) s where
-  hasPrism = Prism
-    { construct = Priv ∘ construct hasPrism
-    , view = view hasPrism ∘ unPriv
-    }
-
-data PArgs r where
-  PArgs ∷ ∀ (p ∷ PRIV) r. (PRIV_C p) ⇒ 𝐿 (Type r ∧ PrivExp p r) → PArgs r
-
-instance (Eq r) ⇒ Eq (PArgs r) where
-  (==) ∷ PArgs r → PArgs r → 𝔹
-  PArgs (xps₁ ∷ 𝐿 (_ ∧ PrivExp p₁ _)) == PArgs (xps₂ ∷ 𝐿 (_ ∧ PrivExp p₂ _)) = case eqPRIV (priv @ p₁) (priv @ p₂) of
+instance (Eq r) ⇒ Eq (PEnv r) where
+  (==) ∷ PEnv r → PEnv r → 𝔹
+  PEnv (xps₁ ∷ 𝕏 ⇰ Pr p₁ r) == PEnv (xps₂ ∷ 𝕏 ⇰ Pr p₂ r) = case eqPRIV (priv @ p₁) (priv @ p₂) of
     Some Refl → xps₁ ≡ xps₂
     None → False
-instance (Ord r) ⇒ Ord (PArgs r) where
-  compare ∷ PArgs r → PArgs r → Ordering
-  compare (PArgs (xps₁ ∷ 𝐿 (_ ∧ PrivExp p₁ _))) (PArgs (xps₂ ∷ 𝐿 (_ ∧ PrivExp p₂ _))) = case eqPRIV (priv @ p₁) (priv @ p₂) of
+instance (Ord r) ⇒ Ord (PEnv r) where
+  compare ∷ PEnv r → PEnv r → Ordering
+  compare (PEnv (xps₁ ∷ 𝕏 ⇰ Pr p₁ r)) (PEnv (xps₂ ∷ 𝕏 ⇰ Pr p₂ r)) = case eqPRIV (priv @ p₁) (priv @ p₂) of
     Some Refl → compare xps₁ xps₂
     None → compare (stripPRIV (priv @ p₁)) (stripPRIV (priv @ p₂))
-deriving instance (Show r) ⇒ Show (PArgs r)
-
+deriving instance (Show r) ⇒ Show (PEnv r)
 
 data RowsT r = RexpRT r | StarRT deriving (Eq,Ord,Show)
 
@@ -222,17 +194,24 @@ data Type r =
   | 𝔹T
   | 𝕊T
   | 𝔻𝔽T (𝐿 (𝕊 ∧ Type r)) -- TODO: remove
-  | BagT Norm Clip (Type r)
+  | BagT Norm Clip (Type r) -- TODO: remove
   | SetT (Type r)
-  | RecordT (𝐿 (𝕊 ∧ Type r))
+  | RecordT (𝐿 (𝕊 ∧ Type r)) -- TODO: remove
   | 𝕄T Norm Clip (RowsT r) (MExp r)
   | 𝔻T (Type r)
   | Type r :⊕: Type r
   | Type r :⊗: Type r
   | Type r :&: Type r
-  | (𝐿 (𝕏 ∧ Kind) ∧ Type r) :⊸: (SensExp r ∧ Type r)
-  | (𝐿 (𝕏 ∧ Kind) ∧ PArgs r) :⊸⋆: Type r
+  | (𝐿 (𝕏 ∧ Kind) ∧ Type r) :⊸: (Sens r ∧ Type r)
+  -- ∀α:κ,…,α:κ. (x:τ,…,x:τ) → {x⋅p,…,x⋅p} τ
+  | (𝐿 (𝕏 ∧ Kind) ∧ 𝐿 (𝕏 ∧ Type r)) :⊸⋆: (PEnv r ∧ Type r)
   | BoxedT (𝕏 ⇰ Sens r) (Type r)
+  -- eventually we want:
+  -- - single-argument slambda
+  -- - single-argument plambda
+  -- - one single-type-argument quantification lambda
+  -- maybe also:
+  -- - contextual/lazy function, pair, and sum connectives
   deriving (Eq,Ord,Show)
 
 type TLExp r = Annotated FullContext (TLExpPre r)
@@ -252,8 +231,9 @@ data TLExpPre r =
   | TLExp r :⊕♭: TLExp r
   | TLExp r :⊗♭: TLExp r
   | TLExp r :&♭: TLExp r
-  | (𝐿 (𝕏 ∧ Kind) ∧ TLExp r) :⊸♭: (SensExp r ∧ TLExp r)
-  | (𝐿 (𝕏 ∧ Kind) ∧ PArgs r) :⊸⋆♭: TLExp r
+  | (𝐿 (𝕏 ∧ Kind) ∧ TLExp r) :⊸♭: (Sens r ∧ TLExp r)
+  -- ∀α:κ,…,α:κ. (x:τ,…,x:τ) → {x⋅p,…,x⋅p} τ
+  | (𝐿 (𝕏 ∧ Kind) ∧ 𝐿 (𝕏 ∧ TLExp r)) :⊸⋆♭: (PEnv r ∧ TLExp r)
   | BoxedTE (𝕏 ⇰ Sens r) (TLExp r)
   -- RExp Stuff
   | NatTE ℕ
@@ -273,7 +253,9 @@ data TLExpPre r =
   | TopTE
   -- Privacy Stuff
   | PairTE (TLExp r) (TLExp r)
-  deriving (Eq,Ord,Show)
+  deriving (Eq,Ord)
+
+deriving instance (Show r) ⇒ Show (TLExpPre r)
 
 -- data TypeLevelLang =
 --     RealExpTLL
@@ -308,7 +290,7 @@ instance Functor Type where
     τ₁ :⊗: τ₂ → map f τ₁ :⊗: map f τ₂
     τ₁ :&: τ₂ → map f τ₁ :&: map f τ₂
     (αks :* τ₁) :⊸: (s :* τ₂) → (αks :* map f τ₁) :⊸: (map f s :*  map f τ₂)
-    (αks :* PArgs xτs) :⊸⋆: τ → (αks :* PArgs (map (mapPair (map f) (map f)) xτs)) :⊸⋆: map f τ
+    (αks :* xτs) :⊸⋆: (PEnv pσ :* τ) → (αks :* map (mapSnd (map f)) xτs) :⊸⋆: (PEnv (map (map f) pσ) :* map f τ)
     BoxedT σ τ → BoxedT (map (map f) σ) (map f τ)
     VarT x → VarT x
 

@@ -15,16 +15,6 @@ instance (Pretty r) ⇒ Pretty (RowsT r) where
     RexpRT r → pretty r
     StarRT → ppKeyPun "★"
 
-instance (Pretty r) ⇒ Pretty (SensExp r) where
-  pretty = \case
-    SensExp m → pretty m
-    VarSens x → pretty x
-
-instance (Pretty r) ⇒ Pretty (PrivExp p r) where
-  pretty = \case
-    PrivExp m → pretty m
-    VarPriv x → pretty x
-
 instance (Pretty r) ⇒ Pretty (MExp r) where
   pretty = \case
     EmptyME → ppKeyPun "[]"
@@ -74,8 +64,6 @@ instance (Pretty r) ⇒ Pretty (Pr p r) where
     RenyiPriv r₁ r₂ → pretty $ pretty r₁ :* pretty r₂
     ZCPriv r  → pretty r
     TCPriv r₁ r₂ → pretty $ pretty r₁ :* pretty r₂
-
-deriving instance (Pretty r) ⇒ Pretty (Priv p r)
 
 instance (Pretty r) ⇒ Pretty (Type r) where
   pretty = \case
@@ -173,7 +161,7 @@ instance (Pretty r) ⇒ Pretty (Type r) where
       , ppBotLevel $ concat [ppPun "⊸[",ppAlign $ pretty ς,ppPun "]"]
       , pretty τ₂
       ]
-    (ακs :* PArgs τps) :⊸⋆: τ → ppAtLevel 2 $ ppSeparated $ list
+    (ακs :* xτs) :⊸⋆: (PEnv pσ :* τ) → ppAtLevel 2 $ ppSeparated $ list
       [ concat
         [ ppPun "∀"
         , ppSpace 1
@@ -184,8 +172,9 @@ instance (Pretty r) ⇒ Pretty (Type r) where
           $ list
           $ mapFirst (\ s → ppSeparated $ list [ppPun ".",s])
           $ mapAfterFirst (\ s → ppSeparated $ list [ppPun ",",s])
-          $ mapOn τps $ \ (τ' :* p) →
-              ppBotLevel $ concat [ppAlign $ pretty τ',ppPun "@",ppAlign $ pretty p]
+          $ mapOn xτs $ \ (x :* τ') →
+              ppBotLevel $ concat [ppAlign $ pretty x,ppPun ":",ppAlign $ pretty τ']
+      , pretty pσ
       , concat [ppPun "⇒",ppSpace 1,ppAlign $ pretty τ]
       ]
     BoxedT σ τ → ppAtLevel 5 $ ppSeparated $ list

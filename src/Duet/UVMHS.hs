@@ -86,6 +86,11 @@ deriving instance (Show a) ⇒ Show (AddTop a)
 deriving instance (Show a) ⇒ Show (AddBot a)
 deriving instance (Show a) ⇒ Show (AddBT a)
 
+instance (One a) ⇒ One (AddTop a) where
+  one = AddTop one
+instance (One a) ⇒ One (AddBot a) where
+  one = AddBot one
+
 instance (Zero a) ⇒ Zero (AddTop a) where
   zero = AddTop zero
 instance (Plus a) ⇒ Plus (AddTop a) where
@@ -128,6 +133,12 @@ instance (ExponentialFn a) ⇒ ExponentialFn (AddBot a) where
 instance (ExponentialFn a) ⇒ ExponentialFn (AddTop a) where
   exp Top = Top
   exp (AddTop x) = AddTop $ exp x
+instance (Log a) ⇒ Log (AddBot a) where
+  log Bot = Bot
+  log (AddBot x) = AddBot $ log x
+instance (Log a) ⇒ Log (AddTop a) where
+  log Top = Top
+  log (AddTop x) = AddTop $ log x
 
 instance Zero 𝔹 where zero = False
 instance Plus 𝔹 where (+) = (⩔)
@@ -164,3 +175,7 @@ instance ToNatO 𝔻 where
     let z = truncate d
     guard (dbl z ≡ d)
     natO z
+
+instance Show FullContext where show = chars ∘ ppshow
+
+instance Null FullContext where null = FullContext null null null

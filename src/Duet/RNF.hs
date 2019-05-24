@@ -2,9 +2,6 @@ module Duet.RNF where
 
 import Duet.UVMHS
 
-instance Show FullContext where
-  show = chars ∘ ppshow
-
 instance Show RExpPre where
   show = chars ∘ ppshow
 
