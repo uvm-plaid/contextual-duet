@@ -46,7 +46,7 @@ data RNFProds = RNFProds
 data RNFAtom =
     VarRA 𝕏
   | LogRA RNFSums
-  | EfnRA (AddTop 𝔻) RNFProds
+  | EfnRA RNFProds
   deriving (Eq,Ord,Show)
 
 makePrettySum ''RNF
@@ -778,58 +778,74 @@ powerRNF c e = case e of
 -- ┌────┐
 -- │𝑒^̃ α̇│
 -- └────┘
-efnRNFMaxs ∷ RNFMaxs → RNFMaxs
+efnRNFMaxs ∷ RNFMaxs → AddTop RNFMaxs
 efnRNFMaxs (RNFMaxs c α) =
   -- 𝑒^̃ (c ⊔̇ α) ≜ (𝑒^̃ c) ⊔̇ (𝑒^̃ α)
-  RNFMaxs (exp c) $ efnRNFMaxsSym α
+  RNFMaxs (exp c) ^$ efnRNFMaxsSym α
 
 -- ┌────┐
 -- │𝑒^̃ α│
 -- └────┘
-efnRNFMaxsSym ∷ 𝑃 RNFMins → 𝑃 RNFMins
+efnRNFMaxsSym ∷ 𝑃 RNFMins → AddTop (𝑃 RNFMins)
 efnRNFMaxsSym α =
   -- 𝑒^̃ α ≜ ⨆{ 𝑒^̃ (c ⊓̇ β) | c ⊓̇ β ∈ α }
   --      = ⨆{ (𝑒 ^ c) ⊓̇ (𝑒^̃ β)) | c ⊓̇ β ∈ α }
-  pow $ do
+  pow ^$ mapM id $ do
     β̇ ← iter α
     return $ efnRNFMins β̇
 
 -- ┌────┐
 -- │𝑒^̃ β̇│
 -- └────┘
-efnRNFMins ∷ RNFMins → RNFMins
+efnRNFMins ∷ RNFMins → AddTop RNFMins
 efnRNFMins (RNFMins c β) =
   -- 𝑒^̃ (c ⊓̇ α) ≜ (𝑒^̃ c) ⊓̇ (𝑒^̃ α)
-  RNFMins (exp c) $ efnRNFMinsSym β
+  RNFMins (exp c) ^$ efnRNFMinsSym β
 
 -- ┌────┐
 -- │𝑒^̃ β│
 -- └────┘
-efnRNFMinsSym ∷ 𝑃 RNFSums → 𝑃 RNFSums
+efnRNFMinsSym ∷ 𝑃 RNFSums → AddTop (𝑃 RNFSums)
 efnRNFMinsSym β =
   -- 𝑒^̃ β ≜ ⨅{ 𝑒^̃(c +̇ γ) | c +̇ γ ∈ β }
   --      = ⨅{ 0 +̇ {(𝑒^c) ×̇ (𝑒^̃ γ) | c +̇ γ ∈ β }}
-  pow $ do
+  pow ^$ mapM id $ do
     γ̇ ← iter β
     return $ efnRNFSums γ̇
 
 -- ┌────┐
 -- │𝑒^̃ γ̇│
 -- └────┘
-efnRNFSums ∷ RNFSums → RNFSums
-efnRNFSums (RNFSums c γ) = 
+efnRNFSums ∷ RNFSums → AddTop RNFSums
+efnRNFSums (RNFSums c γ) = do
   -- 𝑒^̃ (c +̇ γ) ≜ (e^̃ c) ×̇ ∅ ×̇ (e^̃ γ)
-  RNFSums Bot $ RNFProds dø (efnRNFSumsSym γ) ↦ AddTop (elimAddBot 1.0 exp c)
+  let c' = elimAddBot 1.0 exp c
+  γ̇ ← efnRNFSumsSym γ
+  return $ prodRNFSumsConstant c' γ̇
 
 -- ┌────┐
 -- │𝑒^̃ γ│
 -- └────┘
-efnRNFSumsSym ∷ RNFProds ⇰ AddTop 𝔻 → RNFAtom ⇰ ℚ
+efnRNFSumsSym ∷ RNFProds ⇰ AddTop 𝔻 → AddTop RNFSums
 efnRNFSumsSym γ =
-  -- 𝑒^̃ γ ≜ Π{ 𝑒^̃ (c ×̇ δ̂ ×̇ δ̌) | c ×̇ δ̂ ×̇ δ̌ ∈ γ }
-  sum $ do
-    RNFProds δ̂ δ̌ :* c ← iter γ
-    return $ EfnRA c (RNFProds δ̂ δ̌) ↦ one
+  -- 𝑒^̃ γ = 𝑒^ ∑{ c ×̇ δ̇ | c ×̇ δ̇ ∈ γ }
+  --      = ∏{ 𝑒^ (c ×̇ δ̇) | c ×̇ δ̇ ∈ γ }
+  --      = ∏{ (𝑒^̃ δ) ^̃ c | c ×̇ δ̇ ∈ γ }
+  mfoldWith γ (RNFSums (AddBot one) dø) $ \ (δ̇ :* c) γ̇ᵢ → do
+    prodRNFSums γ̇ᵢ *$ powerRNFSums (_ c) $ efnRNFProds δ̇
+  -- fold (RNFSums (AddBot one) dø) prodRNFSums ^$ mapM id $ do
+  --   δ̇ :* c ← iter γ
+  --   return $ powerRNFSums (_ c) $ efnRNFProds δ̇
+
+-- ┌────┐
+-- │𝑒^̃ δ̇│
+-- └────┘
+efnRNFProds ∷ RNFProds → RNFSums
+efnRNFProds (RNFProds δ̂ δ̌) = case (isEmpty δ̂,δ̌) of
+  -- 𝑒^̃ ((㏒ γ̇) ^̇ 1)
+  (True,stream → (uncons𝑆 → Some ((LogRA γ̇ :* ((≡) one → True)) :* (uncons𝑆 → None)))) → γ̇
+  _ → oneProd $ oneAtom $ EfnRA $ RNFProds δ̂ δ̌
+  -- 𝑒^̃ (δ̂ ×̇ δ̌) = 
 
 -- ┌────┐
 -- │𝑒^̃ e│
@@ -844,7 +860,7 @@ efnRNF e =
   -- 𝑒^̃ c ≜ 𝑒 ^ c
   ConstantRNF (AddBT c) → ConstantRNF $ AddBT $ exp c
   -- (c ⊔̇ α) ^̃ q ≜ (c ^ q) ⊔̇ (α ^̃ q)
-  SymRNF α̇ → SymRNF $ efnRNFMaxs α̇
+  SymRNF α̇ → elimAddTop (ConstantRNF TopBT) SymRNF $ efnRNFMaxs α̇
 
 ---------
 -- LOG --
@@ -910,14 +926,16 @@ logRNFProds (RNFProds δ̂ δ̌) =
       return $ RNFProds dø (LogRA γ̇ ↦ c) ↦ one
   , sum $ do 
       α :* c ← list δ̌
-      let c' :* δ̇ = logRNFAtom α
-      return $ δ̇ ↦ c' -- (c × c')
+      return $ logRNFAtom α ↦ AddTop (dbl c)
   ]
 
-logRNFAtom ∷ RNFAtom → (AddTop 𝔻 ∧ RNFProds)
+-- ┌────┐
+-- │㏒ ε│
+-- └────┘
+logRNFAtom ∷ RNFAtom → RNFProds
 logRNFAtom = \case
-  EfnRA c δ̇ → c :* δ̇
-  α → one :* oneAtom α
+  EfnRA δ̇ → δ̇
+  α → oneAtom α
 
 -- ┌────┐
 -- │㏒ e│
