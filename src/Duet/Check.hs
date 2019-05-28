@@ -117,66 +117,71 @@ runPM ∷ 𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → PM p a �
 runPM δ γ ᴍ = unID ∘ unErrorT ∘ unWriterT ∘ runReaderT (Context δ γ ᴍ) ∘ unPM
 
 smFromPM ∷ PM p a → SM p a
-smFromPM xM = mkSM $ \ δ γ ᴍ → mapInr (mapFst $ map $ Sens ∘ truncate Inf ∘ unPriv) $ runPM δ γ ᴍ xM
+smFromPM xM = mkSM $ \ δ γ ᴍ → 
+  mapInr (mapFst $ map $ Sens ∘ (×) top ∘ truncateRNF ∘ indicatorPr) $ runPM δ γ ᴍ xM
 
 pmFromSM ∷ SM p a → PM p a
-pmFromSM xM = mkPM $ \ δ γ ᴍ → mapInr (mapFst $ map $ truncate Inf ∘ unSens) $ runSM δ γ ᴍ xM
+pmFromSM xM = mkPM $ \ δ γ ᴍ → 
+  mapInr (mapFst $ map $ makePr ∘ (×) top ∘ truncateRNF ∘ unSens) $ runSM δ γ ᴍ xM
 
 mapPPM ∷ (Pr p₁ RNF → Pr p₂ RNF) → PM p₁ a → PM p₂ a
 mapPPM f xM = mkPM $ \ δ γ ᴍ → mapInr (mapFst $ map f) $ runPM δ γ ᴍ xM
 
 checkSensLang ∷ TLExp RExp → 𝑂 (Sens RExp)
-checkSensLang e₀ = case extract e₀ of
-  BotTE → return $ Sens Zero
-  TopTE → return $ Sens Inf
-  VarTE x → return $ Sens  $ siphon e₀ $ VarRE x
-  NatTE n → return $ Sens $ siphon e₀ $ NatRE n
-  NNRealTE r → return $ Sens $ siphon e₀ $ NNRealRE r
-  MaxTE e₁ e₂ → do
-    η₁ ← checkRExpLang e₁
-    η₂ ← checkRExpLang e₂
-    return $ Sens $ siphon e₀ $ MaxRE η₁ η₂
-  MinTE e₁ e₂ → do
-    η₁ ← checkRExpLang e₁
-    η₂ ← checkRExpLang e₂
-    return $ Sens $ siphon e₀ $ MinRE η₁ η₂
-  PlusTE e₁ e₂ → do
-    η₁ ← checkRExpLang e₁
-    η₂ ← checkRExpLang e₂
-    return $ Sens $ siphon e₀ $ PlusRE η₁ η₂
-  TimesTE e₁ e₂ → do
-    η₁ ← checkRExpLang e₁
-    η₂ ← checkRExpLang e₂
-    return $ Sens $ siphon e₀ $ TimesRE η₁ η₂
-  DivTE e₁ e₂ → do
-    η₁ ← checkRExpLang e₁
-    η₂ ← checkRExpLang e₂
-    return $ Sens $ siphon e₀ $ DivRE η₁ η₂
-  RootTE e → do
-    η ← checkRExpLang e
-    return $ Sens $ siphon e₀ $ RootRE η
-  ExpTE e₁ e₂ → do
-    η₁ ← checkRExpLang e₁
-    η₂ ← checkRExpLang e₂
-    return $ Sens $ siphon e₀ $ ExpRE η₁ η₂
-  LogTE e → do
-    η ← checkRExpLang e
-    return $ Sens $ siphon e₀ $ LogRE η
-  ExpFnTE e → do
-    η ← checkRExpLang e
-    return $ Sens $ siphon e₀ $ ExpFnRE η
-  MinusTE e₁ e₂ → do
-    η₁ ← checkRExpLang e₁
-    η₂ ← checkRExpLang e₂
-    return $ Sens $ siphon e₀ $ MinusRE η₁ η₂
-  _ → None
+checkSensLang e = do
+  η ← checkRExpLang e
+  return $ Sens η
+  -- BotTE → return $ Sens Zero
+  -- TopTE → return $ Sens Inf
+  -- VarTE x → return $ Sens  $ siphon e₀ $ VarRE x
+  -- NatTE n → return $ Sens $ siphon e₀ $ NatRE n
+  -- NNRealTE r → return $ Sens $ siphon e₀ $ NNRealRE r
+  -- MaxTE e₁ e₂ → do
+  --   η₁ ← checkRExpLang e₁
+  --   η₂ ← checkRExpLang e₂
+  --   return $ Sens $ siphon e₀ $ MaxRE η₁ η₂
+  -- MinTE e₁ e₂ → do
+  --   η₁ ← checkRExpLang e₁
+  --   η₂ ← checkRExpLang e₂
+  --   return $ Sens $ siphon e₀ $ MinRE η₁ η₂
+  -- PlusTE e₁ e₂ → do
+  --   η₁ ← checkRExpLang e₁
+  --   η₂ ← checkRExpLang e₂
+  --   return $ Sens $ siphon e₀ $ PlusRE η₁ η₂
+  -- TimesTE e₁ e₂ → do
+  --   η₁ ← checkRExpLang e₁
+  --   η₂ ← checkRExpLang e₂
+  --   return $ Sens $ siphon e₀ $ TimesRE η₁ η₂
+  -- DivTE e₁ e₂ → do
+  --   η₁ ← checkRExpLang e₁
+  --   η₂ ← checkRExpLang e₂
+  --   return $ Sens $ siphon e₀ $ DivRE η₁ η₂
+  -- RootTE e → do
+  --   η ← checkRExpLang e
+  --   return $ Sens $ siphon e₀ $ RootRE η
+  -- EfnTE e₁ e₂ → do
+  --   η₁ ← checkRExpLang e₁
+  --   η₂ ← checkRExpLang e₂
+  --   return $ Sens $ siphon e₀ $ ExpRE η₁ η₂
+  -- LogTE e → do
+  --   η ← checkRExpLang e
+  --   return $ Sens $ siphon e₀ $ LogRE η
+  -- ExpFnTE e → do
+  --   η ← checkRExpLang e
+  --   return $ Sens $ siphon e₀ $ ExpFnRE η
+  -- MinusTE e₁ e₂ → do
+  --   η₁ ← checkRExpLang e₁
+  --   η₂ ← checkRExpLang e₂
+  --   return $ Sens $ siphon e₀ $ MinusRE η₁ η₂
+  -- _ → None
 
 checkPrivLang ∷ (PRIV_C p) ⇒ PRIV_W p → TLExp RExp → 𝑂 (Pr p RExp)
 checkPrivLang p e₀ = case p of
+  EPS_W → do
+    η ← checkRExpLang e₀
+    return $ EpsPriv η
   ED_W → do
     case extract e₀ of
-      BotTE → return $ Pr Zero
-      TopTE → return $ Pr Inf
       PairTE e₁ e₂ → do
         η₁ ← checkRExpLang e₁
         η₂ ← checkRExpLang e₂
@@ -228,8 +233,8 @@ checkTypeLang e₀ = case extract e₀ of
 checkRExpLang ∷ TLExp RExp → 𝑂 RExp
 checkRExpLang e₀ = siphon e₀ ^$ case extract e₀ of
   VarTE x → return $ VarRE x
-  NatTE n → return $ NatRE n
-  NNRealTE r → return $ NNRealRE r
+  NatTE n → return $ ConstRE $ AddTop $ dbl n
+  NNRealTE r → return $ ConstRE $ AddTop r
   MaxTE e₁ e₂ → do
     η₁ ← checkRExpLang e₁
     η₂ ← checkRExpLang e₂
@@ -252,24 +257,13 @@ checkRExpLang e₀ = siphon e₀ ^$ case extract e₀ of
     return $ DivRE η₁ η₂
   RootTE e → do
     η ← checkRExpLang e
-    return $ RootRE η
-  ExpTE e₁ e₂ → do
-    η₁ ← checkRExpLang e₁
-    η₂ ← checkRExpLang e₂
-    return $ ExpRE η₁ η₂
+    return $ PowRE (rio 1 / rio 2) η
   LogTE e → do
     η ← checkRExpLang e
     return $ LogRE η
-  ExpFnTE e → do
-    η ← checkRExpLang e
-    return $ ExpFnRE η
-  MinusTE e₁ e₂ → do
-    η₁ ← checkRExpLang e₁
-    η₂ ← checkRExpLang e₂
-    return $ MinusRE η₁ η₂
   _ → None
 
-checkSchemaVar ∷ 𝕏 → SM p Kind
+checkSchemaVar ∷ 𝕏 → SM p ()
 checkSchemaVar x = do
   ᴍ ← askL contextMExpL
   case ᴍ ⋕? x of
@@ -290,9 +284,9 @@ inferKindVar x = do
       ]
 
 checkSens ∷ Sens RExpPre → SM p ()
-checkSens (Sens r) = checkKind ℝT r
+checkSens (Sens r) = checkKind ℝK r
 
-checkPriv ∷ Pr p RExpPre → SM p ()
+checkPriv ∷ Pr p' RExpPre → SM p ()
 -- multiple cases..
 checkPriv _ = undefined
 
@@ -304,11 +298,10 @@ checkKind κ r = do
 inferKind ∷ RExpPre → SM p Kind
 inferKind = \case
   VarRE x → inferKindVar x
-  ConstRE BotBT → ℕK
-  ConstRE TopBT → ℝK
-  ConstRE (AddBT r)
-    | dbl (trucate r) ≡ r → ℕK
-    | otherwise           → ℝK
+  ConstRE Top → return ℝK
+  ConstRE (AddTop r)
+    | dbl (truncate r) ≡ r → return ℕK
+    | otherwise            → return ℝK
   MaxRE e₁ e₂ → do
     κ₁ ← inferKind $ extract e₁
     κ₂ ← inferKind $ extract e₂
@@ -326,39 +319,39 @@ inferKind = \case
     κ₂ ← inferKind $ extract e₂
     return $ κ₁ ⊔ κ₂
   PowRE q e → do
-    κ ← inferKind e
-    case den q ≡ 1 of
+    κ ← inferKind $ extract e
+    return $ case ratDen q ≡ 1 of
       True → κ
-      False → ℝT
+      False → ℝK
   EfnRE e → do
-    void $ inferKind e
-    return ℝT
+    void $ inferKind $ extract e
+    return ℝK
   LogRE e → do
-    void $ inferKind e
-    return ℝT
+    void $ inferKind $ extract e
+    return ℝK
 
 checkType ∷ ∀ p. (PRIV_C p) ⇒ Type RExp → SM p ()
 checkType τA = case τA of
-  ℕˢT η → checkKind ℕK η
-  ℝˢT η → checkKind ℝK η
+  ℕˢT η → checkKind ℕK $ extract η
+  ℝˢT η → checkKind ℝK $ extract η
   ℕT → skip
   ℝT → skip
-  𝕀T η → checkKind ℕK η
+  𝕀T η → checkKind ℕK $ extract η
   𝔹T → skip
   𝕊T → skip
   SetT τ → checkType τ
   𝕄T _ℓ _c rows me → do
     case rows of
       RexpRT r → do
-        checkKind ℕK r
+        checkKind ℕK $ extract r
       StarRT → skip
     case me of
       EmptyME → skip
       VarME x → checkSchemaVar x
-      ConsME (τ ∷ Type r) (me ∷ MExp r) → undefined
-      AppendME (me₁ ∷ MExp r) (me₂ ∷ MExp r) → undefined
+      ConsME (τ ∷ Type RExp) (me ∷ MExp RExp) → undefined
+      AppendME (me₁ ∷ MExp RExp) (me₂ ∷ MExp RExp) → undefined
       RexpME r τ → do
-        checkKind ℕK r
+        checkKind ℕK $ extract r
         checkType τ
   𝔻T τ → checkType τ
   τ₁ :⊕: τ₂ → do
@@ -374,35 +367,32 @@ checkType τA = case τA of
     mapEnvL contextKindL (\ δ → assoc ακs ⩌ δ) $ do
       checkType τ₁
       checkType τ₂
-      checkSens s
-  (ακs :* xτs) :⊸⋆: (PEnv pσ :* τ) → do
-   mapEnvL contextKindL (\ δ → assoc ακs ⩌ δ) $ do
-     mapOn xτs $ \ (x :* τ) → checkType τ
-     mapEnvL contextTypeL (\ γ → assoc xτs ⩌ γ) $ do
-       mapOn pσ $ \ (x' :* p) → do
-         checkVar x'
-         checkPriv p
-       checkType τ
-  BoxedT _σ τ → checkType τ
-  VarT _x → return True
+      checkSens $ map extract s
+  (ακs :* xτs) :⊸⋆: (PEnv (pσ ∷ 𝕏 ⇰ Pr p' RExp) :* τ) → do
+    mapEnvL contextKindL (\ δ → assoc ακs ⩌ δ) $ do
+      eachWith xτs $ \ (x :* τ) → checkType τ
+      mapEnvL contextTypeL (\ γ → mapp normalizeRNF (assoc xτs) ⩌ γ) $ do
+        eachWith pσ $ \ (x' :* p) → do
+          void $ inferKindVar x'
+          checkPriv $ map extract p
+        checkType τ
+  BoxedT _σ τ → checkType τ -- TODO: get rid of
+  VarT x → void $ inferKindVar x
   _ → error $ "checkType error on " ⧺ pprender τA
 
-checkTypeP ∷ ∀ p₁ p₂. (PRIV_C p₁) ⇒ (Type RExp ∧ Pr p₂ RExp) → SM p₁ 𝔹
-checkTypeP (τ :* p) = do
-  a ← checkType τ
-  b ← checkKindP p
-  case (a ⩓ b) of
-    False → throw (error "kinding error" ∷ TypeError)
-    True → return $ True
-
-checkKindP :: ∀ p₁ p₂. Pr p₂ RExp → SM p₁ 𝔹
-checkKindP p = case p of
-  (EDPriv ε δ) → do
-    κ₁ ← inferKind $ extract ε
-    κ₂ ← inferKind $ extract δ
-    return $ and [κ₁ ⊑ ℝK,κ₂ ⊑ ℝK]
-  -- TODO: account for other privacy variants
-  _ → return True
+-- checkTypeP ∷ ∀ p₁ p₂. (PRIV_C p₁) ⇒ (Type RExp ∧ Pr p₂ RExp) → SM p₁ ()
+-- checkTypeP (τ :* p) = do
+--   checkType τ
+--   checkKindP p
+-- 
+-- checkKindP :: ∀ p₁ p₂. Pr p₂ RExp → SM p₁ 𝔹
+-- checkKindP p = case p of
+--   (EDPriv ε δ) → do
+--     κ₁ ← inferKind $ extract ε
+--     κ₂ ← inferKind $ extract δ
+--     return $ and [κ₁ ⊑ ℝK,κ₂ ⊑ ℝK]
+--   -- TODO: account for other privacy variants
+--   _ → return True
 
 inferSens ∷ ∀ p. (PRIV_C p) ⇒ SExpSource p → SM p (Type RNF)
 inferSens eA = case extract eA of
@@ -503,8 +493,8 @@ inferSens eA = case extract eA of
         tell $ ι (one / η₂) ⨵ σ₁ ⧺ σ₂
         return $ ℝT
       (ℝT,ℝT) → do
-        tell $ map (Sens ∘ truncate Inf ∘ unSens) σ₁
-        tell $ map (Sens ∘ truncate Inf ∘ unSens) σ₂
+        tell $ map (Sens ∘ (×) top ∘ truncateRNF ∘ unSens) σ₁
+        tell $ map (Sens ∘ (×) top ∘ truncateRNF ∘ unSens) σ₂
         return ℝT
       (𝔻T ℝT,𝔻T ℝT) → do
         tell σ₁
@@ -514,7 +504,7 @@ inferSens eA = case extract eA of
   RootSE e → do
     σ :* τ ← hijack $ inferSens e
     case τ of
-      ℝˢT η → do tell σ ; return $ ℝˢT $ rootRNF η
+      ℝˢT η → do tell σ ; return $ ℝˢT $ powerRNF (rat 1 / rat 2) η
       ℝT → do tell $ top ⨵ σ ; return ℝT
       𝔻T ℝT → return $ 𝔻T ℝT
       _ → undefined -- TypeError
@@ -566,7 +556,7 @@ inferSens eA = case extract eA of
         return $ 𝕄T ℓ UClip (RexpRT ηₘ) (RexpME ηₙ τ₃)
       _ → undefined -- TypeError
   -- CSVtoMatrixSE f τ → do
-  --   case map normalizeRExp (extract τ) of
+  --   case map normalizeRNF (extract τ) of
   --     (𝕄T _ℓ _c StarRT (RexpME r τ₁')) → return (𝕄T _ℓ _c StarRT (RexpME r τ₁'))
   --     _ → error $ "CSVtoMatrixSE error: " ⧺ (pprender $ (f :* τ)) -- TypeError
   MIndexSE e₁ e₂ e₃ → do
@@ -763,28 +753,29 @@ inferSens eA = case extract eA of
     σ₁ :* τ₁ ← hijack $ inferSens e₁
     σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁) ⩌ γ) $ inferSens e₂
     let (ς :* σ₂') = ifNone (zero :* σ₂) $ dview x σ₂
-    let fvs = freeBvs τ₂
-    let isClosed = (fvs ∩ single𝑃 x) ≡ pø
-    case isClosed of
-      False → error $ "Let type/scoping error in return expression of type: " ⧺ (pprender τ₂)
-      True → do
+    -- let fvs = freeBvs τ₂
+    -- let isClosed = (fvs ∩ single𝑃 x) ≡ pø
+    -- case isClosed of
+    --   False → error $ "Let type/scoping error in return expression of type: " ⧺ (pprender τ₂)
+    --   True → do
+    do
         tell $ ς ⨵ σ₁
         tell σ₂'
         return τ₂
   SFunSE ακs x τ e → do
     mapEnvL contextKindL (\ δ → assoc ακs ⩌ δ) $ do
-      a ← checkType $ extract τ
-      when (not a) $ throw (error "kinding error in sfun" ∷ TypeError)
-      let τ' = map normalizeRExp $ extract τ
+      checkType $ extract τ
+      let τ' = map normalizeRNF $ extract τ
       σ :* τ'' ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferSens e
       let (ς :* σ') = ifNone (zero :* σ) $ dview x σ
-      let fvs = freeBvs τ''
-      let isClosed = (fvs ∩ single𝑃 x) ≡ pø
-      case isClosed of
-        False → error $ "Lambda type/scoping error in return expression of type: " ⧺ (pprender τ'')
-        True → do
+      -- let fvs = freeBvs τ''
+      -- let isClosed = (fvs ∩ single𝑃 x) ≡ pø
+      -- case isClosed of
+      --   False → error $ "Lambda type/scoping error in return expression of type: " ⧺ (pprender τ'')
+      --   True → do
+      do
           tell σ'
-          return $ (ακs :* τ') :⊸: (SensExp ς :* τ'')
+          return $ (ακs :* τ') :⊸: (ς :* τ'')
   DiscFSE e₁ → do
     τ₁ ← inferSens e₁
     case τ₁ of
@@ -804,26 +795,26 @@ inferSens eA = case extract eA of
                   case checkTypeLang τe of
                     None → undefined
                     Some τk → do
-                      let τk' = map normalizeRExp τk
+                      let τk' = map normalizeRNF τk
                       (substType α τk' τ₁₁',ς',substType α τk' τ₁₂')
                 SensK → do
                   case checkSensLang τe of
                     None → undefined
                     Some τk → do
-                      let τk' = map normalizeRExp τk
-                      (substSens α τk' τ₁₁',substSensExp ς' τk',substSens α τk' τ₁₂')
+                      let τk' = map normalizeRNF τk
+                      (substSens α τk' τ₁₁',Sens $ substRNF α (unSens τk') $ unSens ς',substSens α τk' τ₁₂')
                 PrivK p' → do
                   case checkPrivLang (priv @ p) τe of
                     None → undefined
                     Some τk → do
-                      let τk' = map normalizeRExp τk
+                      let τk' = map normalizeRNF τk
                       (substPriv α τk' τ₁₁',ς',substPriv α τk' τ₁₂')
                 ℕK → do
                   case checkRExpLang τe of
                     None → undefined
                     -- TODO: kind checking
                     Some τk → do
-                      (substRExp α (normalizeRExp τk) τ₁₁',map (substRNF α (normalizeRExp τk)) ς',substRExp α (normalizeRExp τk) τ₁₂')
+                      (substRExp α (normalizeRNF τk) τ₁₁',map (substRNF α (normalizeRNF τk)) ς',substRExp α (normalizeRNF τk) τ₁₂')
                 ℝK → do
                   case checkRExpLang τe of
                     None → undefined
@@ -831,11 +822,11 @@ inferSens eA = case extract eA of
                     Some τk → do
                       -- do substRExp if κ is a RExp
                       -- on each of τ₁₁',ς',τ₁₂'
-                      (substRExp α (normalizeRExp τk) τ₁₁',map (substRNF α (normalizeRExp τk)) ς',substRExp α (normalizeRExp τk) τ₁₂')
+                      (substRExp α (normalizeRNF τk) τ₁₁',map (substRNF α (normalizeRNF τk)) ς',substRExp α (normalizeRNF τk) τ₁₂')
         case r of
           (τ₁₁'',ς'',τ₁₂'') → do
             -- error $ pprender (τ₁₁'':*SensExp ς'':*τ₁₂'':*τ₂)
-            -- let η's = map normalizeRExp ηs
+            -- let η's = map normalizeRNF ηs
             -- ηκs ← mapM (inferKind ∘ extract) ηs
             case {- (ηκs ≡ fκs) ⩓ -} (τ₂ ≡ τ₁₁'') of
               True → do
@@ -856,7 +847,7 @@ inferSens eA = case extract eA of
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             ]
   PFunSE ακs xτs e → do
-    let xτs' = map (mapSnd (map normalizeRExp ∘ extract)) xτs
+    let xτs' = map (mapSnd (map normalizeRNF ∘ extract)) xτs
         xs = map fst xτs
     mapEnvL contextKindL (\ δ → assoc ακs ⩌ δ) $ do
       σ :* τ ←
@@ -864,16 +855,17 @@ inferSens eA = case extract eA of
         $ hijack
         $ mapEnvL contextTypeL (\ γ → assoc xτs' ⩌ γ)
         $ inferPriv e
-      a ← map and $ mapM checkType $ map (extract ∘ snd) xτs
-      when (not a) $ throw (error "kinding error in pfun" ∷ TypeError)
-      let fvs = freeBvs τ
-      let isClosed = (fvs ∩ pow xs) ≡ pø
-      case isClosed of
-        False → error $ "Lambda type/scoping error in return expression of type: " ⧺ (pprender τ)
-        True → do
-          tell $ map (Sens ∘ truncate Inf ∘ unPriv) $ without (pow xs) σ
-          let τps = mapOn xτs' $ \ (x :* τ') → τ' :* Pr (ifNone null (σ ⋕? x))
-          return $ (ακs :* PArgs τps) :⊸⋆: τ
+      each checkType $ map (extract ∘ snd) xτs
+      -- let fvs = freeBvs τ
+      -- let isClosed = (fvs ∩ pow xs) ≡ pø
+      -- case isClosed of
+      --   False → error $ "Lambda type/scoping error in return expression of type: " ⧺ (pprender τ)
+      --   True → do
+      do
+          -- TODO: make a name for: Sens ∘ (×) top ∘ truncateRNF ∘ indicatorPr ∘ unPriv
+          tell $ map (Sens ∘ (×) top ∘ truncateRNF ∘ indicatorPr) $ without (pow xs) σ
+          let pσ = dict $ mapOn xτs' $ \ (x :* _) → x ↦ ifNone null (σ ⋕? x)
+          return $ (ακs :* mapp (map normalizeRNF ∘ extract) xτs) :⊸⋆: (PEnv pσ :* τ)
   SetSE es → do
     -- homogeneity check
     l ← mapM (hijack ∘ inferSens) es
@@ -982,12 +974,12 @@ inferSens eA = case extract eA of
     σ :* τ ← hijack $ inferSens e
     case τ of
       𝔻T τ₁ → do
-        tell $ map (Sens ∘ truncate Inf ∘ unSens) σ
+        tell $ map (Sens ∘ (×) top ∘ truncateRNF ∘ unSens) σ
         return τ₁
       _ → error $ "Cannot conv type: " ⧺ (pprender τ)
   DiscSE e → do
     σ :* τ ← hijack $ inferSens e
-    tell $ map (Sens ∘ truncate (dblRNF 1.0) ∘ unSens) σ
+    tell $ map (Sens ∘ truncateRNF ∘ unSens) σ
     return $ 𝔻T τ
   CountSE e → do
     τ ← inferSens e
@@ -1066,7 +1058,7 @@ inferSens eA = case extract eA of
         σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ m) ⩌ γ) $ inferSens e₂
         let (ς :* σ₂') = ifNone (zero :* σ₂) $ dview x σ₂
         tell $ ς ⨵ σ₁
-        tell $ map (Sens ∘ truncate Inf ∘ unSens) σ₂'
+        tell $ map (Sens ∘ (×) top ∘ truncateRNF ∘ unSens) σ₂'
         case τ₂ of
           𝔹T → return $ 𝕄T ℓ c StarRT s
           _  → error $ "MFilter error: " ⧺ (pprender (τ₁, τ₂))
@@ -1129,7 +1121,7 @@ inferSens eA = case extract eA of
                      inferSens e₃
         let (_ :* σ₃')  = ifNone (zero :* σ₃)  $ dview x₁ σ₃
             (ς₂ :* σ₃'') = ifNone (zero :* σ₃') $ dview x₂ σ₃'
-        tell $ map (Sens ∘ truncate Inf ∘ unSens) σ₁
+        tell $ map (Sens ∘ (×) top ∘ truncateRNF ∘  unSens) σ₁
         tell $ ς₂ ⨵ σ₂
         tell $ ι r₁ ⨵ σ₃''
         return τ₃
@@ -1209,23 +1201,23 @@ inferPriv eA = case extract eA of
     σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁) ⩌ γ) $ inferPriv e₂
     tell $ delete x σ₂
     return τ₂
-  MMapPE e₁ x e₂ → do
-    σ₁ :* τ₁ ← pmFromSM $ hijack $ inferSens e₁
-    case τ₁ of
-      𝕄T ℓ _c (RexpRT ηₘ) (RexpME r τ₁') | (joins (values σ₁) ⊑ ι 1) → do
-        σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁') ⩌ γ) $ inferPriv e₂
-        let (p :* σ₂') = ifNone (bot :* σ₂) $ dview x σ₂
-        tell $ mapp (iteratePr (ηₘ × r)) $ (map unPriv σ₂)
-        case (ιview @ (Pr p RNF) p) of
-          (Some p') → do
-            tell $ map (Priv ∘ truncate (iteratePr (ηₘ × r) p') ∘ unSens) σ₁
-            return $ 𝕄T ℓ UClip (RexpRT ηₘ) (RexpME r τ₂)
-          _ → do
-            tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₁
-            return $ 𝕄T ℓ UClip (RexpRT ηₘ) (RexpME r τ₂)
-      _  → undefined -- TypeSource Error
+  -- MMapPE e₁ x e₂ → do
+  --   σ₁ :* τ₁ ← pmFromSM $ hijack $ inferSens e₁
+  --   case τ₁ of
+  --     𝕄T ℓ _c (RexpRT ηₘ) (RexpME r τ₁') | (joins (values σ₁) ⊑ ι 1) → do
+  --       σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁') ⩌ γ) $ inferPriv e₂
+  --       let (p :* σ₂') = ifNone (bot :* σ₂) $ dview x σ₂
+  --       tell $ mapp (iteratePr (ηₘ × r)) $ σ₂
+  --       case (ιview @ (Pr p RNF) p) of
+  --         (Some p') → do
+  --           tell $ map (Priv ∘ truncate (iteratePr (ηₘ × r) p') ∘ unSens) σ₁
+  --           return $ 𝕄T ℓ UClip (RexpRT ηₘ) (RexpME r τ₂)
+  --         _ → do
+  --           tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₁
+  --           return $ 𝕄T ℓ UClip (RexpRT ηₘ) (RexpME r τ₂)
+  --     _  → undefined -- TypeSource Error
   AppPE e τes as → do
-    -- let η's = map normalizeRExp ηs
+    -- let η's = map normalizeRNF ηs
     τ ← pmFromSM $ inferSens e
     -- ηκs ← pmFromSM $ mapM (inferKind ∘ extract) ηs
     aστs ← pmFromSM $ mapM (hijack ∘ inferSens) as
@@ -1251,32 +1243,32 @@ inferPriv eA = case extract eA of
                         case checkTypeLang τe of
                           None → undefined
                           Some τk → do
-                            let τk' = map normalizeRExp τk
+                            let τk' = map normalizeRNF τk
                             substType α τk' τ₁₁'
                       SensK → do
                         case checkSensLang τe of
                           None → undefined
                           Some τk → do
-                            let τk' = map normalizeRExp τk
+                            let τk' = map normalizeRNF τk
                             substSens α τk' τ₁₁'
                       PrivK p' → do
                         case checkPrivLang (priv @ p) τe of
                           None → undefined
                           Some τk → do
-                            let τk' = map normalizeRExp τk
+                            let τk' = map normalizeRNF τk
                             substPriv α τk' τ₁₁'
                       ℕK → do
                         case checkRExpLang τe of
                           None → undefined
                           -- TODO: kind checking
                           Some τk → do
-                            substRExp α (normalizeRExp τk) τ₁₁'
+                            substRExp α (normalizeRNF τk) τ₁₁'
                       ℝK → do
                         case checkRExpLang τe of
                           None → undefined
                           -- TODO: kind checking
                           Some τk → do
-                            substRExp α (normalizeRExp τk) τ₁₁'
+                            substRExp α (normalizeRNF τk) τ₁₁'
 
 
                   subP ∷ Pr p' RNF → Pr p' RNF
@@ -1286,43 +1278,44 @@ inferPriv eA = case extract eA of
                         case checkTypeLang τe of
                           None → undefined
                           Some τk → do
-                            let τk' = map normalizeRExp τk
+                            let τk' = map normalizeRNF τk
                             ς'
                       SensK → do
                         case checkSensLang τe of
                           None → undefined
                           Some τk → do
-                            let τk' = map normalizeRExp τk
+                            let τk' = map normalizeRNF τk
                             ς'
                       PrivK p' → do
                         case checkPrivLang (priv @ p) τe of
                           None → undefined
                           Some τk → do
-                            let τk' = map normalizeRExp τk
+                            let τk' = map normalizeRNF τk
                             substPrivExp ς' τk'
                       ℕK → do
                         case checkRExpLang τe of
                           None → undefined
                           -- TODO: kind checking
                           Some τk → do
-                            map (substRNF α (normalizeRExp τk)) ς'
+                            map (substRNF α (normalizeRNF τk)) ς'
                       ℝK → do
                         case checkRExpLang τe of
                           None → undefined
                           -- TODO: kind checking
                           Some τk → do
-                            map (substRNF α (normalizeRExp τk)) ς'
+                            map (substRNF α (normalizeRNF τk)) ς'
 
                   τps' = mapOn τps $ \ (τ' :* p) → (subF τ' :* subP p)
                   τs' = map fst τps'
                   ps' = map snd τps'
               case {- (ηκs ≡ fκs) ⩓ -} (aτs ≡ τs') of
                 True → do
-                  eachWith (zip aσs ps') $ \ (σ :* p) →
-                    case p of
-                      ED →
-                        tell $ map (Priv ∘ truncate (unPriv p') ∘ unSens) σ
-                  return $ subF τ₁
+                  undefined -- FIX THIS
+                  -- eachWith (zip aσs ps') $ \ (σ :* p) →
+                  --   case p of
+                  --     ED →
+                  --       tell $ map ((\ i → iteratePr i p) ∘ truncateRNF ∘ unSens) σ
+                  -- return $ subF τ₁
                 False → error $ concat
                   [ "type error in AppPE\n"
                   , concat $ inbetween "\n"
@@ -1770,34 +1763,34 @@ inferPriv eA = case extract eA of
   --        (αs :* as) :⊸⋆: τ₅ ) -- | τ₁ ≡ τ₅
   --       → error $ pprender (τ₁ :* τ₂)
 
-  PFldRows2PE e₁ e₂ e₃ e₄ e₅ → do
-    τ₁ ← pmFromSM $ inferSens e₁
-    τ₂ ← pmFromSM $ inferSens e₂
-    σ₃ :* τ₃ ← pmFromSM $ hijack $ inferSens e₃
-    σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
-    τ₅ ← pmFromSM $ inferSens e₅
-    case (τ₁, τ₃, τ₄, τ₅) of
-      (ℕˢT ηb,
-       𝕄T ℓ₁ c₁ (RexpRT ηr₁) (RexpME ηc₁ (𝔻T ℝT)),
-       𝕄T ℓ₂ c₂ (RexpRT ηr₂) (RexpME ηc₂ (𝔻T ℝT)),
-       (αs :* as) :⊸⋆: τ₆ ) -- | τ₁ ≡ τ₅
-        → case as of
-            (PArgs ((𝕄T ℓ₁' c₁' (RexpRT ηr₁') (RexpME ηc₁' (𝔻T ℝT)) :* (p₁ ∷ Pr p₁ RNF)) :&
-                    (𝕄T ℓ₂' c₂' (RexpRT ηr₂') (RexpME ηc₂' (𝔻T ℝT)) :* (p₂ ∷ Pr p₂ RNF)) :&
-                    (τ₂prime :* p₃) :& Nil))
-             | (ℓ₁ ≡ ℓ₁') ⩓ (ℓ₂ ≡ ℓ₂') ⩓
-               (c₁ ≡ c₁') ⩓ (c₂ ≡ c₂') ⩓
-               (ηr₁' ≡ ηb) ⩓ (ηc₁ ≡ ηc₁') ⩓
-               (ηr₂' ≡ ηb) ⩓ (ηc₂ ≡ ηc₂')
-              → case (eqPRIV (priv @ p) (priv @ p₁), eqPRIV (priv @ p) (priv @ p₂)) of
-                  (Some Refl, Some Refl) → do
-                    case (p₁,p₂) of
-                      (ED,ED) → do
-                        tell $ map (Priv ∘ truncate (unPriv p₁') ∘ unSens) σ₃
-                        tell $ map (Priv ∘ truncate (unPriv p₂') ∘ unSens) σ₄
-                        return τ₂
-            _ → error $ "Fold error " ⧺ (pprender (τ₃ :* τ₄ :* τ₅))
-
+--   PFldRows2PE e₁ e₂ e₃ e₄ e₅ → do
+--     τ₁ ← pmFromSM $ inferSens e₁
+--     τ₂ ← pmFromSM $ inferSens e₂
+--     σ₃ :* τ₃ ← pmFromSM $ hijack $ inferSens e₃
+--     σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
+--     τ₅ ← pmFromSM $ inferSens e₅
+--     case (τ₁, τ₃, τ₄, τ₅) of
+--       (ℕˢT ηb,
+--        𝕄T ℓ₁ c₁ (RexpRT ηr₁) (RexpME ηc₁ (𝔻T ℝT)),
+--        𝕄T ℓ₂ c₂ (RexpRT ηr₂) (RexpME ηc₂ (𝔻T ℝT)),
+--        (αs :* as) :⊸⋆: τ₆ ) -- | τ₁ ≡ τ₅
+--         → case as of
+--             (PArgs ((𝕄T ℓ₁' c₁' (RexpRT ηr₁') (RexpME ηc₁' (𝔻T ℝT)) :* (p₁ ∷ Pr p₁ RNF)) :&
+--                     (𝕄T ℓ₂' c₂' (RexpRT ηr₂') (RexpME ηc₂' (𝔻T ℝT)) :* (p₂ ∷ Pr p₂ RNF)) :&
+--                     (τ₂prime :* p₃) :& Nil))
+--              | (ℓ₁ ≡ ℓ₁') ⩓ (ℓ₂ ≡ ℓ₂') ⩓
+--                (c₁ ≡ c₁') ⩓ (c₂ ≡ c₂') ⩓
+--                (ηr₁' ≡ ηb) ⩓ (ηc₁ ≡ ηc₁') ⩓
+--                (ηr₂' ≡ ηb) ⩓ (ηc₂ ≡ ηc₂')
+--               → case (eqPRIV (priv @ p) (priv @ p₁), eqPRIV (priv @ p) (priv @ p₂)) of
+--                   (Some Refl, Some Refl) → do
+--                     case (p₁,p₂) of
+--                       (ED,ED) → do
+--                         tell $ map (Priv ∘ truncate (unPriv p₁') ∘ unSens) σ₃
+--                         tell $ map (Priv ∘ truncate (unPriv p₂') ∘ unSens) σ₄
+--                         return τ₂
+--             _ → error $ "Fold error " ⧺ (pprender (τ₃ :* τ₄ :* τ₅))
+-- 
   PMapColPE e₁ x e₂ → do
     σ₁ :* τ₁ ← pmFromSM $ hijack $ inferSens e₁
     case τ₁ of

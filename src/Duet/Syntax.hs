@@ -103,6 +103,22 @@ iteratePr x = \case
   ZCPriv ρ → ZCPriv $ x × ρ
   TCPriv ρ ω → TCPriv (x × ρ) ω
 
+makePr ∷ ∀ p r. (PRIV_C p,Top r) ⇒ r → Pr p r
+makePr r = case priv @ p of
+  EPS_W → EpsPriv r
+  ED_W → EDPriv r r
+  RENYI_W → RenyiPriv top r
+  ZC_W → ZCPriv r
+  TC_W → TCPriv r top
+
+indicatorPr ∷ (Join r) ⇒ Pr p r → r
+indicatorPr = \case
+  EpsPriv ε → ε
+  EDPriv ε δ → ε ⊔ δ
+  RenyiPriv _α ε → ε
+  ZCPriv ρ → ρ
+  TCPriv ρ _ω → ρ
+
 -- JOE TODO: put a link here to the paper
 convertRENYIEDPr ∷ (One r,Plus r,Minus r,Divide r,Log r) ⇒ r → Pr 'RENYI r → Pr 'ED r
 convertRENYIEDPr δ (RenyiPriv α ε) = EDPriv (ε + log (one / δ) / (α - one)) δ
@@ -244,12 +260,7 @@ data TLExpPre r =
   | TimesTE (TLExp r) (TLExp r)
   | DivTE (TLExp r) (TLExp r)
   | RootTE (TLExp r)
-  | ExpTE (TLExp r) (TLExp r)
   | LogTE (TLExp r)
-  | ExpFnTE (TLExp r)
-  | MinusTE (TLExp r) (TLExp r)
-  -- Quantity Stuff
-  | BotTE
   | TopTE
   -- Privacy Stuff
   | PairTE (TLExp r) (TLExp r)
@@ -320,6 +331,7 @@ data SExp (p ∷ PRIV) where
   MTimesSE ∷ SExpSource p → SExpSource p → SExp p
   DivSE ∷ SExpSource p → SExpSource p → SExp p
   RootSE ∷ SExpSource p → SExp p
+  -- do we need efn and pow?? -DCD
   LogSE ∷ SExpSource p → SExp p
   ModSE ∷ SExpSource p → SExpSource p → SExp p
   MinusSE ∷ SExpSource p → SExpSource p → SExp p

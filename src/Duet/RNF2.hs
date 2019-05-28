@@ -832,7 +832,7 @@ efnRNFSumsSym γ =
   --      = ∏{ 𝑒^ (c ×̇ δ̇) | c ×̇ δ̇ ∈ γ }
   --      = ∏{ (𝑒^̃ δ) ^̃ c | c ×̇ δ̇ ∈ γ }
   mfoldWith γ (RNFSums (AddBot one) dø) $ \ (δ̇ :* c) γ̇ᵢ → do
-    prodRNFSums γ̇ᵢ *$ powerRNFSums (_ c) $ efnRNFProds δ̇
+    prodRNFSums γ̇ᵢ *$ powerRNFSums (undefined c) $ efnRNFProds δ̇
   -- fold (RNFSums (AddBot one) dø) prodRNFSums ^$ mapM id $ do
   --   δ̇ :* c ← iter γ
   --   return $ powerRNFSums (_ c) $ efnRNFProds δ̇
@@ -952,8 +952,8 @@ logRNF e =
   -- (c ⊔̇ α) ^̃ q ≜ (c ^ q) ⊔̇ (α ^̃ q)
   SymRNF α̇ → elimAddTop (ConstantRNF TopBT) SymRNF $ logRNFMaxs α̇
 
-trRNF ∷ RNF → RNF
-trRNF = undefined
+truncateRNF ∷ RNF → RNF
+truncateRNF = undefined
 
 instance HasPrism RNF ℕ where
   hasPrism = Prism (dblRNF ∘ dbl) $ \case
@@ -966,6 +966,9 @@ instance HasPrism RNF 𝔻 where
     ConstantRNF BotBT → Some 0.0
     ConstantRNF (AddBT d) → Some d
     _ → None
+
+instance Null RNF where null = ConstantRNF BotBT
+instance Append RNF where (⧺) = sumRNF
 
 instance Bot RNF where bot = ConstantRNF BotBT
 instance Top RNF where top = ConstantRNF TopBT
@@ -996,11 +999,12 @@ instance POrd RNF where
 type RExp = Annotated FullContext RExpPre
 data RExpPre =
     VarRE 𝕏
-  | ConstRE (AddBT 𝔻)
+  | ConstRE (AddTop 𝔻)
   | MaxRE RExp RExp
   | MinRE RExp RExp
   | PlusRE RExp RExp
   | TimesRE RExp RExp
+  | DivRE RExp RExp
   | PowRE ℚ RExp
   | EfnRE RExp
   | LogRE RExp
@@ -1010,7 +1014,7 @@ makePrettySum ''RExpPre
 varRE ∷ 𝕏 → RExp
 varRE = Annotated null ∘ VarRE
 
-constRE ∷ AddBT 𝔻 → RExp
+constRE ∷ AddTop 𝔻 → RExp
 constRE = Annotated null ∘ ConstRE
 
 maxRE ∷ RExp → RExp → RExp
@@ -1044,12 +1048,14 @@ normalizeRNF = normalizeRNFPre ∘ extract
 normalizeRNFPre ∷ RExpPre → RNF
 normalizeRNFPre = \case
   VarRE x → varRNF x
-  ConstRE c → ConstantRNF c
+  ConstRE c → elimAddTop (ConstantRNF TopBT) dblRNF c
   MaxRE η₁ η₂ → normalizeRNF η₁ ⊔ normalizeRNF η₂
   MinRE η₁ η₂ → normalizeRNF η₁ ⊓ normalizeRNF η₂
   PlusRE η₁ η₂ → normalizeRNF η₁ + normalizeRNF η₂
   TimesRE η₁ η₂ → normalizeRNF η₁ × normalizeRNF η₂
+  DivRE η₁ η₂ → normalizeRNF η₁ × powerRNF (neg one) (normalizeRNF η₂)
   PowRE c η → powerRNF c $ normalizeRNF η
+  -- add a x^y power (not just a constant rational) at some point
   EfnRE η → efnRNF $ normalizeRNF η
   LogRE η → logRNF $ normalizeRNF η
 
@@ -1116,8 +1122,8 @@ substRAtom x r' = \case
   VarRA y → case x ≡ y of
     True → r'
     False → varRNF y
-  -- LogRA xs² → logRNF $ substRNFSums x r' xs²
-  -- EfnRA xs¹ → expFnRNF $ substRNFProds x r' xs¹
+  LogRA xs² → logRNF $ substRNFSums x r' xs²
+  EfnRA xs¹ → efnRNF $ substRNFProds x r' xs¹
 
 addBT2RNF ∷ AddBT 𝔻 → RNF
 addBT2RNF BotBT = bot
