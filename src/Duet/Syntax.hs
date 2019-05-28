@@ -187,16 +187,13 @@ instance Functor MExp where
 data Kind =
     ℕK
   | ℝK
-  | SensK
-  | PrivK PRIV
   | TypeK
   deriving (Eq,Ord,Show)
 
--- DAVID HATES THIS
+-- DAVID STILL HATES THIS
 instance POrd Kind where
-  ℕK ⊑ ℕK = True
+  x ⊑ y | x ≡ y = True
   ℕK ⊑ ℝK = True
-  ℝK ⊑ ℝK = True
   _ ⊑ _ = False
 
 type TypeSource r = Annotated FullContext (Type r)
@@ -218,15 +215,11 @@ data Type r =
   | Type r :⊕: Type r
   | Type r :⊗: Type r
   | Type r :&: Type r
-  | (𝐿 (𝕏 ∧ Kind) ∧ Type r) :⊸: (Sens r ∧ Type r)
-  -- ∀α:κ,…,α:κ. (x:τ,…,x:τ) → {x⋅p,…,x⋅p} τ
-  | (𝐿 (𝕏 ∧ Kind) ∧ 𝐿 (𝕏 ∧ Type r)) :⊸⋆: (PEnv r ∧ Type r)
+  | Type r :⊸: (Sens r ∧ Type r)
+  | (𝕏 ∧ Type r) :⊸⋆: (PEnv r ∧ Type r)
+  | ForallT 𝕏 Kind (Type r)
   | BoxedT (𝕏 ⇰ Sens r) (Type r)
   -- eventually we want:
-  -- - single-argument slambda
-  -- - single-argument plambda
-  -- - one single-type-argument quantification lambda
-  -- maybe also:
   -- - contextual/lazy function, pair, and sum connectives
   deriving (Eq,Ord,Show)
 
@@ -300,8 +293,9 @@ instance Functor Type where
     τ₁ :⊕: τ₂ → map f τ₁ :⊕: map f τ₂
     τ₁ :⊗: τ₂ → map f τ₁ :⊗: map f τ₂
     τ₁ :&: τ₂ → map f τ₁ :&: map f τ₂
-    (αks :* τ₁) :⊸: (s :* τ₂) → (αks :* map f τ₁) :⊸: (map f s :*  map f τ₂)
-    (αks :* xτs) :⊸⋆: (PEnv pσ :* τ) → (αks :* map (mapSnd (map f)) xτs) :⊸⋆: (PEnv (map (map f) pσ) :* map f τ)
+    τ₁ :⊸: (s :* τ₂) → map f τ₁ :⊸: (map f s :*  map f τ₂)
+    (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → (x :* map f τ₁) :⊸⋆: (PEnv (map (map f) pσ) :* map f τ₂)
+    ForallT α κ τ → ForallT α κ $ map f τ
     BoxedT σ τ → BoxedT (map (map f) σ) (map f τ)
     VarT x → VarT x
 
@@ -379,9 +373,11 @@ data SExp (p ∷ PRIV) where
   LoopSE ∷ SExpSource p → SExpSource p → 𝕏 → 𝕏 → SExpSource p → SExp p
   VarSE ∷ 𝕏 → SExp p
   LetSE ∷ 𝕏  → SExpSource p → SExpSource p → SExp p
-  SFunSE ∷ 𝐿 (𝕏 ∧ Kind) → 𝕏  → TypeSource RExp → SExpSource p → SExp p
-  AppSE ∷ SExpSource p → 𝐿 (TLExp RExp) → SExpSource p → SExp p
-  PFunSE ∷ 𝐿 (𝕏 ∧ Kind) → 𝐿 (𝕏 ∧ TypeSource RExp) → PExpSource p → SExp p
+  SFunSE ∷ 𝕏  → TypeSource RExp → SExpSource p → SExp p
+  AppSE ∷ SExpSource p → SExpSource p → SExp p
+  PFunSE ∷ 𝕏 → TypeSource RExp → PExpSource p → SExp p
+  TAbsSE ∷ 𝕏 → Kind → SExpSource p → SExp p
+  TAppSE ∷ SExpSource p → TypeSource RExp → SExp p
   InlSE ∷ TypeSource RExp → SExpSource p → SExp p
   InrSE ∷ TypeSource RExp → SExpSource p → SExp p
   CaseSE ∷ SExpSource p → 𝕏 → SExpSource p → 𝕏 → SExpSource p → SExp p
@@ -436,7 +432,7 @@ type PExpSource (p ∷ PRIV) = Annotated FullContext (PExp p)
 data PExp (p ∷ PRIV) where
   ReturnPE ∷ SExpSource p → PExp p
   BindPE ∷ 𝕏 → PExpSource p → PExpSource p → PExp p
-  AppPE ∷ SExpSource p → 𝐿 (TLExp RExp) → 𝐿 (SExpSource p) → PExp p
+  AppPE ∷ SExpSource p → SExpSource p → PExp p
   EDLoopPE ∷ SExpSource 'ED → SExpSource 'ED → SExpSource 'ED → 𝐿 𝕏 → 𝕏 → 𝕏 → PExpSource 'ED → PExp 'ED
   LoopPE ∷ SExpSource p → SExpSource p → 𝐿 𝕏 → 𝕏 → 𝕏 → PExpSource p → PExp p
   GaussPE ∷ SExpSource p → GaussParams p → 𝐿 𝕏 → SExpSource p → PExp p

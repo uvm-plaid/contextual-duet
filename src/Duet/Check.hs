@@ -363,19 +363,17 @@ checkType τA = case τA of
   τ₁ :&: τ₂ → do
     checkType τ₁
     checkType τ₂
-  (ακs :* τ₁) :⊸: (s :* τ₂) → do
-    mapEnvL contextKindL (\ δ → assoc ακs ⩌ δ) $ do
-      checkType τ₁
+  τ₁ :⊸: (s :* τ₂) → do
+    checkType τ₁
+    checkType τ₂
+    checkSens $ map extract s
+  (x :* τ₁) :⊸⋆: (PEnv (pσ ∷ 𝕏 ⇰ Pr p' RExp) :* τ₂) → do
+    checkType τ₁
+    mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
+      eachWith pσ $ \ (x' :* p) → do
+        void $ inferKindVar x'
+        checkPriv $ map extract p
       checkType τ₂
-      checkSens $ map extract s
-  (ακs :* xτs) :⊸⋆: (PEnv (pσ ∷ 𝕏 ⇰ Pr p' RExp) :* τ) → do
-    mapEnvL contextKindL (\ δ → assoc ακs ⩌ δ) $ do
-      eachWith xτs $ \ (x :* τ) → checkType τ
-      mapEnvL contextTypeL (\ γ → mapp normalizeRNF (assoc xτs) ⩌ γ) $ do
-        eachWith pσ $ \ (x' :* p) → do
-          void $ inferKindVar x'
-          checkPriv $ map extract p
-        checkType τ
   BoxedT _σ τ → checkType τ -- TODO: get rid of
   VarT x → void $ inferKindVar x
   _ → error $ "checkType error on " ⧺ pprender τA
@@ -762,8 +760,8 @@ inferSens eA = case extract eA of
         tell $ ς ⨵ σ₁
         tell σ₂'
         return τ₂
-  SFunSE ακs x τ e → do
-    mapEnvL contextKindL (\ δ → assoc ακs ⩌ δ) $ do
+  SFunSE x τ e → do
+    -- mapEnvL contextKindL (\ δ → assoc ακs ⩌ δ) $ do
       checkType $ extract τ
       let τ' = map normalizeRNF $ extract τ
       σ :* τ'' ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferSens e
@@ -775,97 +773,43 @@ inferSens eA = case extract eA of
       --   True → do
       do
           tell σ'
-          return $ (ακs :* τ') :⊸: (ς :* τ'')
-  DiscFSE e₁ → do
-    τ₁ ← inferSens e₁
-    case τ₁ of
-      (ακs :* τ') :⊸: (_ς :* ℝT) → return $ (ακs :* τ') :⊸: (one :* 𝔻T ℝT)
-  AppSE e₁ τes e₂ → do
+          return $ τ' :⊸: (ς :* τ'')
+  -- DiscFSE e₁ → do
+  --   τ₁ ← inferSens e₁
+  --   case τ₁ of
+  --     (ακs :* τ') :⊸: (_ς :* ℝT) → return $ (ακs :* τ') :⊸: (one :* 𝔻T ℝT)
+  AppSE e₁ e₂ → do
     τ₁ ← inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
     case τ₁ of
-      (ακs :* τ₁₁) :⊸: (ς :* τ₁₂)
-        | (count ακs) ≡ (count τes) → do
-        let fαs = map fst ακs
-            fκs = map snd ακs
-            ατeκs = triples fαs τes fκs
-        let r = foldWith ατeκs (τ₁₁,ς,τ₁₂) $ \ (α :* τe :* κ) (τ₁₁',ς',τ₁₂') →
-              case κ of
-                TypeK → do
-                  case checkTypeLang τe of
-                    None → undefined
-                    Some τk → do
-                      let τk' = map normalizeRNF τk
-                      (substType α τk' τ₁₁',ς',substType α τk' τ₁₂')
-                SensK → do
-                  case checkSensLang τe of
-                    None → undefined
-                    Some τk → do
-                      let τk' = map normalizeRNF τk
-                      (substSens α τk' τ₁₁',Sens $ substRNF α (unSens τk') $ unSens ς',substSens α τk' τ₁₂')
-                PrivK p' → do
-                  case checkPrivLang (priv @ p) τe of
-                    None → undefined
-                    Some τk → do
-                      let τk' = map normalizeRNF τk
-                      (substPriv α τk' τ₁₁',ς',substPriv α τk' τ₁₂')
-                ℕK → do
-                  case checkRExpLang τe of
-                    None → undefined
-                    -- TODO: kind checking
-                    Some τk → do
-                      (substRExp α (normalizeRNF τk) τ₁₁',map (substRNF α (normalizeRNF τk)) ς',substRExp α (normalizeRNF τk) τ₁₂')
-                ℝK → do
-                  case checkRExpLang τe of
-                    None → undefined
-                    -- TODO: kind checking
-                    Some τk → do
-                      -- do substRExp if κ is a RExp
-                      -- on each of τ₁₁',ς',τ₁₂'
-                      (substRExp α (normalizeRNF τk) τ₁₁',map (substRNF α (normalizeRNF τk)) ς',substRExp α (normalizeRNF τk) τ₁₂')
-        case r of
-          (τ₁₁'',ς'',τ₁₂'') → do
-            -- error $ pprender (τ₁₁'':*SensExp ς'':*τ₁₂'':*τ₂)
-            -- let η's = map normalizeRNF ηs
-            -- ηκs ← mapM (inferKind ∘ extract) ηs
-            case {- (ηκs ≡ fκs) ⩓ -} (τ₂ ≡ τ₁₁'') of
-              True → do
-                tell $ ς'' ⨵ σ₂
-                return τ₁₂''
-              False → error $ concat
-                [ "AppSE error 1: "
-                , pprender (τ₂ :* τ₁₁'')
-                , "\n"
-                -- , pprender (ηκs :* fκs)
-                -- , "\n"
-                , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-                ]
-      _ → error $ concat
-            [ "AppSE error 2: "
-            , pprender (τ₁ :* τ₂)
-            , "\n"
-            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-            ]
-  PFunSE ακs xτs e → do
-    let xτs' = map (mapSnd (map normalizeRNF ∘ extract)) xτs
-        xs = map fst xτs
-    mapEnvL contextKindL (\ δ → assoc ακs ⩌ δ) $ do
-      σ :* τ ←
-        smFromPM
-        $ hijack
-        $ mapEnvL contextTypeL (\ γ → assoc xτs' ⩌ γ)
-        $ inferPriv e
-      each checkType $ map (extract ∘ snd) xτs
-      -- let fvs = freeBvs τ
-      -- let isClosed = (fvs ∩ pow xs) ≡ pø
-      -- case isClosed of
-      --   False → error $ "Lambda type/scoping error in return expression of type: " ⧺ (pprender τ)
-      --   True → do
-      do
-          -- TODO: make a name for: Sens ∘ (×) top ∘ truncateRNF ∘ indicatorPr ∘ unPriv
-          tell $ map (Sens ∘ (×) top ∘ truncateRNF ∘ indicatorPr) $ without (pow xs) σ
-          let pσ = dict $ mapOn xτs' $ \ (x :* _) → x ↦ ifNone null (σ ⋕? x)
-          return $ (ακs :* mapp (map normalizeRNF ∘ extract) xτs) :⊸⋆: (PEnv pσ :* τ)
+      τ₁₁ :⊸: (s :* τ₁₂) | τ₁₁ ≡ τ₂ → do
+        tell $ s ⨵ σ₂
+        return τ₁₂
+  PFunSE x τ e → do
+    checkType $ extract τ
+    let τ' = map normalizeRNF $ extract τ
+    σ :* τ'' ← smFromPM $ hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferPriv e
+    return $ (x :* τ') :⊸⋆: (PEnv σ :* τ'')
+    -- let (ς :* σ') = ifNone (zero :* σ) $ dview x σ
+    -- let xτs' = map (mapSnd (map normalizeRNF ∘ extract)) xτs
+    --     xs = map fst xτs
+    -- mapEnvL contextKindL (\ δ → assoc ακs ⩌ δ) $ do
+    --   σ :* τ ←
+    --     smFromPM
+    --     $ hijack
+    --     $ mapEnvL contextTypeL (\ γ → assoc xτs' ⩌ γ)
+    --     $ inferPriv e
+    --   each checkType $ map (extract ∘ snd) xτs
+    --   -- let fvs = freeBvs τ
+    --   -- let isClosed = (fvs ∩ pow xs) ≡ pø
+    --   -- case isClosed of
+    --   --   False → error $ "Lambda type/scoping error in return expression of type: " ⧺ (pprender τ)
+    --   --   True → do
+    --   do
+    --       -- TODO: make a name for: Sens ∘ (×) top ∘ truncateRNF ∘ indicatorPr ∘ unPriv
+    --       tell $ map (Sens ∘ (×) top ∘ truncateRNF ∘ indicatorPr) $ without (pow xs) σ
+    --       let pσ = dict $ mapOn xτs' $ \ (x :* _) → x ↦ ifNone null (σ ⋕? x)
+    --       return $ (ακs :* mapp (map normalizeRNF ∘ extract) xτs) :⊸⋆: (PEnv pσ :* τ)
   SetSE es → do
     -- homogeneity check
     l ← mapM (hijack ∘ inferSens) es
@@ -1216,128 +1160,20 @@ inferPriv eA = case extract eA of
   --           tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₁
   --           return $ 𝕄T ℓ UClip (RexpRT ηₘ) (RexpME r τ₂)
   --     _  → undefined -- TypeSource Error
-  AppPE e τes as → do
-    -- let η's = map normalizeRNF ηs
-    τ ← pmFromSM $ inferSens e
-    -- ηκs ← pmFromSM $ mapM (inferKind ∘ extract) ηs
-    aστs ← pmFromSM $ mapM (hijack ∘ inferSens) as
-    let aσs = map fst aστs
-    let aτs = map snd aστs
-    case τ of
-      ((ακs :* (τps ∷ 𝐿 (_ ∧ Pr p' RNF))) :⊸⋆: (penv :* τ₁))
-        | (joins (values (joins aσs)) ⊑ ι 1.0)
-        ⩓ (count τes ≡ count ακs)
-        ⩓ (count as ≡ count τps)
-        → case eqPRIV (priv @ p) (priv @ p') of
-            None → error "privacy variants dont match"
-            Some Refl → do
-              let fαs = map fst ακs
-                  fκs = map snd ακs
-                  -- αηs = zip fαs η's
-                  ατeκs = triples fαs τes fκs
-
-                  subF ∷ Type RNF → Type RNF
-                  subF τ' = foldWith ατeκs τ' $ \ (α :* τe :* κ) τ₁₁' →
-                    case κ of
-                      TypeK → do
-                        case checkTypeLang τe of
-                          None → undefined
-                          Some τk → do
-                            let τk' = map normalizeRNF τk
-                            substType α τk' τ₁₁'
-                      SensK → do
-                        case checkSensLang τe of
-                          None → undefined
-                          Some τk → do
-                            let τk' = map normalizeRNF τk
-                            substSens α τk' τ₁₁'
-                      PrivK p' → do
-                        case checkPrivLang (priv @ p) τe of
-                          None → undefined
-                          Some τk → do
-                            let τk' = map normalizeRNF τk
-                            substPriv α τk' τ₁₁'
-                      ℕK → do
-                        case checkRExpLang τe of
-                          None → undefined
-                          -- TODO: kind checking
-                          Some τk → do
-                            substRExp α (normalizeRNF τk) τ₁₁'
-                      ℝK → do
-                        case checkRExpLang τe of
-                          None → undefined
-                          -- TODO: kind checking
-                          Some τk → do
-                            substRExp α (normalizeRNF τk) τ₁₁'
-
-
-                  subP ∷ Pr p' RNF → Pr p' RNF
-                  subP p = foldWith ατeκs p $ \ (α :* τe :* κ) ς' →
-                    case κ of
-                      TypeK → do
-                        case checkTypeLang τe of
-                          None → undefined
-                          Some τk → do
-                            let τk' = map normalizeRNF τk
-                            ς'
-                      SensK → do
-                        case checkSensLang τe of
-                          None → undefined
-                          Some τk → do
-                            let τk' = map normalizeRNF τk
-                            ς'
-                      PrivK p' → do
-                        case checkPrivLang (priv @ p) τe of
-                          None → undefined
-                          Some τk → do
-                            let τk' = map normalizeRNF τk
-                            substPrivExp ς' τk'
-                      ℕK → do
-                        case checkRExpLang τe of
-                          None → undefined
-                          -- TODO: kind checking
-                          Some τk → do
-                            map (substRNF α (normalizeRNF τk)) ς'
-                      ℝK → do
-                        case checkRExpLang τe of
-                          None → undefined
-                          -- TODO: kind checking
-                          Some τk → do
-                            map (substRNF α (normalizeRNF τk)) ς'
-
-                  τps' = mapOn τps $ \ (τ' :* p) → (subF τ' :* subP p)
-                  τs' = map fst τps'
-                  ps' = map snd τps'
-              case {- (ηκs ≡ fκs) ⩓ -} (aτs ≡ τs') of
-                True → do
-                  undefined -- FIX THIS
-                  -- eachWith (zip aσs ps') $ \ (σ :* p) →
-                  --   case p of
-                  --     ED →
-                  --       tell $ map ((\ i → iteratePr i p) ∘ truncateRNF ∘ unSens) σ
-                  -- return $ subF τ₁
-                False → error $ concat
-                  [ "type error in AppPE\n"
-                  , concat $ inbetween "\n"
-                      [ {- show𝕊 (ηκs ≡ fκs) -}
-                        show𝕊 (aτs ≡ τs')
-                      -- , pprender ηκs
-                      , pprender fκs
-                      , pprender aτs
-                      , pprender τs'
-                      , "\n"
-                      , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-                      ]
-                  ]
-      _ → error $ concat $ inbetween "\n"
-                      [ "AppPE expected a function instead of"
-                      , pprender τ
-                      , "aσs is:"
-                      , pprender aσs
-                      , "aστs is:"
-                      , pprender aστs
-                      , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-                      ]
+  AppPE e₁ e₂ → do
+    τ₁ ← pmFromSM $ inferSens e₁
+    σ₂ :* τ₂ ← pmFromSM $ hijack $ inferSens e₂
+    case τ₁ of
+      (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ 𝕏 ⇰ Pr p' RNF) :* τ₁₂) | (τ₁₁ ≡ τ₂) ⩓ (joins σ₂ ⊑ one) →
+        case eqPRIV (priv @ p) (priv @ p') of
+          None → error "not same priv mode"
+          Some Refl → do
+            let (pₓ :* σ'') = ifNone (zero :* σ') $ dview x σ'
+            -- TODO: change iteratePr to something functionally the same but less hacky
+            let σ₂' = mapOn σ₂ $ (\ i → iteratePr i pₓ) ∘ truncateRNF ∘ unSens
+            tell $ σ₂'
+            tell $ σ''
+            return τ₁₂
   IfPE e₁ e₂ e₃ → do
     τ₁ ← pmFromSM $ inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferPriv e₂
@@ -1350,408 +1186,411 @@ inferPriv eA = case extract eA of
           return τ₂
         _ → error $ "IfPE expected a boolean in the test position" ⧺ pprender τ₁
   EDLoopPE e₁ e₂ e₃ xs x₁ x₂ e₄ → do
-    let xs' = pow xs
-    τ₁ ← pmFromSM $ inferSens e₁
-    τ₂ ← pmFromSM $ inferSens e₂
-    τ₃ ← pmFromSM $ inferSens e₃
-    σ₄ :* τ₄ ← hijack $ mapEnvL contextTypeL (\ γ → dict [x₁ ↦ ℕT,x₂ ↦ τ₃] ⩌ γ) $ inferPriv e₄
-    let σ₄' = without (pow [x₁,x₂]) σ₄
-    let σ₄Keep = restrict xs' σ₄'
-        σ₄KeepMax = joins $ values σ₄Keep
-        σ₄Toss = without xs' σ₄'
-    case (τ₁,τ₂,σ₄KeepMax) of
-      (ℝˢT ηᵟ',ℕˢT ηₙ, (EDPriv ηᵋ ηᵟ)) | τ₄ ≡ τ₃ → do
-        let ε = ι 2 × ηᵋ × root (ι 2 × ηₙ × log (ι 1 / ηᵟ'))
-            δ = ηᵟ' + ηₙ × ηᵟ
-        tell $ map (Priv ∘ truncate (EDPriv ε δ) ∘ unPriv) σ₄Keep
-        tell $ map (Priv ∘ truncate Inf ∘ unPriv) σ₄Toss
-        return τ₃
-      _ → error $ "EDloop error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* σ₄KeepMax :* σ₄Keep))
+    undefined
+    -- GOOD CODE?
+    -- let xs' = pow xs
+    -- τ₁ ← pmFromSM $ inferSens e₁
+    -- τ₂ ← pmFromSM $ inferSens e₂
+    -- τ₃ ← pmFromSM $ inferSens e₃
+    -- σ₄ :* τ₄ ← hijack $ mapEnvL contextTypeL (\ γ → dict [x₁ ↦ ℕT,x₂ ↦ τ₃] ⩌ γ) $ inferPriv e₄
+    -- let σ₄' = without (pow [x₁,x₂]) σ₄
+    -- let σ₄Keep = restrict xs' σ₄'
+    --     σ₄KeepMax = joins $ values σ₄Keep
+    --     σ₄Toss = without xs' σ₄'
+    -- case (τ₁,τ₂,σ₄KeepMax) of
+    --   (ℝˢT ηᵟ',ℕˢT ηₙ, (EDPriv ηᵋ ηᵟ)) | τ₄ ≡ τ₃ → do
+    --     let ε = ι 2 × ηᵋ × root (ι 2 × ηₙ × log (ι 1 / ηᵟ'))
+    --         δ = ηᵟ' + ηₙ × ηᵟ
+    --     tell $ map (Priv ∘ truncate (EDPriv ε δ) ∘ unPriv) σ₄Keep
+    --     tell $ map (Priv ∘ truncate Inf ∘ unPriv) σ₄Toss
+    --     return τ₃
+    --   _ → error $ "EDloop error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* σ₄KeepMax :* σ₄Keep))
+    --   END GOOD CODE
   -- TODO: push
-  LoopPE e₂ e₃ xs x₁ x₂ e₄ → do
-    let xs' = pow xs
-    τ₂ ← pmFromSM $ inferSens e₂
-    τ₃ ← pmFromSM $ inferSens e₃
-    σ₄ :* τ₄ ← hijack $ mapEnvL contextTypeL (\ γ → dict [x₁ ↦ ℕT,x₂ ↦ τ₃] ⩌ γ) $ inferPriv e₄
-    let σ₄' = without (pow [x₁,x₂]) σ₄
-    let σ₄Keep = restrict xs' σ₄'
-        σ₄KeepMax = joins $ values σ₄Keep
-        σ₄Toss = without xs' σ₄'
-    case (τ₂,ιview @ (Pr p RNF) σ₄KeepMax) of
-      (ℕˢT ηₙ,Some p) | τ₄ ≡ τ₃ → do
-        let p' = iteratePr ηₙ p
-        tell $ map (Priv ∘ truncate p' ∘ unPriv) σ₄Keep
-        tell $ map (Priv ∘ truncate Inf ∘ unPriv) σ₄Toss
-        return τ₃
-      _ → error $ "EDloop error: " ⧺ (pprender $ (τ₂ :* τ₃ :* τ₄ :* σ₄KeepMax :* σ₄Keep))
-  GaussPE e₁ (EDGaussParams e₂ e₃) xs e₄ → do
-    let xs' = pow xs
-    τ₁ ← pmFromSM $ inferSens e₁
-    τ₂ ← pmFromSM $ inferSens e₂
-    τ₃ ← pmFromSM $ inferSens e₃
-    σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
-    let σ₄Keep = restrict xs' σ₄
-        σ₄KeepMax = joins $ values σ₄Keep
-        σ₄Toss = without xs' σ₄
-    -- TODO: fix this ιview thing as in MGauss
-    case (τ₁,τ₂,τ₃,τ₄,ιview @ RNF σ₄KeepMax) of
-      (ℝˢT ηₛ,ℝˢT ηᵋ,ℝˢT ηᵟ,ℝT,Some ς) | ς ⊑ ηₛ → do
-        tell $ map (Priv ∘ truncate (EDPriv ηᵋ ηᵟ) ∘ unSens) σ₄Keep
-        tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
-        return ℝT
-      _ → error $ "Gauss error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* ιview @ RNF σ₄KeepMax))
-  LaplacePE e₁ (EpsLaplaceParams e₂) xs e₄ → do
-    let xs' = pow xs
-    τ₁ ← pmFromSM $ inferSens e₁
-    τ₂ ← pmFromSM $ inferSens e₂
-    σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
-    let σ₄Keep = restrict xs' σ₄
-        σ₄KeepMax = joins $ values σ₄Keep
-        σ₄Toss = without xs' σ₄
-    -- TODO: fix this ιview thing as in MGauss
-    case (τ₁,τ₂,τ₄,ιview @ RNF σ₄KeepMax) of
-      (ℝˢT ηₛ,ℝˢT ηᵋ,ℝT,Some ς) | ς ⊑ ηₛ → do
-        tell $ map (Priv ∘ truncate (EpsPriv ηᵋ) ∘ unSens) σ₄Keep
-        tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
-        return ℝT
-      _ → error $ "Laplace error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₄ :* ιview @ RNF σ₄KeepMax))
-  ParallelPE e₀ e₁ x₂ e₂ x₃ x₄ e₃ → do
-    σ₀ :* τ₀ ← pmFromSM  $ hijack $ inferSens e₀
-    σ₁ :* τ₁ ← pmFromSM $ hijack $ inferSens e₁
-    case τ₀ of
-      (𝕄T ℓ c StarRT me) | joins (values σ₀) ⊑ ι 1 →
-        case τ₁ of
-          (SetT τ₁') → do
-            σ₂ :* τ₂ ← pmFromSM
-              $ hijack
-              $ mapEnvL contextTypeL (\ γ → (x₂ ↦ (𝕄T ℓ c (RexpRT (dblRNF 1)) me)) ⩌ γ)
-              $ inferSens e₂
-            let σₓ₂ = without (single𝑃 x₂) σ₂
-            case (τ₁' ≡ τ₂) of
-              False → error $ "ParallelPE partitioning type mismatch" ⧺ (pprender (τ₁',τ₂))
-              True | and $ values (map (⊑ (dblRNF 1)) (map unSens σₓ₂)) → do
-                σ₃ :* τ₃ ← hijack $ mapEnvL contextTypeL (\ γ → (x₃ ↦ τ₁') ⩌ (x₄ ↦ (𝕄T ℓ c StarRT me)) ⩌ γ) $ inferPriv e₃
-                let σₓ₃ = without (single𝑃 x₃) σ₃
-                -- p is ⟨ε,δ⟩ in type rule
-                let p':*σₓ₃₄ = ifNone (bot :* σₓ₃) $ dview x₄ σₓ₃
-                tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₁
-                tell $ map (Priv ∘ truncate Inf ∘ unSens) σₓ₂
-                tell $ map (Priv ∘ truncate Inf ∘ unPriv) σₓ₃₄
-                tell $ map (Priv ∘ truncate (unPriv p') ∘ unSens) σ₀
-                return $ (SetT τ₃)
-              _ → error $ "sensitivity error in ParallelPE"
-          _ → error $ "℘ expected in second argument of ParallelPE" ⧺ (pprender τ₁)
-      _ → error $ "𝕄T type expected in first argument of ParallelPE" ⧺ (pprender τ₀)
-  SVTPE (EDSVTParams e₁) e₂ e₃ xs e₄ → do
-    let xs' = pow xs
-    τ₁ ← pmFromSM $ inferSens e₁
-    τ₂ ← pmFromSM $ inferSens e₂
-    τ₃ ← pmFromSM $ inferSens e₃
-    σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
-    let σ₄Keep = restrict xs' σ₄
-        σ₄KeepMax = joins $ values σ₄Keep
-        σ₄Toss = without xs' σ₄
-    case (τ₁, τ₂, τ₃, τ₄) of
-      (ℝˢT ηᵋ, 𝕄T _ UClip (RexpRT l) (RexpME r₂ ((αs :* τ₅) :⊸: (ηₛ :* ℝT))), ℝT, τ₅')
-        | (τ₅ ≡ τ₅')
-        ⩓ (l ≡ one)
---        ⩓ (ηₛ ≡ Sens (Quantity one)) -- TODO: why doesn't this one pass?
-        → do
-          tell $ map (Priv ∘ truncate (EDPriv ηᵋ zero) ∘ unSens) σ₄Keep
-          tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
-          return $ 𝕀T r₂
-      _ → error $ concat
-            [ "Sparse Vector Technique error: "
-            , "\n"
-            , "τ₁: " ⧺ (pprender τ₁)
-            , "\n"
-            , "τ₂: " ⧺ (pprender τ₂)
-            , "\n"
-            , "τ₃: " ⧺ (pprender τ₃)
-            , "\n"
-            , "τ₄: " ⧺ (pprender τ₄)
-            , "\n"
-            , "Sensitivity bound: " ⧺ (pprender $ ιview @ RNF σ₄KeepMax)
-            , "\n"
-            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-            ]
-  SVTPE (EPSSVTParams e₁) e₂ e₃ xs e₄ → do
-    let xs' = pow xs
-    τ₁ ← pmFromSM $ inferSens e₁
-    τ₂ ← pmFromSM $ inferSens e₂
-    τ₃ ← pmFromSM $ inferSens e₃
-    σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
-    let σ₄Keep = restrict xs' σ₄
-        σ₄KeepMax = joins $ values σ₄Keep
-        σ₄Toss = without xs' σ₄
-    case (τ₁, τ₂, τ₃, τ₄) of
-      (ℝˢT ηᵋ, 𝕄T L1 UClip (RexpRT l) (RexpME r₂ ((αs :* τ₅) :⊸: (ηₛ :* ℝT))), ℝT, τ₅')
-        | (τ₅ ≡ τ₅')
-        ⩓ (l ≡ one)
---        ⩓ (ηₛ ≡ Sens (Quantity one)) -- TODO: why doesn't this one pass?
-        → do
-          tell $ map (Priv ∘ truncate (EpsPriv ηᵋ) ∘ unSens) σ₄Keep
-          tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
-          return $ 𝕀T r₂
-      _ → error $ concat
-            [ "Sparse Vector Technique error: "
-            , "\n"
-            , "τ₁: " ⧺ (pprender τ₁)
-            , "\n"
-            , "τ₂: " ⧺ (pprender τ₂)
-            , "\n"
-            , "τ₃: " ⧺ (pprender τ₃)
-            , "\n"
-            , "τ₄: " ⧺ (pprender τ₄)
-            , "\n"
-            , "Sensitivity bound: " ⧺ (pprender $ ιview @ RNF σ₄KeepMax)
-            , "\n"
-            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-            ]
+  -- LoopPE e₂ e₃ xs x₁ x₂ e₄ → do
+  --   let xs' = pow xs
+  --   τ₂ ← pmFromSM $ inferSens e₂
+  --   τ₃ ← pmFromSM $ inferSens e₃
+  --   σ₄ :* τ₄ ← hijack $ mapEnvL contextTypeL (\ γ → dict [x₁ ↦ ℕT,x₂ ↦ τ₃] ⩌ γ) $ inferPriv e₄
+  --   let σ₄' = without (pow [x₁,x₂]) σ₄
+  --   let σ₄Keep = restrict xs' σ₄'
+  --       σ₄KeepMax = joins $ values σ₄Keep
+  --       σ₄Toss = without xs' σ₄'
+  --   case (τ₂,ιview @ (Pr p RNF) σ₄KeepMax) of
+  --     (ℕˢT ηₙ,Some p) | τ₄ ≡ τ₃ → do
+  --       let p' = iteratePr ηₙ p
+  --       tell $ map (Priv ∘ truncate p' ∘ unPriv) σ₄Keep
+  --       tell $ map (Priv ∘ truncate Inf ∘ unPriv) σ₄Toss
+  --       return τ₃
+  --     _ → error $ "EDloop error: " ⧺ (pprender $ (τ₂ :* τ₃ :* τ₄ :* σ₄KeepMax :* σ₄Keep))
+  -- GaussPE e₁ (EDGaussParams e₂ e₃) xs e₄ → do
+  --   let xs' = pow xs
+  --   τ₁ ← pmFromSM $ inferSens e₁
+  --   τ₂ ← pmFromSM $ inferSens e₂
+  --   τ₃ ← pmFromSM $ inferSens e₃
+  --   σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
+  --   let σ₄Keep = restrict xs' σ₄
+  --       σ₄KeepMax = joins $ values σ₄Keep
+  --       σ₄Toss = without xs' σ₄
+  --   -- TODO: fix this ιview thing as in MGauss
+  --   case (τ₁,τ₂,τ₃,τ₄,ιview @ RNF σ₄KeepMax) of
+  --     (ℝˢT ηₛ,ℝˢT ηᵋ,ℝˢT ηᵟ,ℝT,Some ς) | ς ⊑ ηₛ → do
+  --       tell $ map (Priv ∘ truncate (EDPriv ηᵋ ηᵟ) ∘ unSens) σ₄Keep
+  --       tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
+  --       return ℝT
+  --     _ → error $ "Gauss error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* ιview @ RNF σ₄KeepMax))
+  -- LaplacePE e₁ (EpsLaplaceParams e₂) xs e₄ → do
+  --   let xs' = pow xs
+  --   τ₁ ← pmFromSM $ inferSens e₁
+  --   τ₂ ← pmFromSM $ inferSens e₂
+  --   σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
+  --   let σ₄Keep = restrict xs' σ₄
+  --       σ₄KeepMax = joins $ values σ₄Keep
+  --       σ₄Toss = without xs' σ₄
+  --   -- TODO: fix this ιview thing as in MGauss
+  --   case (τ₁,τ₂,τ₄,ιview @ RNF σ₄KeepMax) of
+  --     (ℝˢT ηₛ,ℝˢT ηᵋ,ℝT,Some ς) | ς ⊑ ηₛ → do
+  --       tell $ map (Priv ∘ truncate (EpsPriv ηᵋ) ∘ unSens) σ₄Keep
+  --       tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
+  --       return ℝT
+  --     _ → error $ "Laplace error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₄ :* ιview @ RNF σ₄KeepMax))
+  -- ParallelPE e₀ e₁ x₂ e₂ x₃ x₄ e₃ → do
+  --   σ₀ :* τ₀ ← pmFromSM  $ hijack $ inferSens e₀
+  --   σ₁ :* τ₁ ← pmFromSM $ hijack $ inferSens e₁
+  --   case τ₀ of
+  --     (𝕄T ℓ c StarRT me) | joins (values σ₀) ⊑ ι 1 →
+  --       case τ₁ of
+  --         (SetT τ₁') → do
+  --           σ₂ :* τ₂ ← pmFromSM
+  --             $ hijack
+  --             $ mapEnvL contextTypeL (\ γ → (x₂ ↦ (𝕄T ℓ c (RexpRT (dblRNF 1)) me)) ⩌ γ)
+  --             $ inferSens e₂
+  --           let σₓ₂ = without (single𝑃 x₂) σ₂
+  --           case (τ₁' ≡ τ₂) of
+  --             False → error $ "ParallelPE partitioning type mismatch" ⧺ (pprender (τ₁',τ₂))
+  --             True | and $ values (map (⊑ (dblRNF 1)) (map unSens σₓ₂)) → do
+  --               σ₃ :* τ₃ ← hijack $ mapEnvL contextTypeL (\ γ → (x₃ ↦ τ₁') ⩌ (x₄ ↦ (𝕄T ℓ c StarRT me)) ⩌ γ) $ inferPriv e₃
+  --               let σₓ₃ = without (single𝑃 x₃) σ₃
+  --               -- p is ⟨ε,δ⟩ in type rule
+  --               let p':*σₓ₃₄ = ifNone (bot :* σₓ₃) $ dview x₄ σₓ₃
+  --               tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₁
+  --               tell $ map (Priv ∘ truncate Inf ∘ unSens) σₓ₂
+  --               tell $ map (Priv ∘ truncate Inf ∘ unPriv) σₓ₃₄
+  --               tell $ map (Priv ∘ truncate (unPriv p') ∘ unSens) σ₀
+  --               return $ (SetT τ₃)
+  --             _ → error $ "sensitivity error in ParallelPE"
+  --         _ → error $ "℘ expected in second argument of ParallelPE" ⧺ (pprender τ₁)
+  --     _ → error $ "𝕄T type expected in first argument of ParallelPE" ⧺ (pprender τ₀)
+  -- SVTPE (EDSVTParams e₁) e₂ e₃ xs e₄ → do
+  --   let xs' = pow xs
+  --   τ₁ ← pmFromSM $ inferSens e₁
+  --   τ₂ ← pmFromSM $ inferSens e₂
+  --   τ₃ ← pmFromSM $ inferSens e₃
+  --   σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
+  --   let σ₄Keep = restrict xs' σ₄
+  --       σ₄KeepMax = joins $ values σ₄Keep
+  --       σ₄Toss = without xs' σ₄
+  --   case (τ₁, τ₂, τ₃, τ₄) of
+  --     (ℝˢT ηᵋ, 𝕄T _ UClip (RexpRT l) (RexpME r₂ ((αs :* τ₅) :⊸: (ηₛ :* ℝT))), ℝT, τ₅')
+  --       | (τ₅ ≡ τ₅')
+  --       ⩓ (l ≡ one)
+----         ⩓ (ηₛ ≡ Sens (Quantity one)) -- TODO: why doesn't this one pass?
+  --       → do
+  --         tell $ map (Priv ∘ truncate (EDPriv ηᵋ zero) ∘ unSens) σ₄Keep
+  --         tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
+  --         return $ 𝕀T r₂
+  --     _ → error $ concat
+  --           [ "Sparse Vector Technique error: "
+  --           , "\n"
+  --           , "τ₁: " ⧺ (pprender τ₁)
+  --           , "\n"
+  --           , "τ₂: " ⧺ (pprender τ₂)
+  --           , "\n"
+  --           , "τ₃: " ⧺ (pprender τ₃)
+  --           , "\n"
+  --           , "τ₄: " ⧺ (pprender τ₄)
+  --           , "\n"
+  --           , "Sensitivity bound: " ⧺ (pprender $ ιview @ RNF σ₄KeepMax)
+  --           , "\n"
+  --           , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+  --           ]
+  -- SVTPE (EPSSVTParams e₁) e₂ e₃ xs e₄ → do
+  --   let xs' = pow xs
+  --   τ₁ ← pmFromSM $ inferSens e₁
+  --   τ₂ ← pmFromSM $ inferSens e₂
+  --   τ₃ ← pmFromSM $ inferSens e₃
+  --   σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
+  --   let σ₄Keep = restrict xs' σ₄
+  --       σ₄KeepMax = joins $ values σ₄Keep
+  --       σ₄Toss = without xs' σ₄
+  --   case (τ₁, τ₂, τ₃, τ₄) of
+  --     (ℝˢT ηᵋ, 𝕄T L1 UClip (RexpRT l) (RexpME r₂ ((αs :* τ₅) :⊸: (ηₛ :* ℝT))), ℝT, τ₅')
+  --       | (τ₅ ≡ τ₅')
+  --       ⩓ (l ≡ one)
+----         ⩓ (ηₛ ≡ Sens (Quantity one)) -- TODO: why doesn't this one pass?
+  --       → do
+  --         tell $ map (Priv ∘ truncate (EpsPriv ηᵋ) ∘ unSens) σ₄Keep
+  --         tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
+  --         return $ 𝕀T r₂
+  --     _ → error $ concat
+  --           [ "Sparse Vector Technique error: "
+  --           , "\n"
+  --           , "τ₁: " ⧺ (pprender τ₁)
+  --           , "\n"
+  --           , "τ₂: " ⧺ (pprender τ₂)
+  --           , "\n"
+  --           , "τ₃: " ⧺ (pprender τ₃)
+  --           , "\n"
+  --           , "τ₄: " ⧺ (pprender τ₄)
+  --           , "\n"
+  --           , "Sensitivity bound: " ⧺ (pprender $ ιview @ RNF σ₄KeepMax)
+  --           , "\n"
+  --           , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+  --           ]
 
-  MGaussPE e₁ (EDGaussParams e₂ e₃) xs e₄ → do
-    let xs' = pow xs
-    τ₁ ← pmFromSM $ inferSens e₁
-    τ₂ ← pmFromSM $ inferSens e₂
-    τ₃ ← pmFromSM $ inferSens e₃
-    σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
-    let σ₄Keep = restrict xs' σ₄
-        σ₄KeepMax = joins $ values σ₄Keep
-        σ₄Toss = without xs' σ₄
-    case (τ₁,τ₂,τ₃,τ₄) of
-      (ℝˢT ηₛ,ℝˢT ηᵋ,ℝˢT ηᵟ,𝕄T ℓ _c ηₘ ηₙ)
-        | (σ₄KeepMax ⊑ ι ηₛ)
-        ⩓ (ℓ ≢ LInf)
-        → do
-          b ← isRealMExp ηₙ
-          when (not b) $ throw (error "MGauss error isRealMExp check failed " ∷ TypeError)
-          tell $ map (Priv ∘ truncate (EDPriv ηᵋ ηᵟ) ∘ unSens) σ₄Keep
-          tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
-          return $ 𝕄T LInf UClip ηₘ ηₙ
-      (ℝˢT ηₛ,ℝˢT ηᵋ,ℝˢT ηᵟ,𝕄T ℓ _c ηₘ ηₙ) | (ℓ ≢ LInf) →
-          error $ concat
-            [ "MGauss error: "
-            , "Claimed sensitivity bound (" ⧺ (pprender ηₛ) ⧺ ") is less than actual sensitivity bound (" ⧺ (pprender σ₄KeepMax) ⧺ ")\n"
-            , "Debug info: "
-            , pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* ιview @ RNF σ₄KeepMax)
-            , pprender σ₄
-            , "\n"
-            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-            ]
-      _ → error $ concat
-            [ "MGauss error: "
-            , pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* ιview @ RNF σ₄KeepMax)
-            , "\n"
-            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-            ]
-  MGaussPE e₁ (ZCGaussParams e₂) xs e₄ → do
-    let xs' = pow xs
-    τ₁ ← pmFromSM $ inferSens e₁
-    τ₂ ← pmFromSM $ inferSens e₂
-    σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
-    let σ₄Keep = restrict xs' σ₄
-        σ₄KeepMax = joins $ values σ₄Keep
-        σ₄Toss = without xs' σ₄
-    case (τ₁,τ₂,τ₄,ιview @ RNF σ₄KeepMax) of
-      (ℝˢT ηₛ,ℝˢT ηᵨ,𝕄T L2 _c ηₘ ηₙ,Some ς) | ς ⊑ ηₛ → do
-        b ← isRealMExp ηₙ
-        when (not b) $ throw (error "MGauss error isRealMExp check failed" ∷ TypeError)
-        tell $ map (Priv ∘ truncate (ZCPriv ηᵨ) ∘ unSens) σ₄Keep
-        tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
-        return $ 𝕄T LInf UClip ηₘ ηₙ
-      _ → error $ "MGauss error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₄ :* ιview @ RNF σ₄KeepMax))
-  MGaussPE e₁ (RenyiGaussParams e₂ e₃) xs e₄ → do
-    let xs' = pow xs
-    τ₁ ← pmFromSM $ inferSens e₁
-    τ₂ ← pmFromSM $ inferSens e₂
-    τ₃ ← pmFromSM $ inferSens e₃
-    σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
-    let σ₄Keep = restrict xs' σ₄
-        σ₄KeepMax = joins $ values σ₄Keep
-        σ₄Toss = without xs' σ₄
-    case (τ₁,τ₂,τ₃,τ₄,ιview @ RNF σ₄KeepMax) of
-      (ℝˢT ηₛ,ℝˢT ηᵅ,ℝˢT ηᵋ,𝕄T L2 _c ηₘ ηₙ,Some ς) | ς ⊑ ηₛ → do
-        b ← isRealMExp ηₙ
-        when (not b) $ throw (error "MGauss error isRealMExp check failed" ∷ TypeError)
-        tell $ map (Priv ∘ truncate (RenyiPriv ηᵅ ηᵋ) ∘ unSens) σ₄Keep
-        tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
-        return $ 𝕄T LInf UClip ηₘ ηₙ
-      _ → error $ "MGauss error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* ιview @ RNF σ₄KeepMax))
-  MGaussPE e₁ (TCGaussParams e₂ e₃) xs e₄ → do
-    let xs' = pow xs
-    τ₁ ← pmFromSM $ inferSens e₁
-    τ₂ ← pmFromSM $ inferSens e₂
-    τ₃ ← pmFromSM $ inferSens e₃
-    σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
-    let σ₄Keep = restrict xs' σ₄
-        σ₄KeepMax = joins $ values σ₄Keep
-        σ₄Toss = without xs' σ₄
-    case (τ₁,τ₂,τ₃,τ₄,ιview @ RNF σ₄KeepMax) of
-      (ℝˢT ηₛ,ℝˢT ρ,ℕˢT ω,𝕄T L2 _c ηₘ ηₙ,Some ς) | ς ⊑ ηₛ → do
-        b ← isRealMExp ηₙ
-        when (not b) $ throw (error "MGauss error isRealMExp check failed" ∷ TypeError)
-        tell $ map (Priv ∘ truncate (TCPriv ρ ω) ∘ unSens) σ₄Keep
-        tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
-        return $ 𝕄T LInf UClip ηₘ ηₙ
-      _ → error $ "MGauss error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* ιview @ RNF σ₄KeepMax))
-  BGaussPE e₁ (EDGaussParams e₂ e₃) xs e₄ → do
-    let xs' = pow xs
-    τ₁ ← pmFromSM $ inferSens e₁
-    τ₂ ← pmFromSM $ inferSens e₂
-    τ₃ ← pmFromSM $ inferSens e₃
-    σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
-    let σ₄Keep = restrict xs' σ₄
-        σ₄KeepMax = joins $ values σ₄Keep
-        σ₄Toss = without xs' σ₄
-    case (τ₁,τ₂,τ₃,τ₄,ιview @ RNF σ₄KeepMax) of
-      -- TODO: do something with ℓ and c
-      (ℝˢT ηₛ,ℝˢT ηᵋ,ℝˢT ηᵟ,BagT ℓ c ℝT,Some ς) | ς ⊑ ηₛ → do
-        tell $ map (Priv ∘ truncate (EDPriv ηᵋ ηᵟ) ∘ unSens) σ₄Keep
-        tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
-        -- TODO: make sure ℓ and c are correct
-        return $ BagT ℓ c ℝT
-      _ → error $ "BGauss ED error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* ιview @ RNF σ₄KeepMax))
-  BGaussPE e₁ (ZCGaussParams e₂) xs e₄ → do
-    let xs' = pow xs
-    τ₁ ← pmFromSM $ inferSens e₁
-    τ₂ ← pmFromSM $ inferSens e₂
-    σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
-    let σ₄Keep = restrict xs' σ₄
-        σ₄KeepMax = joins $ values σ₄Keep
-        σ₄Toss = without xs' σ₄
-    case (τ₁,τ₂,τ₄,ιview @ RNF σ₄KeepMax) of
-      -- TODO: do something with ℓ and c
-      (ℝˢT ηₛ,ℝˢT ηᵨ,BagT ℓ c ℝT,Some ς) | ς ⊑ ηₛ → do
-        tell $ map (Priv ∘ truncate (ZCPriv ηᵨ) ∘ unSens) σ₄Keep
-        tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
-        -- TODO: make sure ℓ and c are correct
-        return $ BagT ℓ c ℝT
-      _ → error $ "BGauss error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₄ :* ιview @ RNF σ₄KeepMax))
-  BGaussPE e₁ (RenyiGaussParams e₂ e₃) xs e₄ → do
-    let xs' = pow xs
-    τ₁ ← pmFromSM $ inferSens e₁
-    τ₂ ← pmFromSM $ inferSens e₂
-    τ₃ ← pmFromSM $ inferSens e₃
-    σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
-    let σ₄Keep = restrict xs' σ₄
-        σ₄KeepMax = joins $ values σ₄Keep
-        σ₄Toss = without xs' σ₄
-    case (τ₁,τ₂,τ₃,τ₄,ιview @ RNF σ₄KeepMax) of
-      -- TODO: do something with ℓ and c
-      (ℝˢT ηₛ,ℝˢT ηᵅ,ℝˢT ηᵋ,BagT ℓ c ℝT,Some ς) | ς ⊑ ηₛ → do
-        tell $ map (Priv ∘ truncate (RenyiPriv ηᵅ ηᵋ) ∘ unSens) σ₄Keep
-        tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
-        -- TODO: make sure ℓ and c are correct
-        return $ BagT ℓ c ℝT
-      _ → error $ "BGauss error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* ιview @ RNF σ₄KeepMax))
-  GaussPE _e₁ (RenyiGaussParams _e₂ _e₃) _xs _e₄ → undefined
-  GaussPE _e₁ (ZCGaussParams _e₂) _xs _e₃ → undefined
-  ExponentialPE e₁ (EDExponentialParams e₂) e₃ xs x e₄ → do
-    let xs' = pow xs
-    τ₁ ← pmFromSM $ inferSens e₁
-    τ₂ ← pmFromSM $ inferSens e₂
-    mat ← pmFromSM $ inferSens e₃
-    case mat of
-      𝕄T _ℓ _c (RexpRT r₁) (RexpME r₂ τ₃) → do
-        σ₄ :* τ₄ ← pmFromSM $ hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₃) ⩌ γ) $ inferSens e₄
-        let σ₄' = delete x σ₄
-            σ₄Keep = restrict xs' σ₄'
-            σ₄KeepMax = joins $ values σ₄Keep
-            σ₄Toss = without xs' σ₄'
-        case (τ₁,τ₂,ιview @ RNF σ₄KeepMax) of
-          (ℝˢT ηₛ,ℝˢT ηᵋ,Some ς) | (ς ⊑ ηₛ) ⩓ (τ₄ ≡ ℝT) ⩓ (r₁ ≡ one) → do
-            tell $ map (Priv ∘ truncate (EDPriv ηᵋ zero) ∘ unSens) σ₄Keep
-            tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
-            return $ 𝕀T r₂
+  -- MGaussPE e₁ (EDGaussParams e₂ e₃) xs e₄ → do
+  --   let xs' = pow xs
+  --   τ₁ ← pmFromSM $ inferSens e₁
+  --   τ₂ ← pmFromSM $ inferSens e₂
+  --   τ₃ ← pmFromSM $ inferSens e₃
+  --   σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
+  --   let σ₄Keep = restrict xs' σ₄
+  --       σ₄KeepMax = joins $ values σ₄Keep
+  --       σ₄Toss = without xs' σ₄
+  --   case (τ₁,τ₂,τ₃,τ₄) of
+  --     (ℝˢT ηₛ,ℝˢT ηᵋ,ℝˢT ηᵟ,𝕄T ℓ _c ηₘ ηₙ)
+  --       | (σ₄KeepMax ⊑ ι ηₛ)
+  --       ⩓ (ℓ ≢ LInf)
+  --       → do
+  --         b ← isRealMExp ηₙ
+  --         when (not b) $ throw (error "MGauss error isRealMExp check failed " ∷ TypeError)
+  --         tell $ map (Priv ∘ truncate (EDPriv ηᵋ ηᵟ) ∘ unSens) σ₄Keep
+  --         tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
+  --         return $ 𝕄T LInf UClip ηₘ ηₙ
+  --     (ℝˢT ηₛ,ℝˢT ηᵋ,ℝˢT ηᵟ,𝕄T ℓ _c ηₘ ηₙ) | (ℓ ≢ LInf) →
+  --         error $ concat
+  --           [ "MGauss error: "
+  --           , "Claimed sensitivity bound (" ⧺ (pprender ηₛ) ⧺ ") is less than actual sensitivity bound (" ⧺ (pprender σ₄KeepMax) ⧺ ")\n"
+  --           , "Debug info: "
+  --           , pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* ιview @ RNF σ₄KeepMax)
+  --           , pprender σ₄
+  --           , "\n"
+  --           , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+  --           ]
+  --     _ → error $ concat
+  --           [ "MGauss error: "
+  --           , pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* ιview @ RNF σ₄KeepMax)
+  --           , "\n"
+  --           , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+  --           ]
+  -- MGaussPE e₁ (ZCGaussParams e₂) xs e₄ → do
+  --   let xs' = pow xs
+  --   τ₁ ← pmFromSM $ inferSens e₁
+  --   τ₂ ← pmFromSM $ inferSens e₂
+  --   σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
+  --   let σ₄Keep = restrict xs' σ₄
+  --       σ₄KeepMax = joins $ values σ₄Keep
+  --       σ₄Toss = without xs' σ₄
+  --   case (τ₁,τ₂,τ₄,ιview @ RNF σ₄KeepMax) of
+  --     (ℝˢT ηₛ,ℝˢT ηᵨ,𝕄T L2 _c ηₘ ηₙ,Some ς) | ς ⊑ ηₛ → do
+  --       b ← isRealMExp ηₙ
+  --       when (not b) $ throw (error "MGauss error isRealMExp check failed" ∷ TypeError)
+  --       tell $ map (Priv ∘ truncate (ZCPriv ηᵨ) ∘ unSens) σ₄Keep
+  --       tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
+  --       return $ 𝕄T LInf UClip ηₘ ηₙ
+  --     _ → error $ "MGauss error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₄ :* ιview @ RNF σ₄KeepMax))
+  -- MGaussPE e₁ (RenyiGaussParams e₂ e₃) xs e₄ → do
+  --   let xs' = pow xs
+  --   τ₁ ← pmFromSM $ inferSens e₁
+  --   τ₂ ← pmFromSM $ inferSens e₂
+  --   τ₃ ← pmFromSM $ inferSens e₃
+  --   σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
+  --   let σ₄Keep = restrict xs' σ₄
+  --       σ₄KeepMax = joins $ values σ₄Keep
+  --       σ₄Toss = without xs' σ₄
+  --   case (τ₁,τ₂,τ₃,τ₄,ιview @ RNF σ₄KeepMax) of
+  --     (ℝˢT ηₛ,ℝˢT ηᵅ,ℝˢT ηᵋ,𝕄T L2 _c ηₘ ηₙ,Some ς) | ς ⊑ ηₛ → do
+  --       b ← isRealMExp ηₙ
+  --       when (not b) $ throw (error "MGauss error isRealMExp check failed" ∷ TypeError)
+  --       tell $ map (Priv ∘ truncate (RenyiPriv ηᵅ ηᵋ) ∘ unSens) σ₄Keep
+  --       tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
+  --       return $ 𝕄T LInf UClip ηₘ ηₙ
+  --     _ → error $ "MGauss error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* ιview @ RNF σ₄KeepMax))
+  -- MGaussPE e₁ (TCGaussParams e₂ e₃) xs e₄ → do
+  --   let xs' = pow xs
+  --   τ₁ ← pmFromSM $ inferSens e₁
+  --   τ₂ ← pmFromSM $ inferSens e₂
+  --   τ₃ ← pmFromSM $ inferSens e₃
+  --   σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
+  --   let σ₄Keep = restrict xs' σ₄
+  --       σ₄KeepMax = joins $ values σ₄Keep
+  --       σ₄Toss = without xs' σ₄
+  --   case (τ₁,τ₂,τ₃,τ₄,ιview @ RNF σ₄KeepMax) of
+  --     (ℝˢT ηₛ,ℝˢT ρ,ℕˢT ω,𝕄T L2 _c ηₘ ηₙ,Some ς) | ς ⊑ ηₛ → do
+  --       b ← isRealMExp ηₙ
+  --       when (not b) $ throw (error "MGauss error isRealMExp check failed" ∷ TypeError)
+  --       tell $ map (Priv ∘ truncate (TCPriv ρ ω) ∘ unSens) σ₄Keep
+  --       tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
+  --       return $ 𝕄T LInf UClip ηₘ ηₙ
+  --     _ → error $ "MGauss error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* ιview @ RNF σ₄KeepMax))
+  -- BGaussPE e₁ (EDGaussParams e₂ e₃) xs e₄ → do
+  --   let xs' = pow xs
+  --   τ₁ ← pmFromSM $ inferSens e₁
+  --   τ₂ ← pmFromSM $ inferSens e₂
+  --   τ₃ ← pmFromSM $ inferSens e₃
+  --   σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
+  --   let σ₄Keep = restrict xs' σ₄
+  --       σ₄KeepMax = joins $ values σ₄Keep
+  --       σ₄Toss = without xs' σ₄
+  --   case (τ₁,τ₂,τ₃,τ₄,ιview @ RNF σ₄KeepMax) of
+  --     -- TODO: do something with ℓ and c
+  --     (ℝˢT ηₛ,ℝˢT ηᵋ,ℝˢT ηᵟ,BagT ℓ c ℝT,Some ς) | ς ⊑ ηₛ → do
+  --       tell $ map (Priv ∘ truncate (EDPriv ηᵋ ηᵟ) ∘ unSens) σ₄Keep
+  --       tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
+  --       -- TODO: make sure ℓ and c are correct
+  --       return $ BagT ℓ c ℝT
+  --     _ → error $ "BGauss ED error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* ιview @ RNF σ₄KeepMax))
+  -- BGaussPE e₁ (ZCGaussParams e₂) xs e₄ → do
+  --   let xs' = pow xs
+  --   τ₁ ← pmFromSM $ inferSens e₁
+  --   τ₂ ← pmFromSM $ inferSens e₂
+  --   σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
+  --   let σ₄Keep = restrict xs' σ₄
+  --       σ₄KeepMax = joins $ values σ₄Keep
+  --       σ₄Toss = without xs' σ₄
+  --   case (τ₁,τ₂,τ₄,ιview @ RNF σ₄KeepMax) of
+  --     -- TODO: do something with ℓ and c
+  --     (ℝˢT ηₛ,ℝˢT ηᵨ,BagT ℓ c ℝT,Some ς) | ς ⊑ ηₛ → do
+  --       tell $ map (Priv ∘ truncate (ZCPriv ηᵨ) ∘ unSens) σ₄Keep
+  --       tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
+  --       -- TODO: make sure ℓ and c are correct
+  --       return $ BagT ℓ c ℝT
+  --     _ → error $ "BGauss error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₄ :* ιview @ RNF σ₄KeepMax))
+  -- BGaussPE e₁ (RenyiGaussParams e₂ e₃) xs e₄ → do
+  --   let xs' = pow xs
+  --   τ₁ ← pmFromSM $ inferSens e₁
+  --   τ₂ ← pmFromSM $ inferSens e₂
+  --   τ₃ ← pmFromSM $ inferSens e₃
+  --   σ₄ :* τ₄ ← pmFromSM $ hijack $ inferSens e₄
+  --   let σ₄Keep = restrict xs' σ₄
+  --       σ₄KeepMax = joins $ values σ₄Keep
+  --       σ₄Toss = without xs' σ₄
+  --   case (τ₁,τ₂,τ₃,τ₄,ιview @ RNF σ₄KeepMax) of
+  --     -- TODO: do something with ℓ and c
+  --     (ℝˢT ηₛ,ℝˢT ηᵅ,ℝˢT ηᵋ,BagT ℓ c ℝT,Some ς) | ς ⊑ ηₛ → do
+  --       tell $ map (Priv ∘ truncate (RenyiPriv ηᵅ ηᵋ) ∘ unSens) σ₄Keep
+  --       tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
+  --       -- TODO: make sure ℓ and c are correct
+  --       return $ BagT ℓ c ℝT
+  --     _ → error $ "BGauss error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* ιview @ RNF σ₄KeepMax))
+  -- GaussPE _e₁ (RenyiGaussParams _e₂ _e₃) _xs _e₄ → undefined
+  -- GaussPE _e₁ (ZCGaussParams _e₂) _xs _e₃ → undefined
+  -- ExponentialPE e₁ (EDExponentialParams e₂) e₃ xs x e₄ → do
+  --   let xs' = pow xs
+  --   τ₁ ← pmFromSM $ inferSens e₁
+  --   τ₂ ← pmFromSM $ inferSens e₂
+  --   mat ← pmFromSM $ inferSens e₃
+  --   case mat of
+  --     𝕄T _ℓ _c (RexpRT r₁) (RexpME r₂ τ₃) → do
+  --       σ₄ :* τ₄ ← pmFromSM $ hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₃) ⩌ γ) $ inferSens e₄
+  --       let σ₄' = delete x σ₄
+  --           σ₄Keep = restrict xs' σ₄'
+  --           σ₄KeepMax = joins $ values σ₄Keep
+  --           σ₄Toss = without xs' σ₄'
+  --       case (τ₁,τ₂,ιview @ RNF σ₄KeepMax) of
+  --         (ℝˢT ηₛ,ℝˢT ηᵋ,Some ς) | (ς ⊑ ηₛ) ⩓ (τ₄ ≡ ℝT) ⩓ (r₁ ≡ one) → do
+  --           tell $ map (Priv ∘ truncate (EDPriv ηᵋ zero) ∘ unSens) σ₄Keep
+  --           tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₄Toss
+  --           return $ 𝕀T r₂
 
-          _ → error $ "Exponential error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* ιview @ RNF σ₄KeepMax))
-      _ → error "type error: ExponentialPE"
-  ConvertZCEDPE e₁ e₂ → do
-    τ₁ ← pmFromSM $ inferSens e₁
-    case τ₁ of
-      ℝˢT ηᵟ → do
-        mapPPM (onPriv $ map $ convertZCEDPr ηᵟ) $ inferPriv e₂
-      _ → error "type error: ConvertZCEDPE"
-  ConvertRENYIEDPE e₁ e₂ → do
-    τ₁ ← pmFromSM $ inferSens e₁
-    case τ₁ of
-      ℝˢT ηᵟ → do
-        mapPPM (onPriv $ map $ convertRENYIEDPr ηᵟ) $ inferPriv e₂
-      _ → error "type error: ConvertRENYIEDPE"
-  ConvertEPSZCPE e₁ → do
-    mapPPM (onPriv $ map $ convertEPSZCPr) $ inferPriv e₁
-  EDSamplePE en exs eys xs' ys' e → do
-    _ :* τn ← pmFromSM $ hijack $ inferSens en -- throw away the cost
-    σ₁ :* τxs ← pmFromSM $ hijack $ inferSens exs
-    σ₂ :* τys ← pmFromSM $ hijack $ inferSens eys
-    -- check that upper bound on each of σ₁ and σ₂ is less than 1
-    case (τn,τxs,τys) of
-      (ℕˢT ηrows',𝕄T ℓ₁ c₁ (RexpRT ηrows₁) ς₁,𝕄T ℓ₂ c₂ (RexpRT ηrows₂) ς₂)
-        | (ηrows₁ ≡ ηrows₂) ⩓ (joins (values σ₁) ⊑ ι 1) ⩓ (joins (values σ₂) ⊑ ι 1) {-⩓ (ηrows' ≤ ηrows₁)-} → do
-            let τxs' = 𝕄T ℓ₁ c₁ (RexpRT ηrows') ς₁
-                τys' = 𝕄T ℓ₂ c₂ (RexpRT ηrows') ς₂
-                sε = ι 2 × ηrows' / ηrows₁
-                sδ = ηrows' / ηrows₁
-            σ :* τ ← hijack $ mapEnvL contextTypeL (\ γ → (xs' ↦ τxs') ⩌ (ys' ↦ τys') ⩌ γ) $ inferPriv e
-            let σxs' = σ ⋕! xs'
-                σys' = σ ⋕! ys'
-                σ' = without (pow [xs',ys']) σ
-            case (σxs',σys') of
-              ((EDPriv ε₁ δ₁), (EDPriv ε₂ δ₂)) → do
-                tell $ map (Priv ∘ truncate (EDPriv (ε₁×sε) (δ₁×sδ)) ∘ unSens) σ₁
-                tell $ map (Priv ∘ truncate (EDPriv (ε₂×sε) (δ₂×sδ)) ∘ unSens) σ₂
-                tell σ'
-                return τ
-              _ → error $ "type error in EDSamplePE." ⧺ (pprender (σxs',σys'))
-            -- pull out privacies p₁ for xs' p₂ and ys'
-            -- truncate everything in σ₁ to be p₁ scaled by ⟨sε,sδ⟩
-            -- truncate everything in σ₂ to be p₂ scaled by ⟨sε,sδ⟩
-            -- output σ₁, σ₂, and leftovers from σ
-      _ → error "type error in EDSamplePE"
-  TCSamplePE en exs eys xs' ys' e → do
-    _ :* τn ← pmFromSM $ hijack $ inferSens en
-    σ₁ :* τxs ← pmFromSM $ hijack $ inferSens exs
-    σ₂ :* τys ← pmFromSM $ hijack $ inferSens eys
-    case (τn,τxs,τys) of
-      (ℕˢT ηrows',𝕄T ℓ₁ c₁ (RexpRT ηrows₁) ς₁,𝕄T ℓ₂ c₂ (RexpRT ηrows₂) ς₂)
-        | (ηrows₁ ≡ ηrows₂) ⩓ (joins (values σ₁) ⊑ ι 1) ⩓ (joins (values σ₂) ⊑ ι 1) → do
-            let τxs' = 𝕄T ℓ₁ c₁ (RexpRT ηrows') ς₁
-                τys' = 𝕄T ℓ₂ c₂ (RexpRT ηrows') ς₂
-                s = ηrows' / ηrows₁
-            σ :* τ ← hijack $ mapEnvL contextTypeL (\ γ → (xs' ↦ τxs') ⩌ (ys' ↦ τys') ⩌ γ) $ inferPriv e
-            let σxs' = σ ⋕! xs'
-                σys' = σ ⋕! ys'
-                σ' = without (pow [xs',ys']) σ
-            case (σxs',σys') of
-              ((TCPriv ρ₁ _ω₁), (TCPriv ρ₂ _ω₂)) → do
-                tell $ map (Priv ∘ truncate ((TCPriv ((dblRNF 13.0) × s × s × ρ₁) ((log ((dblRNF 1.0)/s)) / ((dblRNF 4.0) × ρ₁)))) ∘ unSens) σ₁
-                tell $ map (Priv ∘ truncate ((TCPriv ((dblRNF 13.0) × s × s × ρ₂) ((log ((dblRNF 1.0)/s)) / ((dblRNF 4.0) × ρ₂)))) ∘ unSens) σ₂
-                tell σ'
-                return τ
-              _ → error $ "type error in TCSamplePE." ⧺ (pprender (σxs',σys'))
-      _ → error "type error in TCSamplePE"
-  RenyiSamplePE en exs eys xs' ys' e → do
-    _ :* τn ← pmFromSM $ hijack $ inferSens en
-    σ₁ :* τxs ← pmFromSM $ hijack $ inferSens exs
-    σ₂ :* τys ← pmFromSM $ hijack $ inferSens eys
-    case (τn,τxs,τys) of
-      (ℕˢT ηrows',𝕄T ℓ₁ c₁ (RexpRT ηrows₁) ς₁,𝕄T ℓ₂ c₂ (RexpRT ηrows₂) ς₂)
-        | (ηrows₁ ≡ ηrows₂) ⩓ (joins (values σ₁) ⊑ ι 1) ⩓ (joins (values σ₂) ⊑ ι 1) → do
-            let τxs' = 𝕄T ℓ₁ c₁ (RexpRT ηrows') ς₁
-                τys' = 𝕄T ℓ₂ c₂ (RexpRT ηrows') ς₂
-                s = ηrows' / ηrows₁
-            σ :* τ ← hijack $ mapEnvL contextTypeL (\ γ → (xs' ↦ τxs') ⩌ (ys' ↦ τys') ⩌ γ) $ inferPriv e
-            let σxs' = σ ⋕! xs'
-                σys' = σ ⋕! ys'
-                σ' = without (pow [xs',ys']) σ
-            case (σxs',σys') of
-              ((RenyiPriv α₁ ϵ₁), (RenyiPriv α₂ ϵ₂)) → do
-                tell $ map (Priv ∘ truncate (RenyiPriv α₁ (renyiϵ' (dblRNF 2.0) α₁ s ϵ₁)) ∘ unSens) σ₁
-                tell $ map (Priv ∘ truncate (RenyiPriv α₂ (renyiϵ' (dblRNF 2.0) α₂ s ϵ₂)) ∘ unSens) σ₂
-                tell σ'
-                return τ
-              _ → error $ "type error in RenyiSamplePE." ⧺ (pprender (σxs',σys'))
-      _ → error "type error in RenyiSamplePE"
+  --         _ → error $ "Exponential error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄ :* ιview @ RNF σ₄KeepMax))
+  --     _ → error "type error: ExponentialPE"
+  -- ConvertZCEDPE e₁ e₂ → do
+  --   τ₁ ← pmFromSM $ inferSens e₁
+  --   case τ₁ of
+  --     ℝˢT ηᵟ → do
+  --       mapPPM (onPriv $ map $ convertZCEDPr ηᵟ) $ inferPriv e₂
+  --     _ → error "type error: ConvertZCEDPE"
+  -- ConvertRENYIEDPE e₁ e₂ → do
+  --   τ₁ ← pmFromSM $ inferSens e₁
+  --   case τ₁ of
+  --     ℝˢT ηᵟ → do
+  --       mapPPM (onPriv $ map $ convertRENYIEDPr ηᵟ) $ inferPriv e₂
+  --     _ → error "type error: ConvertRENYIEDPE"
+  -- ConvertEPSZCPE e₁ → do
+  --   mapPPM (onPriv $ map $ convertEPSZCPr) $ inferPriv e₁
+  -- EDSamplePE en exs eys xs' ys' e → do
+  --   _ :* τn ← pmFromSM $ hijack $ inferSens en -- throw away the cost
+  --   σ₁ :* τxs ← pmFromSM $ hijack $ inferSens exs
+  --   σ₂ :* τys ← pmFromSM $ hijack $ inferSens eys
+  --   -- check that upper bound on each of σ₁ and σ₂ is less than 1
+  --   case (τn,τxs,τys) of
+  --     (ℕˢT ηrows',𝕄T ℓ₁ c₁ (RexpRT ηrows₁) ς₁,𝕄T ℓ₂ c₂ (RexpRT ηrows₂) ς₂)
+  --       | (ηrows₁ ≡ ηrows₂) ⩓ (joins (values σ₁) ⊑ ι 1) ⩓ (joins (values σ₂) ⊑ ι 1) {-⩓ (ηrows' ≤ ηrows₁)-} → do
+  --           let τxs' = 𝕄T ℓ₁ c₁ (RexpRT ηrows') ς₁
+  --               τys' = 𝕄T ℓ₂ c₂ (RexpRT ηrows') ς₂
+  --               sε = ι 2 × ηrows' / ηrows₁
+  --               sδ = ηrows' / ηrows₁
+  --           σ :* τ ← hijack $ mapEnvL contextTypeL (\ γ → (xs' ↦ τxs') ⩌ (ys' ↦ τys') ⩌ γ) $ inferPriv e
+  --           let σxs' = σ ⋕! xs'
+  --               σys' = σ ⋕! ys'
+  --               σ' = without (pow [xs',ys']) σ
+  --           case (σxs',σys') of
+  --             ((EDPriv ε₁ δ₁), (EDPriv ε₂ δ₂)) → do
+  --               tell $ map (Priv ∘ truncate (EDPriv (ε₁×sε) (δ₁×sδ)) ∘ unSens) σ₁
+  --               tell $ map (Priv ∘ truncate (EDPriv (ε₂×sε) (δ₂×sδ)) ∘ unSens) σ₂
+  --               tell σ'
+  --               return τ
+  --             _ → error $ "type error in EDSamplePE." ⧺ (pprender (σxs',σys'))
+  --           -- pull out privacies p₁ for xs' p₂ and ys'
+  --           -- truncate everything in σ₁ to be p₁ scaled by ⟨sε,sδ⟩
+  --           -- truncate everything in σ₂ to be p₂ scaled by ⟨sε,sδ⟩
+  --           -- output σ₁, σ₂, and leftovers from σ
+  --     _ → error "type error in EDSamplePE"
+  -- TCSamplePE en exs eys xs' ys' e → do
+  --   _ :* τn ← pmFromSM $ hijack $ inferSens en
+  --   σ₁ :* τxs ← pmFromSM $ hijack $ inferSens exs
+  --   σ₂ :* τys ← pmFromSM $ hijack $ inferSens eys
+  --   case (τn,τxs,τys) of
+  --     (ℕˢT ηrows',𝕄T ℓ₁ c₁ (RexpRT ηrows₁) ς₁,𝕄T ℓ₂ c₂ (RexpRT ηrows₂) ς₂)
+  --       | (ηrows₁ ≡ ηrows₂) ⩓ (joins (values σ₁) ⊑ ι 1) ⩓ (joins (values σ₂) ⊑ ι 1) → do
+  --           let τxs' = 𝕄T ℓ₁ c₁ (RexpRT ηrows') ς₁
+  --               τys' = 𝕄T ℓ₂ c₂ (RexpRT ηrows') ς₂
+  --               s = ηrows' / ηrows₁
+  --           σ :* τ ← hijack $ mapEnvL contextTypeL (\ γ → (xs' ↦ τxs') ⩌ (ys' ↦ τys') ⩌ γ) $ inferPriv e
+  --           let σxs' = σ ⋕! xs'
+  --               σys' = σ ⋕! ys'
+  --               σ' = without (pow [xs',ys']) σ
+  --           case (σxs',σys') of
+  --             ((TCPriv ρ₁ _ω₁), (TCPriv ρ₂ _ω₂)) → do
+  --               tell $ map (Priv ∘ truncate ((TCPriv ((dblRNF 13.0) × s × s × ρ₁) ((log ((dblRNF 1.0)/s)) / ((dblRNF 4.0) × ρ₁)))) ∘ unSens) σ₁
+  --               tell $ map (Priv ∘ truncate ((TCPriv ((dblRNF 13.0) × s × s × ρ₂) ((log ((dblRNF 1.0)/s)) / ((dblRNF 4.0) × ρ₂)))) ∘ unSens) σ₂
+  --               tell σ'
+  --               return τ
+  --             _ → error $ "type error in TCSamplePE." ⧺ (pprender (σxs',σys'))
+  --     _ → error "type error in TCSamplePE"
+  -- RenyiSamplePE en exs eys xs' ys' e → do
+  --   _ :* τn ← pmFromSM $ hijack $ inferSens en
+  --   σ₁ :* τxs ← pmFromSM $ hijack $ inferSens exs
+  --   σ₂ :* τys ← pmFromSM $ hijack $ inferSens eys
+  --   case (τn,τxs,τys) of
+  --     (ℕˢT ηrows',𝕄T ℓ₁ c₁ (RexpRT ηrows₁) ς₁,𝕄T ℓ₂ c₂ (RexpRT ηrows₂) ς₂)
+  --       | (ηrows₁ ≡ ηrows₂) ⩓ (joins (values σ₁) ⊑ ι 1) ⩓ (joins (values σ₂) ⊑ ι 1) → do
+  --           let τxs' = 𝕄T ℓ₁ c₁ (RexpRT ηrows') ς₁
+  --               τys' = 𝕄T ℓ₂ c₂ (RexpRT ηrows') ς₂
+  --               s = ηrows' / ηrows₁
+  --           σ :* τ ← hijack $ mapEnvL contextTypeL (\ γ → (xs' ↦ τxs') ⩌ (ys' ↦ τys') ⩌ γ) $ inferPriv e
+  --           let σxs' = σ ⋕! xs'
+  --               σys' = σ ⋕! ys'
+  --               σ' = without (pow [xs',ys']) σ
+  --           case (σxs',σys') of
+  --             ((RenyiPriv α₁ ϵ₁), (RenyiPriv α₂ ϵ₂)) → do
+  --               tell $ map (Priv ∘ truncate (RenyiPriv α₁ (renyiϵ' (dblRNF 2.0) α₁ s ϵ₁)) ∘ unSens) σ₁
+  --               tell $ map (Priv ∘ truncate (RenyiPriv α₂ (renyiϵ' (dblRNF 2.0) α₂ s ϵ₂)) ∘ unSens) σ₂
+  --               tell σ'
+  --               return τ
+  --             _ → error $ "type error in RenyiSamplePE." ⧺ (pprender (σxs',σys'))
+  --     _ → error "type error in RenyiSamplePE"
 
   -- TODO: I think this is broken
   -- PFldRowsPE e₁ e₂ e₃ → do
@@ -1791,23 +1630,23 @@ inferPriv eA = case extract eA of
 --                         return τ₂
 --             _ → error $ "Fold error " ⧺ (pprender (τ₃ :* τ₄ :* τ₅))
 -- 
-  PMapColPE e₁ x e₂ → do
-    σ₁ :* τ₁ ← pmFromSM $ hijack $ inferSens e₁
-    case τ₁ of
-      𝕄T LInf UClip (RexpRT ηₘ) (RexpME r (𝔻T τ₁')) -- TODO: this breaks | (joins (values σ₁) ⊑ ι 1)
-       → do
-        let mcol = 𝕄T LInf UClip (RexpRT ηₘ) (RexpME one (𝔻T τ₁'))
-        σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ mcol) ⩌ γ) $ inferPriv e₂
-        let (p :* σ₂') = ifNone (bot :* σ₂) $ dview x σ₂
-        tell $ mapp (iteratePr (ηₘ × r)) $ (map unPriv σ₂)
-        case (ιview @ (Pr p RNF) p) of
-          (Some p') → do
-            tell $ map (Priv ∘ truncate (iteratePr r p') ∘ unSens) σ₁
-            return $ 𝕄T LInf UClip (RexpRT one) (RexpME r τ₂)
-          _ → do
-            tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₁
-            return $ 𝕄T LInf UClip (RexpRT one) (RexpME r τ₂)
-      _  → undefined -- TypeSource Error
+--   PMapColPE e₁ x e₂ → do
+--     σ₁ :* τ₁ ← pmFromSM $ hijack $ inferSens e₁
+--     case τ₁ of
+--       𝕄T LInf UClip (RexpRT ηₘ) (RexpME r (𝔻T τ₁')) -- TODO: this breaks | (joins (values σ₁) ⊑ ι 1)
+--        → do
+--         let mcol = 𝕄T LInf UClip (RexpRT ηₘ) (RexpME one (𝔻T τ₁'))
+--         σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ mcol) ⩌ γ) $ inferPriv e₂
+--         let (p :* σ₂') = ifNone (bot :* σ₂) $ dview x σ₂
+--         tell $ mapp (iteratePr (ηₘ × r)) $ (map unPriv σ₂)
+--         case (ιview @ (Pr p RNF) p) of
+--           (Some p') → do
+--             tell $ map (Priv ∘ truncate (iteratePr r p') ∘ unSens) σ₁
+--             return $ 𝕄T LInf UClip (RexpRT one) (RexpME r τ₂)
+--           _ → do
+--             tell $ map (Priv ∘ truncate Inf ∘ unSens) σ₁
+--             return $ 𝕄T LInf UClip (RexpRT one) (RexpME r τ₂)
+--       _  → undefined -- TypeSource Error
 
   _ → error $ concat
         [ "inferPriv unknown expression type: "
@@ -1824,23 +1663,23 @@ renyiϵ' j α s ϵ = (one / (α - one)) × log ((dblRNF 1.0) + (renyiϵ'Σpess j
 renyiϵ'Σpess ∷ RNF → RNF → RNF → RNF → RNF
 renyiϵ'Σpess j α s ϵ = α × ((dblRNF 2.0) × (s^α)) × (α^α) × (exp ((α - one) × ϵ))
 
-renyiϵ'Σ ∷ RNF → RNF → RNF → RNF → RNF
-renyiϵ'Σ j α s ϵ = case α < j of
-  True → (dblRNF 0.0)
-  False → (((dblRNF 2.0) × (s^j)) × (choose α j) × (exp ((j - one) × ϵ))) + renyiϵ'Σ (j + (dblRNF 1.0)) α s ϵ
+-- renyiϵ'Σ ∷ RNF → RNF → RNF → RNF → RNF
+-- renyiϵ'Σ j α s ϵ = case α < j of
+--   True → (dblRNF 0.0)
+--   False → (((dblRNF 2.0) × (s^j)) × (choose α j) × (exp ((j - one) × ϵ))) + renyiϵ'Σ (j + (dblRNF 1.0)) α s ϵ
 --
 -- fac :: RNF → RNF
 -- fac (dblRNF 0.0) = (dblRNF 1.0)
 -- fac (dblRNF 1.0) = (dblRNF 1.0)
 -- fac n = n × (fac (n - one))
 
-choose :: RNF → RNF → RNF
-choose n k = (fac n) / ((fac k) × (fac (n - k)))
+-- choose :: RNF → RNF → RNF
+-- choose n k = (fac n) / ((fac k) × (fac (n - k)))
 
 substPriv ∷ (PRIV_C p) ⇒ 𝕏 → Pr p RNF → Type RNF → Type RNF
 substPriv x s τ = substPrivR pø x s pø τ
 
-substPrivExp ∷ ∀ p p'. (PRIV_C p, PRIV_C p') ⇒ Pr p' RNF → Pr p RNF → Pr p' RNF
+substPrivExp ∷ ∀ p p'. (PRIV_C p, PRIV_C p') ⇒ 𝕏 → Pr p' RNF → Pr p RNF → Pr p' RNF
 substPrivExp x pe pr =
   case eqPRIV (priv @ p) (priv @ p') of
     None → error "privacy variants dont match"

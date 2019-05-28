@@ -149,33 +149,33 @@ instance (Pretty r) ⇒ Pretty (Type r) where
       , ppPun "&"
       , ppBump $ pretty τ₂
       ]
-    (ακs :* τ₁) :⊸: (ς :* τ₂) → ppAtLevel 2 $ ppSeparated $ list
-      [ concat
-        [ ppPun "∀"
-        , ppSpace 1
-        , ppAlign $ ppSeparated $ list $ inbetween (ppPun ",") $ mapOn ακs $ \ (α :* κ) →
-            ppBotLevel $ concat [ppAlign $ pretty α,ppPun ":",ppAlign $ pretty κ]
-        ]
-      , ppPun "."
-      , ppBump $ pretty τ₁
+    τ₁ :⊸: (ς :* τ₂) → ppAtLevel 2 $ ppSeparated $ list
+        -- concat
+        -- [ ppPun "∀"
+        -- , ppSpace 1
+        -- , ppAlign $ ppSeparated $ list $ inbetween (ppPun ",") $ mapOn ακs $ \ (α :* κ) →
+        --     ppBotLevel $ concat [ppAlign $ pretty α,ppPun ":",ppAlign $ pretty κ]
+        -- ]
+        -- , ppPun "."
+      [ pretty τ₁
       , ppBotLevel $ concat [ppPun "⊸[",ppAlign $ pretty ς,ppPun "]"]
       , pretty τ₂
       ]
-    (ακs :* xτs) :⊸⋆: (PEnv pσ :* τ) → ppAtLevel 2 $ ppSeparated $ list
+    (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → ppAtLevel 2 $ ppSeparated $ list
+      [ ppParens $ ppSeparated $ list [pretty x,ppPun ":",pretty τ₁]
+      , ppBotLevel $ concat [ppPun "⊸⋆[",ppAlign $ pretty pσ,ppPun "]"]
+      , pretty τ₂
+      ]
+    ForallT α κ τ → ppAtLevel 2 $ ppSeparated $ list
       [ concat
         [ ppPun "∀"
         , ppSpace 1
-        , ppAlign $ ppSeparated $ list $ inbetween (ppPun ",") $ mapOn ακs $ \ (α :* κ) →
-           ppBotLevel $ concat [ppAlign $ pretty α,ppPun ":",ppAlign $ pretty κ]
+        , pretty α
+        , ppPun ":"
+        , pretty κ
+        , ppPun "."
         ]
-      , ppSeparated
-          $ list
-          $ mapFirst (\ s → ppSeparated $ list [ppPun ".",s])
-          $ mapAfterFirst (\ s → ppSeparated $ list [ppPun ",",s])
-          $ mapOn xτs $ \ (x :* τ') →
-              ppBotLevel $ concat [ppAlign $ pretty x,ppPun ":",ppAlign $ pretty τ']
-      , pretty pσ
-      , concat [ppPun "⇒",ppSpace 1,ppAlign $ pretty τ]
+      , ppNest 2 $ ppAlign $ pretty τ 
       ]
     BoxedT σ τ → ppAtLevel 5 $ ppSeparated $ list
       [ concat [ ppKeyPun "□" , ppPun "[" ]
