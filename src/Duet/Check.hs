@@ -76,19 +76,19 @@ pmFromSM xM = mkPM $ \ δ γ ᴍ →
 mapPPM ∷ (Pr p₁ RNF → Pr p₂ RNF) → PM p₁ a → PM p₂ a
 mapPPM f xM = mkPM $ \ δ γ ᴍ → mapInr (mapFst $ map f) $ runPM δ γ ᴍ xM
 
-checkSensLang ∷ TLExp RExp → 𝑂 (Sens RExp)
+checkSensLang ∷ STLExp RExp → 𝑂 (Sens RExp)
 checkSensLang e = do
   η ← checkRExpLang e
   return $ Sens η
 
-checkPrivLang ∷ (PRIV_C p) ⇒ PRIV_W p → TLExp RExp → 𝑂 (Pr p RExp)
+checkPrivLang ∷ (PRIV_C p) ⇒ PRIV_W p → STLExp RExp → 𝑂 (Pr p RExp)
 checkPrivLang p e₀ = case p of
   EPS_W → do
     η ← checkRExpLang e₀
     return $ EpsPriv η
   ED_W → do
     case extract e₀ of
-      PairTE e₁ e₂ → do
+      PairSTE e₁ e₂ → do
         η₁ ← checkRExpLang e₁
         η₂ ← checkRExpLang e₂
         return $ EDPriv η₁ η₂
@@ -129,74 +129,74 @@ rexpToTLExp τ = undefined
 --   (x :* τ₁) :⊸⋆: (pσ :* τ₂) → (x :* typeToTLExp τ₁) :⊸⋆♭: (pσ :* typeToTLExp τ₂)
 --   ForallT x κ τ → ForallTE x κ $ typeToTLExp τ
 
-checkTypeLang ∷ TLExp RExp → 𝑂 (Type RExp)
+checkTypeLang ∷ STLExp RExp → 𝑂 (Type RExp)
 checkTypeLang e₀ = case extract e₀ of
-  VarTE x → return $ VarT x
-  ℕˢTE r → return $ ℕˢT r
-  ℝˢTE r → return $ ℝˢT r
-  ℕTE → return ℕT
-  ℝTE → return ℝT
-  𝕀TE r → return $ 𝕀T r
-  𝔹TE → return 𝔹T
-  𝕊TE → return 𝕊T
-  SetTE e → do
+  VarSTE x → return $ VarT x
+  ℕˢSTE r → return $ ℕˢT r
+  ℝˢSTE r → return $ ℝˢT r
+  ℕSTE → return ℕT
+  ℝSTE → return ℝT
+  𝕀STE r → return $ 𝕀T r
+  𝔹STE → return 𝔹T
+  𝕊STE → return 𝕊T
+  SetSTE e → do
     τ ← checkTypeLang e
     return $ SetT τ
-  𝕄TE ℓ c rows mexpr → return $ 𝕄T ℓ c rows mexpr
-  𝔻TE e → do
+  𝕄STE ℓ c rows mexpr → return $ 𝕄T ℓ c rows mexpr
+  𝔻STE e → do
     τ ← checkTypeLang e
     return $ 𝔻T τ
-  e₁ :⊕♭: e₂ → do
+  e₁ :⊕♭♭: e₂ → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
     return $ τ₁ :⊕: τ₂
-  e₁ :⊗♭: e₂ → do
+  e₁ :⊗♭♭: e₂ → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
     return $ τ₁ :⊗: τ₂
-  e₁ :&♭: e₂ → do
+  e₁ :&♭♭: e₂ → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
     return $ τ₁ :&: τ₂
-  e₁ :⊸♭: (s :* e₂) → do
+  e₁ :⊸♭♭: (s :* e₂) → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
     return $ τ₁ :⊸: (s :* τ₂)
-  (x :* e₁) :⊸⋆♭: (pσ :* e₂) → do
+  (x :* e₁) :⊸⋆♭♭: (pσ :* e₂) → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
     return $ (x :* τ₁) :⊸⋆: (pσ :* τ₂)
   _ → None
 
-checkRExpLang ∷ TLExp RExp → 𝑂 RExp
+checkRExpLang ∷ STLExp RExp → 𝑂 RExp
 checkRExpLang e₀ = siphon e₀ ^$ case extract e₀ of
-  VarTE x → return $ VarRE x
-  NatTE n → return $ ConstRE $ AddTop $ dbl n
-  NNRealTE r → return $ ConstRE $ AddTop r
-  MaxTE e₁ e₂ → do
+  VarSTE x → return $ VarRE x
+  NatSTE n → return $ ConstRE $ AddTop $ dbl n
+  NNRealSTE r → return $ ConstRE $ AddTop r
+  MaxSTE e₁ e₂ → do
     η₁ ← checkRExpLang e₁
     η₂ ← checkRExpLang e₂
     return $ MaxRE η₁ η₂
-  MinTE e₁ e₂ → do
+  MinSTE e₁ e₂ → do
     η₁ ← checkRExpLang e₁
     η₂ ← checkRExpLang e₂
     return $ MinRE η₁ η₂
-  PlusTE e₁ e₂ → do
+  PlusSTE e₁ e₂ → do
     η₁ ← checkRExpLang e₁
     η₂ ← checkRExpLang e₂
     return $ PlusRE η₁ η₂
-  TimesTE e₁ e₂ → do
+  TimesSTE e₁ e₂ → do
     η₁ ← checkRExpLang e₁
     η₂ ← checkRExpLang e₂
     return $ TimesRE η₁ η₂
-  DivTE e₁ e₂ → do
+  DivSTE e₁ e₂ → do
     η₁ ← checkRExpLang e₁
     η₂ ← checkRExpLang e₂
     return $ DivRE η₁ η₂
-  RootTE e → do
+  RootSTE e → do
     η ← checkRExpLang e
     return $ PowRE (rat 1 / rat 2) η
-  LogTE e → do
+  LogSTE e → do
     η ← checkRExpLang e
     return $ LogRE η
   _ → None
@@ -233,6 +233,11 @@ checkKind κ r = do
   κ' ← inferKind r
   when (not $ κ' ⊑ κ) $ error "kind error"
 
+frKindEM ∷ KindE → SM p Kind
+frKindEM κ = case frKindE κ of
+  None → error "kind error"
+  Some κ → return κ
+
 inferKind ∷ RExpPre → SM p Kind
 inferKind = \case
   VarRE x → inferKindVar x
@@ -243,19 +248,19 @@ inferKind = \case
   MaxRE e₁ e₂ → do
     κ₁ ← inferKind $ extract e₁
     κ₂ ← inferKind $ extract e₂
-    return $ κ₁ ⊔ κ₂
+    frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
   MinRE e₁ e₂ → do
     κ₁ ← inferKind $ extract e₁
     κ₂ ← inferKind $ extract e₂
-    return $ κ₁ ⊔ κ₂
+    frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
   PlusRE e₁ e₂ → do
     κ₁ ← inferKind $ extract e₁
     κ₂ ← inferKind $ extract e₂
-    return $ κ₁ ⊔ κ₂
+    frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
   TimesRE e₁ e₂ → do
     κ₁ ← inferKind $ extract e₁
     κ₂ ← inferKind $ extract e₂
-    return $ κ₁ ⊔ κ₂
+    frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
   PowRE q e → do
     κ ← inferKind $ extract e
     return $ case ratDen q ≡ 1 of
@@ -312,7 +317,6 @@ checkType τA = case τA of
         void $ inferKindVar x'
         checkPriv $ map extract p
       checkType τ₂
-  BoxedT _σ τ → checkType τ -- TODO: get rid of
   VarT x → void $ inferKindVar x
   _ → error $ "checkType error on " ⧺ pprender τA
 
@@ -1102,11 +1106,11 @@ inferPriv eA = case extract eA of
     τ₁ ← pmFromSM $ inferSens e₁
     σ₂ :* τ₂ ← pmFromSM $ hijack $ inferSens e₂
     case τ₁ of
-      (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ 𝕏 ⇰ Pr p' RNF) :* τ₁₂) | (τ₁₁ ≡ τ₂) ⩓ (joins σ₂ ⊑ one) →
+      (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ 𝕏 ⇰ Pr p' RNF) :* τ₁₂) | (τ₁₁ ≡ τ₂) ⩓ (joins (values σ₂) ⊑ one) →
         case eqPRIV (priv @ p) (priv @ p') of
           None → error "not same priv mode"
           Some Refl → do
-            let (pₓ :* σ'') = ifNone (zero :* σ') $ dview x σ'
+            let (pₓ :* σ'') = ifNone (makePr zero :* σ') $ dview x σ'
             -- TODO: change iteratePr to something functionally the same but less hacky
             let σ₂' = mapOn σ₂ $ (\ i → iteratePr i pₓ) ∘ truncateRNF ∘ unSens
             tell $ σ₂'
@@ -1616,52 +1620,48 @@ inferPriv eA = case extract eA of
 
 -- conv type to tl, subst, back to type
 substTL ∷ 𝕏 → TLExp r → TLExp r → TLExp r
-substTL x tl₁ tl₂ = case extract tl₂ of
+substTL x tl₁ tl₂ = case tl₂ of
   VarTE x' → case x ≡ x' of
     True → tl₁
-    False → siphon tl₁ $ VarTE x'
+    False → VarTE x'
   -- Type Stuff →
-  ℕˢTE r → siphon tl₁ $ ℕˢTE r
-  ℝˢTE r → siphon tl₁ $ ℝˢTE r
-  ℕTE → siphon tl₁ $ ℕTE
-  ℝTE → siphon tl₁ $ ℝTE
-  𝕀TE r → siphon tl₁ $ 𝕀TE r
-  𝔹TE → siphon tl₁ $ 𝔹TE
-  𝕊TE → siphon tl₁ $ 𝕊TE
-  SetTE τ → siphon tl₁ $ SetTE $ substTL x tl₁ τ
-  --TODO: need substitution here
-  𝕄TE ℓ c rows cols → siphon tl₁ $ 𝕄TE ℓ c rows cols
-  𝔻TE τ → siphon tl₁ $ 𝔻TE $ substTL x tl₁ τ
-  τ₁ :⊕♭: τ₂ → siphon tl₁ $ substTL x tl₁ τ₁ :⊕♭: substTL x tl₁ τ₂
-  τ₁ :⊗♭: τ₂ → siphon tl₁ $ substTL x tl₁ τ₁ :⊗♭: substTL x tl₁ τ₂
-  τ₁ :&♭: τ₂ → siphon tl₁ $ substTL x tl₁ τ₁ :&♭: substTL x tl₁ τ₂
-  -- TODO: sens -> tlexp -> then substTL -> sens
-  τ₁ :⊸♭: (s :* τ₂) → siphon tl₁ $ substTL x tl₁ τ₁ :⊸♭: (s :* substTL x tl₁ τ₂)
-  (x :* τ₁) :⊸⋆♭: (penv :* τ₂) → siphon tl₁ $ (x :* substTL x tl₁ τ₁) :⊸⋆♭: (penv :* substTL x tl₁ τ₂)
-  ForallTE x κ τ → siphon tl₁ $ ForallTE x κ $ substTL x tl₁ τ
+  ℕˢTE r → ℕˢTE r
+  ℝˢTE r → ℝˢTE r
+  ℕTE → ℕTE
+  ℝTE → ℝTE
+  𝕀TE r → 𝕀TE r
+  𝔹TE → 𝔹TE
+  𝕊TE → 𝕊TE
+  SetTE τ → SetTE $ subst x tl₁ τ
+  𝕄TE ℓ c rows cols → 𝕄TE ℓ c rows cols
+  𝔻TE τ → 𝔻TE $ subst x tl₁ τ
+  τ₁ :⊕♭: τ₂ → subst x tl₁ τ₁ :⊕♭: subst x tl₁ τ₂
+  τ₁ :⊗♭: τ₂ → subst x tl₁ τ₁ :⊗♭: subst x tl₁ τ₂
+  τ₁ :&♭: τ₂ → subst x tl₁ τ₁ :&♭: subst x tl₁ τ₂
+  -- TODO: sens -> tlexp -> then subst -> sens
+  τ₁ :⊸♭: (s :* τ₂) → subst x tl₁ τ₁ :⊸♭: (s :* subst x tl₁ τ₂)
+  (x :* τ₁) :⊸⋆♭: (penv :* τ₂) → (x :* subst x tl₁ τ₁) :⊸⋆♭: (penv :* subst x tl₁ τ₂)
+  ForallTE x κ τ → ForallTE x κ $ subst x tl₁ τ
    -- RExp Stuff →
-  NatTE n → siphon tl₁ $ NatTE n
-  NNRealTE d → siphon tl₁ $ NNRealTE d
-  MaxTE τ₁ τ₂ → siphon tl₁ $ MaxTE (substTL x tl₁ τ₁) (substTL x tl₁ τ₂)
-  MinTE τ₁ τ₂ → siphon tl₁ $ MinTE (substTL x tl₁ τ₁) (substTL x tl₁ τ₂)
-  PlusTE τ₁ τ₂ → siphon tl₁ $ PlusTE (substTL x tl₁ τ₁) (substTL x tl₁ τ₂)
-  TimesTE τ₁ τ₂ → siphon tl₁ $ TimesTE (substTL x tl₁ τ₁) (substTL x tl₁ τ₂)
-  DivTE τ₁ τ₂ → siphon tl₁ $ DivTE (substTL x tl₁ τ₁) (substTL x tl₁ τ₂)
-  RootTE τ → siphon tl₁ $ RootTE $ substTL x tl₁ τ
-  LogTE τ → siphon tl₁ $ LogTE $ substTL x tl₁ τ
-  TopTE → siphon tl₁ $ TopTE
+  NatTE n → NatTE n
+  NNRealTE d → NNRealTE d
+  MaxTE τ₁ τ₂ → MaxTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+  MinTE τ₁ τ₂ → MinTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+  PlusTE τ₁ τ₂ → PlusTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+  TimesTE τ₁ τ₂ → TimesTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+  DivTE τ₁ τ₂ → DivTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+  RootTE τ → RootTE $ subst x tl₁ τ
+  LogTE τ → LogTE $ subst x tl₁ τ
+  TopTE → TopTE
    -- Privacy Stuff →
-  PairTE τ₁ τ₂ → siphon tl₁ $ PairTE (substTL x tl₁ τ₁) (substTL x tl₁ τ₂)
+  PairTE τ₁ τ₂ → PairTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
 
 substPriv ∷ (PRIV_C p) ⇒ 𝕏 → Pr p RNF → Type RNF → Type RNF
-substPriv x p τ = 
-  let τ' = checkTypeLang $ substTL x (privToTLExp p) (typeToTLExp τ) in 
+substPriv x p τ =
+  let τ' = checkTypeLang $ substTL x (privToTLExp p) (typeToTLExp τ) in
         case τ' of
           None → error "type coercion failed"
           Some τ'' → τ''
-
-
-  
 
 substPrivExp ∷ ∀ p p'. (PRIV_C p, PRIV_C p') ⇒ 𝕏 → Pr p' RNF → Pr p RNF → Pr p' RNF
 substPrivExp x pe pr =
