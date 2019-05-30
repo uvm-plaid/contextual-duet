@@ -240,9 +240,12 @@ data TLExpPre r =
   | TLExp r :⊕♭: TLExp r
   | TLExp r :⊗♭: TLExp r
   | TLExp r :&♭: TLExp r
-  | (𝐿 (𝕏 ∧ Kind) ∧ TLExp r) :⊸♭: (Sens r ∧ TLExp r)
-  -- ∀α:κ,…,α:κ. (x:τ,…,x:τ) → {x⋅p,…,x⋅p} τ
-  | (𝐿 (𝕏 ∧ Kind) ∧ 𝐿 (𝕏 ∧ TLExp r)) :⊸⋆♭: (PEnv r ∧ TLExp r)
+  | TLExp r :⊸♭: (Sens r ∧ TLExp r)
+  | (𝕏 ∧ TLExp r) :⊸⋆♭: (PEnv r ∧ TLExp r)
+  | ForallTE 𝕏 Kind (TLExp r)
+  -- | (𝐿 (𝕏 ∧ Kind) ∧ TLExp r) :⊸♭: (Sens r ∧ TLExp r)
+  -- -- ∀α:κ,…,α:κ. (x:τ,…,x:τ) → {x⋅p,…,x⋅p} τ
+  -- | (𝐿 (𝕏 ∧ Kind) ∧ 𝐿 (𝕏 ∧ TLExp r)) :⊸⋆♭: (PEnv r ∧ TLExp r)
   | BoxedTE (𝕏 ⇰ Sens r) (TLExp r)
   -- RExp Stuff
   | NatTE ℕ
@@ -376,7 +379,17 @@ data SExp (p ∷ PRIV) where
   SFunSE ∷ 𝕏  → TypeSource RExp → SExpSource p → SExp p
   AppSE ∷ SExpSource p → SExpSource p → SExp p
   PFunSE ∷ 𝕏 → TypeSource RExp → PExpSource p → SExp p
+  -- Δ⨃{α:κ} , Γ ⊢ e : τ
+  -- ---------------------
+  -- Δ , Γ ⊢ Λ (α:κ). e : ∀ α:κ. τ
+  -- ^   ^
+  -- |   term variables
+  -- type variables
   TAbsSE ∷ 𝕏 → Kind → SExpSource p → SExp p
+  -- Δ ⊢ τ′ : κ
+  -- Δ , Γ ⊢ e : ∀ α:κ. τ
+  -- -----------------------
+  -- Δ , Γ ⊢ e[τ′] : [τ′/α]τ
   TAppSE ∷ SExpSource p → TypeSource RExp → SExp p
   InlSE ∷ TypeSource RExp → SExpSource p → SExp p
   InrSE ∷ TypeSource RExp → SExpSource p → SExp p

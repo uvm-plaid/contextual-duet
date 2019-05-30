@@ -117,11 +117,11 @@ runPM ∷ 𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → PM p a �
 runPM δ γ ᴍ = unID ∘ unErrorT ∘ unWriterT ∘ runReaderT (Context δ γ ᴍ) ∘ unPM
 
 smFromPM ∷ PM p a → SM p a
-smFromPM xM = mkSM $ \ δ γ ᴍ → 
+smFromPM xM = mkSM $ \ δ γ ᴍ →
   mapInr (mapFst $ map $ Sens ∘ (×) top ∘ truncateRNF ∘ indicatorPr) $ runPM δ γ ᴍ xM
 
 pmFromSM ∷ SM p a → PM p a
-pmFromSM xM = mkPM $ \ δ γ ᴍ → 
+pmFromSM xM = mkPM $ \ δ γ ᴍ →
   mapInr (mapFst $ map $ makePr ∘ (×) top ∘ truncateRNF ∘ unSens) $ runSM δ γ ᴍ xM
 
 mapPPM ∷ (Pr p₁ RNF → Pr p₂ RNF) → PM p₁ a → PM p₂ a
@@ -131,49 +131,6 @@ checkSensLang ∷ TLExp RExp → 𝑂 (Sens RExp)
 checkSensLang e = do
   η ← checkRExpLang e
   return $ Sens η
-  -- BotTE → return $ Sens Zero
-  -- TopTE → return $ Sens Inf
-  -- VarTE x → return $ Sens  $ siphon e₀ $ VarRE x
-  -- NatTE n → return $ Sens $ siphon e₀ $ NatRE n
-  -- NNRealTE r → return $ Sens $ siphon e₀ $ NNRealRE r
-  -- MaxTE e₁ e₂ → do
-  --   η₁ ← checkRExpLang e₁
-  --   η₂ ← checkRExpLang e₂
-  --   return $ Sens $ siphon e₀ $ MaxRE η₁ η₂
-  -- MinTE e₁ e₂ → do
-  --   η₁ ← checkRExpLang e₁
-  --   η₂ ← checkRExpLang e₂
-  --   return $ Sens $ siphon e₀ $ MinRE η₁ η₂
-  -- PlusTE e₁ e₂ → do
-  --   η₁ ← checkRExpLang e₁
-  --   η₂ ← checkRExpLang e₂
-  --   return $ Sens $ siphon e₀ $ PlusRE η₁ η₂
-  -- TimesTE e₁ e₂ → do
-  --   η₁ ← checkRExpLang e₁
-  --   η₂ ← checkRExpLang e₂
-  --   return $ Sens $ siphon e₀ $ TimesRE η₁ η₂
-  -- DivTE e₁ e₂ → do
-  --   η₁ ← checkRExpLang e₁
-  --   η₂ ← checkRExpLang e₂
-  --   return $ Sens $ siphon e₀ $ DivRE η₁ η₂
-  -- RootTE e → do
-  --   η ← checkRExpLang e
-  --   return $ Sens $ siphon e₀ $ RootRE η
-  -- EfnTE e₁ e₂ → do
-  --   η₁ ← checkRExpLang e₁
-  --   η₂ ← checkRExpLang e₂
-  --   return $ Sens $ siphon e₀ $ ExpRE η₁ η₂
-  -- LogTE e → do
-  --   η ← checkRExpLang e
-  --   return $ Sens $ siphon e₀ $ LogRE η
-  -- ExpFnTE e → do
-  --   η ← checkRExpLang e
-  --   return $ Sens $ siphon e₀ $ ExpFnRE η
-  -- MinusTE e₁ e₂ → do
-  --   η₁ ← checkRExpLang e₁
-  --   η₂ ← checkRExpLang e₂
-  --   return $ Sens $ siphon e₀ $ MinusRE η₁ η₂
-  -- _ → None
 
 checkPrivLang ∷ (PRIV_C p) ⇒ PRIV_W p → TLExp RExp → 𝑂 (Pr p RExp)
 checkPrivLang p e₀ = case p of
@@ -188,6 +145,27 @@ checkPrivLang p e₀ = case p of
         return $ EDPriv η₁ η₂
       _ → error "non pair TLExp while coercing in ED_W mode"
   _ → undefined
+
+-- TODO: QUESTION: need parser context
+-- typeToTLExp ∷ Type RExp → TLExpPre RExp
+-- typeToTLExp tl₁  = \case
+--   VarT x → VarTE x
+--   ℕˢT r → ℕˢTE r
+--   ℝˢT r → ℝˢTE r
+--   ℕT → ℕTE
+--   ℝT → ℝTE
+--   𝕀T r → 𝕀TE r
+--   𝔹T → 𝔹TE
+--   𝕊T → 𝕊TE
+--   SetT τ → SetTE $ typeToTLExp τ
+--   𝕄T ℓ c rows cols → 𝕄TE ℓ c rows cols
+--   𝔻T τ → 𝔻TE $ typeToTLExp τ
+--   τ₁ :⊕: τ₂ → typeToTLExp τ₁ :⊕♭: typeToTLExp τ₂
+--   τ₁ :⊗: τ₂ → typeToTLExp τ₁ :⊗♭: typeToTLExp τ₂
+--   τ₁ :&: τ₂ → typeToTLExp τ₁ :&♭: typeToTLExp τ₂
+--   τ₁ :⊸: (s :* τ₂) → typeToTLExp τ₁ :⊸♭: (s :* typeToTLExp τ₂)
+--   (x :* τ₁) :⊸⋆: (pσ :* τ₂) → (x :* typeToTLExp τ₁) :⊸⋆♭: (pσ :* typeToTLExp τ₂)
+--   ForallT x κ τ → ForallTE x κ $ typeToTLExp τ
 
 checkTypeLang ∷ TLExp RExp → 𝑂 (Type RExp)
 checkTypeLang e₀ = case extract e₀ of
@@ -218,16 +196,14 @@ checkTypeLang e₀ = case extract e₀ of
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
     return $ τ₁ :&: τ₂
-  (xτs :* e₁) :⊸♭: (s :* e₂) → do
+  e₁ :⊸♭: (s :* e₂) → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
-    return $ (xτs :* τ₁) :⊸: (s :* τ₂)
-  (xτs :* τps) :⊸⋆♭: e → do
-    τ ← checkTypeLang e
-    return $ (xτs :* τps) :⊸⋆: τ
-  BoxedTE γ e → do
-    τ ← checkTypeLang e
-    return $ BoxedT γ τ
+    return $ τ₁ :⊸: (s :* τ₂)
+  (x :* e₁) :⊸⋆♭: (pσ :* e₂) → do
+    τ₁ ← checkTypeLang e₁
+    τ₂ ← checkTypeLang e₂
+    return $ (x :* τ₁) :⊸⋆: (pσ :* τ₂)
   _ → None
 
 checkRExpLang ∷ TLExp RExp → 𝑂 RExp
@@ -257,7 +233,7 @@ checkRExpLang e₀ = siphon e₀ ^$ case extract e₀ of
     return $ DivRE η₁ η₂
   RootTE e → do
     η ← checkRExpLang e
-    return $ PowRE (rio 1 / rio 2) η
+    return $ PowRE (rat 1 / rat 2) η
   LogTE e → do
     η ← checkRExpLang e
     return $ LogRE η
@@ -382,7 +358,7 @@ checkType τA = case τA of
 -- checkTypeP (τ :* p) = do
 --   checkType τ
 --   checkKindP p
--- 
+--
 -- checkKindP :: ∀ p₁ p₂. Pr p₂ RExp → SM p₁ 𝔹
 -- checkKindP p = case p of
 --   (EDPriv ε δ) → do
@@ -1629,7 +1605,7 @@ inferPriv eA = case extract eA of
 --                         tell $ map (Priv ∘ truncate (unPriv p₂') ∘ unSens) σ₄
 --                         return τ₂
 --             _ → error $ "Fold error " ⧺ (pprender (τ₃ :* τ₄ :* τ₅))
--- 
+--
 --   PMapColPE e₁ x e₂ → do
 --     σ₁ :* τ₁ ← pmFromSM $ hijack $ inferSens e₁
 --     case τ₁ of
@@ -1656,12 +1632,12 @@ inferPriv eA = case extract eA of
 
 --  e → error $ fromString $ show e
 
-renyiϵ' ∷ RNF → RNF → RNF → RNF → RNF
--- TODO
-renyiϵ' j α s ϵ = (one / (α - one)) × log ((dblRNF 1.0) + (renyiϵ'Σpess j α s ϵ))
-
-renyiϵ'Σpess ∷ RNF → RNF → RNF → RNF → RNF
-renyiϵ'Σpess j α s ϵ = α × ((dblRNF 2.0) × (s^α)) × (α^α) × (exp ((α - one) × ϵ))
+-- renyiϵ' ∷ RNF → RNF → RNF → RNF → RNF
+-- -- TODO
+-- renyiϵ' j α s ϵ = (one / (α - one)) × log ((dblRNF 1.0) + (renyiϵ'Σpess j α s ϵ))
+--
+-- renyiϵ'Σpess ∷ RNF → RNF → RNF → RNF → RNF
+-- renyiϵ'Σpess j α s ϵ = α × ((dblRNF 2.0) × (s^α)) × (α^α) × (exp ((α - one) × ϵ))
 
 -- renyiϵ'Σ ∷ RNF → RNF → RNF → RNF → RNF
 -- renyiϵ'Σ j α s ϵ = case α < j of
@@ -1676,6 +1652,44 @@ renyiϵ'Σpess j α s ϵ = α × ((dblRNF 2.0) × (s^α)) × (α^α) × (exp ((�
 -- choose :: RNF → RNF → RNF
 -- choose n k = (fac n) / ((fac k) × (fac (n - k)))
 
+-- conv type to tl, subst, back to type
+subst ∷ 𝕏 → TLExp r → TLExp r → TLExp r
+subst x tl₁ tl₂ = case extract tl₂ of
+  VarTE x' → case x ≡ x' of
+    True → tl₁
+    False → siphon tl₁ $ VarTE x'
+  -- Type Stuff →
+  ℕˢTE r → siphon tl₁ $ ℕˢTE r
+  ℝˢTE r → siphon tl₁ $ ℝˢTE r
+  ℕTE → siphon tl₁ $ ℕTE
+  ℝTE → siphon tl₁ $ ℝTE
+  𝕀TE r → siphon tl₁ $ 𝕀TE r
+  𝔹TE → siphon tl₁ $ 𝔹TE
+  𝕊TE → siphon tl₁ $ 𝕊TE
+  SetTE τ → siphon tl₁ $ SetTE $ subst x tl₁ τ
+  𝕄TE ℓ c rows cols → siphon tl₁ $ 𝕄TE ℓ c rows cols
+  𝔻TE τ → siphon tl₁ $ 𝔻TE $ subst x tl₁ τ
+  τ₁ :⊕♭: τ₂ → siphon tl₁ $ subst x tl₁ τ₁ :⊕♭: subst x tl₁ τ₂
+  τ₁ :⊗♭: τ₂ → siphon tl₁ $ subst x tl₁ τ₁ :⊗♭: subst x tl₁ τ₂
+  τ₁ :&♭: τ₂ → siphon tl₁ $ subst x tl₁ τ₁ :&♭: subst x tl₁ τ₂
+  -- TODO: sens -> tlexp -> then subst -> sens
+  τ₁ :⊸♭: (s :* τ₂) → siphon tl₁ $ subst x tl₁ τ₁ :⊸♭: (s :* subst x tl₁ τ₂)
+  (x :* τ₁) :⊸⋆♭: (penv :* τ₂) → siphon tl₁ $ (x :* subst x tl₁ τ₁) :⊸⋆♭: (penv :* subst x tl₁ τ₂)
+  ForallTE x κ τ → siphon tl₁ $ ForallTE x κ $ subst x tl₁ τ
+   -- RExp Stuff →
+  NatTE n → siphon tl₁ $ NatTE n
+  NNRealTE d → siphon tl₁ $ NNRealTE d
+  MaxTE τ₁ τ₂ → siphon tl₁ $ MaxTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+  MinTE τ₁ τ₂ → siphon tl₁ $ MinTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+  PlusTE τ₁ τ₂ → siphon tl₁ $ PlusTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+  TimesTE τ₁ τ₂ → siphon tl₁ $ TimesTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+  DivTE τ₁ τ₂ → siphon tl₁ $ DivTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+  RootTE τ → siphon tl₁ $ RootTE $ subst x tl₁ τ
+  LogTE τ → siphon tl₁ $ LogTE $ subst x tl₁ τ
+  TopTE → siphon tl₁ $ TopTE
+   -- Privacy Stuff →
+  PairTE τ₁ τ₂ → siphon tl₁ $ PairTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+
 substPriv ∷ (PRIV_C p) ⇒ 𝕏 → Pr p RNF → Type RNF → Type RNF
 substPriv x s τ = substPrivR pø x s pø τ
 
@@ -1686,87 +1700,25 @@ substPrivExp x pe pr =
     Some Refl → do
       case (pe,pr) of
         ( (EpsPriv r ) , (EpsPriv r' ) ) → EpsPriv $ substRNF x r r'
-        ( (EDPriv r₁ r₂ ) , (EDPriv r₁' r₂' ) ) → EDPriv $ (substRNF x r₁ r₁') (substRNF x r₂ r₂')
-        ( (RenyiPriv r₁ r₂) , (RenyiPriv r₁' r₂') ) → RenyiPriv $ (substRNF x r₁ r₁') (substRNF x r₂ r₂')
+        ( (EDPriv r₁ r₂ ) , (EDPriv r₁' r₂' ) ) → EDPriv (substRNF x r₁ r₁') (substRNF x r₂ r₂')
+        ( (RenyiPriv r₁ r₂) , (RenyiPriv r₁' r₂') ) → RenyiPriv (substRNF x r₁ r₁') (substRNF x r₂ r₂')
         ( (ZCPriv r) , (ZCPriv r') ) → ZCPriv $ substRNF x r r'
-        ( (TCPriv r₁ r₂) , (TCPriv r₁' r₂') ) → TCPriv $ substRNF x r r'
+        ( (TCPriv r₁ r₂) , (TCPriv r₁' r₂') ) → TCPriv (substRNF x r₁ r₁') (substRNF x r₂ r₂')
 
 substPrivR ∷ (PRIV_C p) ⇒ 𝑃 𝕏 → 𝕏 → Pr p RNF → 𝑃 𝕏 → Type RNF → Type RNF
-substPrivR 𝓈 x p' fv = \case
-  ℕˢT r → ℕˢT r
-  ℝˢT r → ℝˢT r
-  ℕT → ℕT
-  ℝT → ℝT
-  𝕀T r → 𝕀T r
-  𝔹T → 𝔹T
-  𝕊T → 𝕊T
-  SetT τ → SetT τ
-  𝕄T ℓ c rs me → 𝕄T ℓ c rs me
-  𝔻T τ → 𝔻T τ
-  τ₁ :⊕: τ₂ → τ₁ :⊕: τ₂
-  τ₁ :⊗: τ₂ → τ₁ :⊗: τ₂
-  τ₁ :&: τ₂ → τ₁ :&: τ₂
-  (ακs :* τ₁) :⊸: (s :* τ₂) → (ακs :* τ₁) :⊸: (s :* τ₂)
-  (ακs :* args) :⊸⋆: (penv :* τ) → (ακs :* (map (\ (τ' :* p'') → τ' :* substPrivExp x p' p'') args)) :⊸⋆: (penv :* τ)
-  BoxedT γ τ → BoxedT γ τ
-  VarT x' →  VarT x'
-  τ → error $ "substpriv error" ⧺ pprender τ
+substPrivR 𝓈 x p' fv = undefined
 
 substSens ∷ 𝕏 → Sens RNF → Type RNF → Type RNF
 substSens x s τ = substSensR pø x s pø τ
 
 substSensR ∷ 𝑃 𝕏 → 𝕏 → Sens RNF → 𝑃 𝕏 → Type RNF → Type RNF
-substSensR 𝓈 x s' fv = \case
-  ℕˢT r → ℕˢT r
-  ℝˢT r → ℝˢT r
-  ℕT → ℕT
-  ℝT → ℝT
-  𝕀T r → 𝕀T r
-  𝔹T → 𝔹T
-  𝕊T → 𝕊T
-  SetT τ → SetT τ
-  𝕄T ℓ c rs me → 𝕄T ℓ c rs me
-  𝔻T τ → 𝔻T τ
-  τ₁ :⊕: τ₂ → τ₁ :⊕: τ₂
-  τ₁ :⊗: τ₂ → τ₁ :⊗: τ₂
-  τ₁ :&: τ₂ → τ₁ :&: τ₂
-  (ακs :* τ₁) :⊸: (s :* τ₂) → (ακs :* τ₁) :⊸: (substRNF x (unSens s') (unSens s) :* τ₂)
-  (ακs :* args) :⊸⋆: (penv :* τ) → (ακs :* args) :⊸⋆: (penv :* τ)
-  BoxedT γ τ → BoxedT γ τ
-  VarT x' →  VarT x'
-  τ → error $ "substsens error" ⧺ pprender τ
+substSensR 𝓈 x s' fv = undefined
 
 substType ∷ 𝕏 → Type RNF → Type RNF → Type RNF
 substType x r τ = substTypeR pø x r pø τ
 
 substTypeR ∷ 𝑃 𝕏 → 𝕏 → Type RNF → 𝑃 𝕏 → Type RNF → Type RNF
-substTypeR 𝓈 x r' fv = \case
-  ℕˢT r → ℕˢT r
-  ℝˢT r → ℝˢT r
-  ℕT → ℕT
-  ℝT → ℝT
-  𝕀T r → 𝕀T r
-  𝔹T → 𝔹T
-  𝕊T → 𝕊T
-  SetT τ → SetT $ substTypeR 𝓈 x r' fv τ
-  -- 𝕄T ℓ c rs me →
-  --   let rs' = case rs of
-  --         RexpRT r → RexpRT $ substRNF x (renameRNF (renaming 𝓈 fv) r') r
-  --         StarRT → StarRT
-  --   in 𝕄T ℓ c rs' $ substMExpR 𝓈 x r' fv me
-  𝔻T τ → 𝔻T $ substTypeR 𝓈 x r' fv τ
-  τ₁ :⊕: τ₂ → substTypeR 𝓈 x r' fv τ₁ :⊕: substTypeR 𝓈 x r' fv τ₂
-  τ₁ :⊗: τ₂ → substTypeR 𝓈 x r' fv τ₁ :⊗: substTypeR 𝓈 x r' fv τ₂
-  τ₁ :&: τ₂ → substTypeR 𝓈 x r' fv τ₁ :&: substTypeR 𝓈 x r' fv τ₂
-  (ακs :* τ₁) :⊸: (s :* τ₂) →
-    (ακs :* substTypeR 𝓈 x r' fv τ₁) :⊸: (s :* substTypeR 𝓈 x r' fv τ₂)
-  (ακs :* args) :⊸⋆: (penv :* τ) →
-    (ακs :* (mapOn args $ \ (τ' :* p) → substTypeR 𝓈 x r' fv τ' :* p)) :⊸⋆: (penv :* substTypeR 𝓈 x r' fv τ)
-  -- BoxedT γ τ → BoxedT (mapp (substRNF x (renameRNF (renaming 𝓈 fv) r')) γ) (substRExpR 𝓈 x r' fv τ)
-  VarT x' → case (x ≡ x') of
-    True → r'
-    False → VarT x'
-  τ → error $ "substtype error" ⧺ pprender τ
+substTypeR 𝓈 x r' fv = undefined
 
 substRExp ∷ 𝕏 → RNF → Type RNF → Type RNF
 substRExp x r τ = substRExpR pø x r (fvRNF r) τ
@@ -1780,28 +1732,4 @@ substMExpR 𝓈 x r' fv = \case
   RexpME r τ → RexpME (substRNF x (renameRNF (renaming 𝓈 fv) r') r) (substRExpR 𝓈 x r' fv τ)
 
 substRExpR ∷ 𝑃 𝕏 → 𝕏 → RNF → 𝑃 𝕏 → Type RNF → Type RNF
-substRExpR 𝓈 x r' fv = \case
-  ℕˢT r → ℕˢT $ substRNF x (renameRNF (renaming 𝓈 fv) r') r
-  ℝˢT r → ℝˢT $ substRNF x (renameRNF (renaming 𝓈 fv) r') r
-  ℕT → ℕT
-  ℝT → ℝT
-  𝕀T r → 𝕀T $ substRNF x (renameRNF (renaming 𝓈 fv) r') r
-  𝔹T → 𝔹T
-  𝕊T → 𝕊T
-  SetT τ → SetT $ substRExpR 𝓈 x r' fv τ
-  𝕄T ℓ c rs me →
-    let rs' = case rs of
-          RexpRT r → RexpRT $ substRNF x (renameRNF (renaming 𝓈 fv) r') r
-          StarRT → StarRT
-    in 𝕄T ℓ c rs' $ substMExpR 𝓈 x r' fv me
-  𝔻T τ → 𝔻T $ substRExpR 𝓈 x r' fv τ
-  τ₁ :⊕: τ₂ → substRExpR 𝓈 x r' fv τ₁ :⊕: substRExpR 𝓈 x r' fv τ₂
-  τ₁ :⊗: τ₂ → substRExpR 𝓈 x r' fv τ₁ :⊗: substRExpR 𝓈 x r' fv τ₂
-  τ₁ :&: τ₂ → substRExpR 𝓈 x r' fv τ₁ :&: substRExpR 𝓈 x r' fv τ₂
-  (ακs :* τ₁) :⊸: (s :* τ₂) →
-    let 𝓈' = joins [𝓈,pow $ map fst ακs]
-    in (ακs :* substRExpR 𝓈' x r' fv τ₁) :⊸: (map (substRNF x (renameRNF (renaming 𝓈' fv) r')) s :* substRExpR 𝓈' x r' fv τ₂)
-  (ακs :* ατs) :⊸⋆: (penv :* τ) →
-    let 𝓈' = joins [𝓈,pow $ map fst ακs]
-    in (ακs :* (mapOn ατs $ \ (τ' :* p) → substRExpR 𝓈' x r' fv τ' :* p)) :⊸⋆: substRExpR 𝓈' x r' fv τ
-  -- BoxedT γ τ → BoxedT (mapp (substRNF x (renameRNF (renaming 𝓈 fv) r')) γ) (substRExpR 𝓈 x r' fv τ)
+substRExpR 𝓈 x r' fv = undefined

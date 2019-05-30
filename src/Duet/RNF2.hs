@@ -845,7 +845,7 @@ efnRNFProds (RNFProds δ̂ δ̌) = case (isEmpty δ̂,δ̌) of
   -- 𝑒^̃ ((㏒ γ̇) ^̇ 1)
   (True,stream → (uncons𝑆 → Some ((LogRA γ̇ :* ((≡) one → True)) :* (uncons𝑆 → None)))) → γ̇
   _ → oneProd $ oneAtom $ EfnRA $ RNFProds δ̂ δ̌
-  -- 𝑒^̃ (δ̂ ×̇ δ̌) = 
+  -- 𝑒^̃ (δ̂ ×̇ δ̌) =
 
 -- ┌────┐
 -- │𝑒^̃ e│
@@ -909,7 +909,7 @@ logRNFMinsSym β =
 -- │㏒ γ̇│
 -- └────┘
 logRNFSums ∷ RNFSums → AddTop RNFSums
-logRNFSums γ̇ = case γ̇ of 
+logRNFSums γ̇ = case γ̇ of
   RNFSums Bot (stream → (uncons𝑆 → Some ((δ̇ :* d) :* (uncons𝑆 → None)))) → do
     d' ← d
     return $ RNFSums (AddBot d') $ logRNFProds δ̇
@@ -919,12 +919,12 @@ logRNFSums γ̇ = case γ̇ of
 -- │㏒ δ̇│
 -- └────┘
 logRNFProds ∷ RNFProds → RNFProds ⇰ AddTop 𝔻
-logRNFProds (RNFProds δ̂ δ̌) = 
+logRNFProds (RNFProds δ̂ δ̌) =
   sum
-  [ sum $ do 
+  [ sum $ do
       γ̇ :* c ← list δ̂
       return $ RNFProds dø (LogRA γ̇ ↦ c) ↦ one
-  , sum $ do 
+  , sum $ do
       α :* c ← list δ̌
       return $ logRNFAtom α ↦ AddTop (dbl c)
   ]
@@ -1042,6 +1042,9 @@ logRE = Annotated null ∘ LogRE
 -- add log
 -- add ind
 
+invNormalizeRNF ∷ RNF → RExp
+invNormalizeRNF r = undefined
+
 normalizeRNF ∷ RExp → RNF
 normalizeRNF = normalizeRNFPre ∘ extract
 
@@ -1137,3 +1140,12 @@ addBot2RNF (AddBot d) = dblRNF d
 addTop2RNF ∷ AddTop 𝔻 → RNF
 addTop2RNF Top = top
 addTop2RNF (AddTop d) = dblRNF d
+
+renaming :: 𝑃 𝕏 -> 𝑃 𝕏 -> a
+renaming = undefined
+
+renameRNF :: a -> RNF -> RNF
+renameRNF = undefined
+
+fvRNF :: RNF -> 𝑃 𝕏
+fvRNF = undefined

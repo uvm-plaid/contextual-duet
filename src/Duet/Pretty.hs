@@ -40,8 +40,8 @@ instance Pretty Kind where
     ℕK → ppKeyPun "ℕ"
     ℝK → ppKeyPun "ℝ⁺"
     TypeK → ppKeyPun "☆"
-    SensK → ppKeyPun "sens"
-    PrivK _ → ppKeyPun "priv"
+    -- SensK → ppKeyPun "sens"
+    -- PrivK _ → ppKeyPun "priv"
 
 
 instance Pretty Norm where
@@ -175,7 +175,7 @@ instance (Pretty r) ⇒ Pretty (Type r) where
         , pretty κ
         , ppPun "."
         ]
-      , ppNest 2 $ ppAlign $ pretty τ 
+      , ppNest 2 $ ppAlign $ pretty τ
       ]
     BoxedT σ τ → ppAtLevel 5 $ ppSeparated $ list
       [ concat [ ppKeyPun "□" , ppPun "[" ]
