@@ -458,6 +458,17 @@ data SExp (p ∷ PRIV) where
   -- Δ , Γ ⊢ e : ∀ α:κ. τ
   -- -----------------------
   -- Δ , Γ ⊢ e[τ′] : [τ′/α]τ
+  --
+  -- before we wrote: sλ α:κ .    x:ℝ[α] ⇒ e
+  -- now we write:    Λ  α:κ ⇒ sλ x:ℝ[α] ⇒ e
+  --
+  -- the before type was: ∀ α:κ . (x:ℝ[α]) ⊸[ x⋅s ] τ
+  -- now the type is:     ∀ α:κ . (x:ℝ[α]) ⊸[ Σ ] τ 
+  --
+  -- before we had: f@[ τ ] x
+  -- now we have:   (f@τ) x
+  --                ^^^^^
+  --                TAppSE
   TAppSE ∷ SExpSource p → TypeSource RExp → SExp p
   InlSE ∷ TypeSource RExp → SExpSource p → SExp p
   InrSE ∷ TypeSource RExp → SExpSource p → SExp p
