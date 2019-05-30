@@ -221,6 +221,8 @@ frKindE ℝKE = Some ℝK
 frKindE TypeKE = Some TypeK
 frKindE ErrorKE = None
 
+-- concrete syntax: 
+-- (x : τ₁) ⊸[ x⋅0 ] (y : τ₂) ⊸⋆ [ x⋅p₁ y⋅p₂ ] τ₃
 type TypeSource r = Annotated FullContext (Type r)
 data Type r =
     VarT 𝕏
@@ -240,7 +242,7 @@ data Type r =
   | Type r :⊕: Type r
   | Type r :⊗: Type r
   | Type r :&: Type r
-  | Type r :⊸: (Sens r ∧ Type r)
+  | (𝕏 ∧ Type r) :⊸: ((𝕏 ⇰ Sens r) ∧ Type r)
   | (𝕏 ∧ Type r) :⊸⋆: (PEnv r ∧ Type r)
   | ForallT 𝕏 Kind (Type r)
   | BoxedT (𝕏 ⇰ Sens r) (Type r)
@@ -362,7 +364,7 @@ instance Functor Type where
     τ₁ :⊕: τ₂ → map f τ₁ :⊕: map f τ₂
     τ₁ :⊗: τ₂ → map f τ₁ :⊗: map f τ₂
     τ₁ :&: τ₂ → map f τ₁ :&: map f τ₂
-    τ₁ :⊸: (s :* τ₂) → map f τ₁ :⊸: (map f s :*  map f τ₂)
+    (x :* τ₁) :⊸: (s :* τ₂) → (x :* map f τ₁) :⊸: (mapp f s :*  map f τ₂)
     (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → (x :* map f τ₁) :⊸⋆: (PEnv (map (map f) pσ) :* map f τ₂)
     ForallT α κ τ → ForallT α κ $ map f τ
     BoxedT σ τ → BoxedT (map (map f) σ) (map f τ)
