@@ -129,9 +129,10 @@ parKind p = pNew "kind" $ tries
   [ do parLit "ℕ" ; return ℕK
   , do parLit "ℝ⁺" ; return ℝK
   , do parLit "☆" ; return TypeK
-  , do parLit "sens" ; return SensK
-  , do parLit "priv" ; return $ PrivK (stripPRIV p)
   ]
+
+parPEnv ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (PEnv RExp)
+parPEnv = undefined
 
 parRowsT :: Parser Token (RowsT RExp)
 parRowsT = tries
@@ -227,7 +228,7 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
       τ₁ ← parTLExp mode
       parLit "⊸"
       parLit "["
-      s ← parSensExp
+      s ← parRExp
       parLit "]"
       return $ \ τ₂ → (ακs :* τ₁) :⊸♭: (s :* τ₂)
   , mixF $ MixFPrefix 2 $ do
@@ -267,8 +268,7 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
   , mixF $ MixFPrefix 7 $ const RootTE ^$ parLit "√"
   , mixF $ MixFPrefix 7 $ const LogTE ^$ parLit "㏒"
   -- Quantity Stuff
-  , mixF $ MixFTerminal $ do parLit "⊥" ; return BotTE
-  , mixF $ MixFTerminal $ do parLit "⊤" ; return TopTE
+  , mixF $ MixFTerminal $ do parLit "∞" ; return TopTE
   -- Privacy Stuff
   -- , mixF $ MixFTerminal $ -- ⟨ tle , tle ⟩
   ]
@@ -284,12 +284,12 @@ parSens = mixfixParser $ concat
       return $ Sens $ Quantity η
   ]
 
-parSensExp ∷ Parser Token (SensExp RExp)
-parSensExp = tries
-  [
-   do x ← parVar ; return $ VarSens x
-  ,do s ← parSens ; return $ SensExp s
-  ]
+-- parSensExp ∷ Parser Token (SensExp RExp)
+-- parSensExp = tries
+--   [
+--    do x ← parVar ; return $ VarSens x
+--   ,do s ← parSens ; return $ SensExp s
+--   ]
 
 parRExp ∷ Parser Token RExp
 parRExp = mixfixParserWithContext "rexp" $ concat
@@ -321,14 +321,14 @@ parClip = tries
   ]
 
 --
-parPrivExp ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (PrivExp p RExp)
-parPrivExp p = tries
-  [
-   do x ← parVar ; return $ VarPriv x
-  ,do s ← parPriv p ; return $ PrivExp s
-  ]
+-- parPrivExp ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (PrivExp p RExp)
+-- parPrivExp p = tries
+--   [
+--    do x ← parVar ; return $ VarPriv x
+--   ,do s ← parPriv p ; return $ PrivExp s
+--   ]
 
-parPriv ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (Priv p RExp)
+parPriv ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (Pr p RExp)
 parPriv p = tries
   [ case p of
       ED_W → do
@@ -337,7 +337,7 @@ parPriv p = tries
         parLit ","
         δ ← parRExp
         parLit "⟩"
-        return $ Priv $ Quantity $ EDPriv ϵ δ
+        return $ EDPriv ϵ δ
       _ → abort
   ]
 
@@ -429,36 +429,28 @@ parType mode = mixfixParser $ concat
   , mix $ MixInfixL 4 $ const (:⊗:) ^$ parLit "×"
   , mix $ MixInfixL 4 $ const (:&:) ^$ parLit "&"
   , mix $ MixPrefix 2 $ do
-      parLit "∀"
-      ακs ← pManySepBy (parLit ",") $ do
-        α ← parVar
-        parLit ":"
-        κ ← parKind mode
-        return $ α :* κ
-      parLit "."
       τ₁ ← parType mode
       parLit "⊸"
       parLit "["
-      s ← parSensExp
+      s ← parSens
       parLit "]"
-      return $ \ τ₂ → (ακs :* τ₁) :⊸: (s :* τ₂)
+      return $ \ τ₂ → τ₁ :⊸: (s :* τ₂)
+  , mix $ MixPrefix 2 $ do
+      x ← parVar
+      parLit ":"
+      τ₁ ← parType mode
+      parLit "⊸"
+      parLit "["
+      σ ← parPEnv mode
+      parLit "]"
+      return $ \ τ₂ → (x :* τ₁) :⊸⋆: (σ :* τ₂)
   , mix $ MixPrefix 2 $ do
       parLit "∀"
-      ακs ← pManySepBy (parLit ",") $ do
-        α ← parVar
-        parLit ":"
-        κ ← parKind mode
-        return $ α :* κ
+      α ← parVar
+      parLit ":"
+      κ ← parKind mode
       parLit "."
-      parLit "("
-      τps ← pOneOrMoreSepBy (parLit ",") $ do
-        τ ← parType mode
-        parLit "@"
-        p ← parPrivExp mode
-        return $ τ :* p
-      parLit ")"
-      parLit "⊸⋆"
-      return $ (:⊸⋆:) $ ακs :* PArgs τps
+      return $ \ τ → ForallT α κ τ
   , mix $ MixPrefix 3 $ do
       parLit "box"
       parLit "["
@@ -760,7 +752,7 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
              parLit "in"
              return $ \ e₂ → UntupSE x y e₁ e₂
         ]
-  , mixF $ MixFInfixL 10 $ const (\ e₁ e₂ → AppSE e₁ Nil e₂) ^$ parSpace
+  , mixF $ MixFInfixL 10 $ const (\ e₁ e₂ → AppSE e₁ e₂) ^$ parSpace
   , mixF $ MixFInfixL 10 $ do
        parLit "@"
        parLit "["
