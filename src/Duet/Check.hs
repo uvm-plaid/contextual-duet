@@ -120,26 +120,26 @@ smFromPM ∷ PM p a → SM p a
 smFromPM xM = mkSM $ \ δ γ ᴍ →
   mapInr (mapFst $ map $ Sens ∘ (×) top ∘ truncateRNF ∘ indicatorPr) $ runPM δ γ ᴍ xM
 
-pmFromSM ∷ SM p a → PM p a
+pmFromSM ∷ (PRIV_C p) ⇒ SM p a → PM p a
 pmFromSM xM = mkPM $ \ δ γ ᴍ →
   mapInr (mapFst $ map $ makePr ∘ (×) top ∘ truncateRNF ∘ unSens) $ runSM δ γ ᴍ xM
 
 mapPPM ∷ (Pr p₁ RNF → Pr p₂ RNF) → PM p₁ a → PM p₂ a
 mapPPM f xM = mkPM $ \ δ γ ᴍ → mapInr (mapFst $ map f) $ runPM δ γ ᴍ xM
 
-checkSensLang ∷ TLExp RExp → 𝑂 (Sens RExp)
+checkSensLang ∷ STLExp RExp → 𝑂 (Sens RExp)
 checkSensLang e = do
   η ← checkRExpLang e
   return $ Sens η
 
-checkPrivLang ∷ (PRIV_C p) ⇒ PRIV_W p → TLExp RExp → 𝑂 (Pr p RExp)
+checkPrivLang ∷ (PRIV_C p) ⇒ PRIV_W p → STLExp RExp → 𝑂 (Pr p RExp)
 checkPrivLang p e₀ = case p of
   EPS_W → do
     η ← checkRExpLang e₀
     return $ EpsPriv η
   ED_W → do
     case extract e₀ of
-      PairTE e₁ e₂ → do
+      PairSTE e₁ e₂ → do
         η₁ ← checkRExpLang e₁
         η₂ ← checkRExpLang e₂
         return $ EDPriv η₁ η₂
@@ -167,74 +167,74 @@ checkPrivLang p e₀ = case p of
 --   (x :* τ₁) :⊸⋆: (pσ :* τ₂) → (x :* typeToTLExp τ₁) :⊸⋆♭: (pσ :* typeToTLExp τ₂)
 --   ForallT x κ τ → ForallTE x κ $ typeToTLExp τ
 
-checkTypeLang ∷ TLExp RExp → 𝑂 (Type RExp)
+checkTypeLang ∷ STLExp RExp → 𝑂 (Type RExp)
 checkTypeLang e₀ = case extract e₀ of
-  VarTE x → return $ VarT x
-  ℕˢTE r → return $ ℕˢT r
-  ℝˢTE r → return $ ℝˢT r
-  ℕTE → return ℕT
-  ℝTE → return ℝT
-  𝕀TE r → return $ 𝕀T r
-  𝔹TE → return 𝔹T
-  𝕊TE → return 𝕊T
-  SetTE e → do
+  VarSTE x → return $ VarT x
+  ℕˢSTE r → return $ ℕˢT r
+  ℝˢSTE r → return $ ℝˢT r
+  ℕSTE → return ℕT
+  ℝSTE → return ℝT
+  𝕀STE r → return $ 𝕀T r
+  𝔹STE → return 𝔹T
+  𝕊STE → return 𝕊T
+  SetSTE e → do
     τ ← checkTypeLang e
     return $ SetT τ
-  𝕄TE ℓ c rows mexpr → return $ 𝕄T ℓ c rows mexpr
-  𝔻TE e → do
+  𝕄STE ℓ c rows mexpr → return $ 𝕄T ℓ c rows mexpr
+  𝔻STE e → do
     τ ← checkTypeLang e
     return $ 𝔻T τ
-  e₁ :⊕♭: e₂ → do
+  e₁ :⊕♭♭: e₂ → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
     return $ τ₁ :⊕: τ₂
-  e₁ :⊗♭: e₂ → do
+  e₁ :⊗♭♭: e₂ → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
     return $ τ₁ :⊗: τ₂
-  e₁ :&♭: e₂ → do
+  e₁ :&♭♭: e₂ → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
     return $ τ₁ :&: τ₂
-  e₁ :⊸♭: (s :* e₂) → do
+  e₁ :⊸♭♭: (s :* e₂) → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
     return $ τ₁ :⊸: (s :* τ₂)
-  (x :* e₁) :⊸⋆♭: (pσ :* e₂) → do
+  (x :* e₁) :⊸⋆♭♭: (pσ :* e₂) → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
     return $ (x :* τ₁) :⊸⋆: (pσ :* τ₂)
   _ → None
 
-checkRExpLang ∷ TLExp RExp → 𝑂 RExp
+checkRExpLang ∷ STLExp RExp → 𝑂 RExp
 checkRExpLang e₀ = siphon e₀ ^$ case extract e₀ of
-  VarTE x → return $ VarRE x
-  NatTE n → return $ ConstRE $ AddTop $ dbl n
-  NNRealTE r → return $ ConstRE $ AddTop r
-  MaxTE e₁ e₂ → do
+  VarSTE x → return $ VarRE x
+  NatSTE n → return $ ConstRE $ AddTop $ dbl n
+  NNRealSTE r → return $ ConstRE $ AddTop r
+  MaxSTE e₁ e₂ → do
     η₁ ← checkRExpLang e₁
     η₂ ← checkRExpLang e₂
     return $ MaxRE η₁ η₂
-  MinTE e₁ e₂ → do
+  MinSTE e₁ e₂ → do
     η₁ ← checkRExpLang e₁
     η₂ ← checkRExpLang e₂
     return $ MinRE η₁ η₂
-  PlusTE e₁ e₂ → do
+  PlusSTE e₁ e₂ → do
     η₁ ← checkRExpLang e₁
     η₂ ← checkRExpLang e₂
     return $ PlusRE η₁ η₂
-  TimesTE e₁ e₂ → do
+  TimesSTE e₁ e₂ → do
     η₁ ← checkRExpLang e₁
     η₂ ← checkRExpLang e₂
     return $ TimesRE η₁ η₂
-  DivTE e₁ e₂ → do
+  DivSTE e₁ e₂ → do
     η₁ ← checkRExpLang e₁
     η₂ ← checkRExpLang e₂
     return $ DivRE η₁ η₂
-  RootTE e → do
+  RootSTE e → do
     η ← checkRExpLang e
     return $ PowRE (rat 1 / rat 2) η
-  LogTE e → do
+  LogSTE e → do
     η ← checkRExpLang e
     return $ LogRE η
   _ → None
@@ -271,6 +271,11 @@ checkKind κ r = do
   κ' ← inferKind r
   when (not $ κ' ⊑ κ) $ error "kind error"
 
+frKindEM ∷ KindE → SM p Kind
+frKindEM κ = case frKindE κ of
+  None → error "kind error"
+  Some κ → return κ
+
 inferKind ∷ RExpPre → SM p Kind
 inferKind = \case
   VarRE x → inferKindVar x
@@ -281,19 +286,19 @@ inferKind = \case
   MaxRE e₁ e₂ → do
     κ₁ ← inferKind $ extract e₁
     κ₂ ← inferKind $ extract e₂
-    return $ κ₁ ⊔ κ₂
+    frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
   MinRE e₁ e₂ → do
     κ₁ ← inferKind $ extract e₁
     κ₂ ← inferKind $ extract e₂
-    return $ κ₁ ⊔ κ₂
+    frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
   PlusRE e₁ e₂ → do
     κ₁ ← inferKind $ extract e₁
     κ₂ ← inferKind $ extract e₂
-    return $ κ₁ ⊔ κ₂
+    frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
   TimesRE e₁ e₂ → do
     κ₁ ← inferKind $ extract e₁
     κ₂ ← inferKind $ extract e₂
-    return $ κ₁ ⊔ κ₂
+    frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
   PowRE q e → do
     κ ← inferKind $ extract e
     return $ case ratDen q ≡ 1 of

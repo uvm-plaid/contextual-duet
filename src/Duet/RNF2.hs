@@ -979,6 +979,7 @@ instance Zero RNF where zero = ConstantRNF BotBT
 instance One RNF where one = ConstantRNF (AddBT one)
 instance Plus RNF where (+) = sumRNF
 instance Times RNF where (×) = prodRNF
+instance Divide RNF where (/) = undefined
 
 instance Additive RNF
 instance Multiplicative RNF
