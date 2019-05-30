@@ -1145,11 +1145,11 @@ inferPriv eA = case extract eA of
     τ₁ ← pmFromSM $ inferSens e₁
     σ₂ :* τ₂ ← pmFromSM $ hijack $ inferSens e₂
     case τ₁ of
-      (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ 𝕏 ⇰ Pr p' RNF) :* τ₁₂) | (τ₁₁ ≡ τ₂) ⩓ (joins σ₂ ⊑ one) →
+      (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ 𝕏 ⇰ Pr p' RNF) :* τ₁₂) | (τ₁₁ ≡ τ₂) ⩓ (joins (values σ₂) ⊑ one) →
         case eqPRIV (priv @ p) (priv @ p') of
           None → error "not same priv mode"
           Some Refl → do
-            let (pₓ :* σ'') = ifNone (zero :* σ') $ dview x σ'
+            let (pₓ :* σ'') = ifNone (makePr zero :* σ') $ dview x σ'
             -- TODO: change iteratePr to something functionally the same but less hacky
             let σ₂' = mapOn σ₂ $ (\ i → iteratePr i pₓ) ∘ truncateRNF ∘ unSens
             tell $ σ₂'
@@ -1659,41 +1659,41 @@ inferPriv eA = case extract eA of
 
 -- conv type to tl, subst, back to type
 subst ∷ 𝕏 → TLExp r → TLExp r → TLExp r
-subst x tl₁ tl₂ = case extract tl₂ of
+subst x tl₁ tl₂ = case tl₂ of
   VarTE x' → case x ≡ x' of
     True → tl₁
-    False → siphon tl₁ $ VarTE x'
+    False → VarTE x'
   -- Type Stuff →
-  ℕˢTE r → siphon tl₁ $ ℕˢTE r
-  ℝˢTE r → siphon tl₁ $ ℝˢTE r
-  ℕTE → siphon tl₁ $ ℕTE
-  ℝTE → siphon tl₁ $ ℝTE
-  𝕀TE r → siphon tl₁ $ 𝕀TE r
-  𝔹TE → siphon tl₁ $ 𝔹TE
-  𝕊TE → siphon tl₁ $ 𝕊TE
-  SetTE τ → siphon tl₁ $ SetTE $ subst x tl₁ τ
-  𝕄TE ℓ c rows cols → siphon tl₁ $ 𝕄TE ℓ c rows cols
-  𝔻TE τ → siphon tl₁ $ 𝔻TE $ subst x tl₁ τ
-  τ₁ :⊕♭: τ₂ → siphon tl₁ $ subst x tl₁ τ₁ :⊕♭: subst x tl₁ τ₂
-  τ₁ :⊗♭: τ₂ → siphon tl₁ $ subst x tl₁ τ₁ :⊗♭: subst x tl₁ τ₂
-  τ₁ :&♭: τ₂ → siphon tl₁ $ subst x tl₁ τ₁ :&♭: subst x tl₁ τ₂
+  ℕˢTE r → ℕˢTE r
+  ℝˢTE r → ℝˢTE r
+  ℕTE → ℕTE
+  ℝTE → ℝTE
+  𝕀TE r → 𝕀TE r
+  𝔹TE → 𝔹TE
+  𝕊TE → 𝕊TE
+  SetTE τ → SetTE $ subst x tl₁ τ
+  𝕄TE ℓ c rows cols → 𝕄TE ℓ c rows cols
+  𝔻TE τ → 𝔻TE $ subst x tl₁ τ
+  τ₁ :⊕♭: τ₂ → subst x tl₁ τ₁ :⊕♭: subst x tl₁ τ₂
+  τ₁ :⊗♭: τ₂ → subst x tl₁ τ₁ :⊗♭: subst x tl₁ τ₂
+  τ₁ :&♭: τ₂ → subst x tl₁ τ₁ :&♭: subst x tl₁ τ₂
   -- TODO: sens -> tlexp -> then subst -> sens
-  τ₁ :⊸♭: (s :* τ₂) → siphon tl₁ $ subst x tl₁ τ₁ :⊸♭: (s :* subst x tl₁ τ₂)
-  (x :* τ₁) :⊸⋆♭: (penv :* τ₂) → siphon tl₁ $ (x :* subst x tl₁ τ₁) :⊸⋆♭: (penv :* subst x tl₁ τ₂)
-  ForallTE x κ τ → siphon tl₁ $ ForallTE x κ $ subst x tl₁ τ
+  τ₁ :⊸♭: (s :* τ₂) → subst x tl₁ τ₁ :⊸♭: (s :* subst x tl₁ τ₂)
+  (x :* τ₁) :⊸⋆♭: (penv :* τ₂) → (x :* subst x tl₁ τ₁) :⊸⋆♭: (penv :* subst x tl₁ τ₂)
+  ForallTE x κ τ → ForallTE x κ $ subst x tl₁ τ
    -- RExp Stuff →
-  NatTE n → siphon tl₁ $ NatTE n
-  NNRealTE d → siphon tl₁ $ NNRealTE d
-  MaxTE τ₁ τ₂ → siphon tl₁ $ MaxTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
-  MinTE τ₁ τ₂ → siphon tl₁ $ MinTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
-  PlusTE τ₁ τ₂ → siphon tl₁ $ PlusTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
-  TimesTE τ₁ τ₂ → siphon tl₁ $ TimesTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
-  DivTE τ₁ τ₂ → siphon tl₁ $ DivTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
-  RootTE τ → siphon tl₁ $ RootTE $ subst x tl₁ τ
-  LogTE τ → siphon tl₁ $ LogTE $ subst x tl₁ τ
-  TopTE → siphon tl₁ $ TopTE
+  NatTE n → NatTE n
+  NNRealTE d → NNRealTE d
+  MaxTE τ₁ τ₂ → MaxTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+  MinTE τ₁ τ₂ → MinTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+  PlusTE τ₁ τ₂ → PlusTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+  TimesTE τ₁ τ₂ → TimesTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+  DivTE τ₁ τ₂ → DivTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+  RootTE τ → RootTE $ subst x tl₁ τ
+  LogTE τ → LogTE $ subst x tl₁ τ
+  TopTE → TopTE
    -- Privacy Stuff →
-  PairTE τ₁ τ₂ → siphon tl₁ $ PairTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
+  PairTE τ₁ τ₂ → PairTE (subst x tl₁ τ₁) (subst x tl₁ τ₂)
 
 substPriv ∷ (PRIV_C p) ⇒ 𝕏 → Pr p RNF → Type RNF → Type RNF
 substPriv x s τ = substPrivR pø x s pø τ
