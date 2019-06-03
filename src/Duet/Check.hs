@@ -612,16 +612,16 @@ inferSens eA = case extract eA of
   --       | (getConsMAt me₁ η₁) ≡ (getConsMAt me₂ η₂) → do
   --         return $ 𝕄T LInf UClip StarRT (joinConsMs me₁ me₂)
   --     _  → error $ "join₁ failed" ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄))
-  BMapSE e₁ x e₂ → do
-    σ₁ :* τ₁ ← hijack $ inferSens e₁
-    case τ₁ of
-      BagT ℓ _c τ₁' → do
-        σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁') ⩌ γ) $ inferSens e₂
-        let (ς :* σ₂') = ifNone (zero :* σ₂) $ dview x σ₂
-        tell $ ς ⨵ σ₁
-        tell $ σ₂'
-        return $ BagT ℓ UClip τ₂
-      _  → undefined -- TypeSource Error
+  -- BMapSE e₁ x e₂ → do
+  --   σ₁ :* τ₁ ← hijack $ inferSens e₁
+  --   case τ₁ of
+  --     BagT ℓ _c τ₁' → do
+  --       σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁') ⩌ γ) $ inferSens e₂
+  --       let (ς :* σ₂') = ifNone (zero :* σ₂) $ dview x σ₂
+  --       tell $ ς ⨵ σ₁
+  --       tell $ σ₂'
+  --       return $ BagT ℓ UClip τ₂
+  --     _  → undefined -- TypeSource Error
   MMap2SE e₁ e₂ x₁ x₂ e₃ → do
     σ₁ :* τ₁ ← hijack $ inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
@@ -644,23 +644,23 @@ inferSens eA = case extract eA of
              tell $ ι (r₁ × r₂) ⨵ σ₃''
              return $ 𝕄T ℓ₁ UClip (RexpRT r₁) (RexpME r₂ τ₃)
       _ → error $ "Map2 error: " ⧺ (pprender $ (τ₁ :* τ₂))
-  BMap2SE e₁ e₂ x₁ x₂ e₃ → do
-    σ₁ :* τ₁ ← hijack $ inferSens e₁
-    σ₂ :* τ₂ ← hijack $ inferSens e₂
-    case (τ₁,τ₂) of
-      (BagT ℓ₁ _c₁ τ₁',BagT ℓ₂ _c₂ τ₂')
-        | ℓ₁ ≡ ℓ₂
-        → do σ₃ :* τ₃ ←
-               hijack $
-               mapEnvL contextTypeL (\ γ → dict [x₁ ↦ τ₁',x₂ ↦ τ₂'] ⩌ γ) $
-               inferSens e₃
-             let (ς₁ :* σ₃') = ifNone (zero :* σ₃) $ dview x₁ σ₃
-                 (ς₂ :* σ₃'') = ifNone (zero :* σ₃') $ dview x₂ σ₃'
-             tell $ ς₁ ⨵ σ₁
-             tell $ ς₂ ⨵ σ₂
-             tell $ σ₃''
-             return $ BagT ℓ₁ UClip τ₃
-      _ → error $ "Map2 error: " ⧺ (pprender $ (τ₁ :* τ₂))
+  -- BMap2SE e₁ e₂ x₁ x₂ e₃ → do
+  --   σ₁ :* τ₁ ← hijack $ inferSens e₁
+  --   σ₂ :* τ₂ ← hijack $ inferSens e₂
+  --   case (τ₁,τ₂) of
+  --     (BagT ℓ₁ _c₁ τ₁',BagT ℓ₂ _c₂ τ₂')
+  --       | ℓ₁ ≡ ℓ₂
+  --       → do σ₃ :* τ₃ ←
+  --              hijack $
+  --              mapEnvL contextTypeL (\ γ → dict [x₁ ↦ τ₁',x₂ ↦ τ₂'] ⩌ γ) $
+  --              inferSens e₃
+  --            let (ς₁ :* σ₃') = ifNone (zero :* σ₃) $ dview x₁ σ₃
+  --                (ς₂ :* σ₃'') = ifNone (zero :* σ₃') $ dview x₂ σ₃'
+  --            tell $ ς₁ ⨵ σ₁
+  --            tell $ ς₂ ⨵ σ₂
+  --            tell $ σ₃''
+  --            return $ BagT ℓ₁ UClip τ₃
+  --     _ → error $ "Map2 error: " ⧺ (pprender $ (τ₁ :* τ₂))
   VarSE x → do
     γ ← askL contextTypeL
     case γ ⋕? x of
@@ -686,17 +686,17 @@ inferSens eA = case extract eA of
         tell $ ς ⨵ σ₁
         tell σ₂'
         return τ₂
+  TAbsSE x κ e → do
+    mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
+      τ ← inferSens e
+      return $ ForallT x κ τ
+  TAppSE e τ → do
+    undefined
   SFunSE x τ e → do
-    -- mapEnvL contextKindL (\ δ → assoc ακs ⩌ δ) $ do
       checkType $ extract τ
       let τ' = map normalizeRNF $ extract τ
       σ :* τ'' ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferSens e
       let (ς :* σ') = ifNone (zero :* σ) $ dview x σ
-      -- let fvs = freeBvs τ''
-      -- let isClosed = (fvs ∩ single𝑃 x) ≡ pø
-      -- case isClosed of
-      --   False → error $ "Lambda type/scoping error in return expression of type: " ⧺ (pprender τ'')
-      --   True → do
       do
           tell σ'
           return $ (x :* τ') :⊸: (σ :* τ'')
@@ -780,20 +780,20 @@ inferSens eA = case extract eA of
     case τ of
       ℕˢT η → do tell σ ; return $ 𝕀T η
       _ → undefined -- TypeError
-  RecordColSE a₁ e → do
-    τ ← inferSens e
-    case τ of
-      RecordT as → do
-        -- TODO: I (Joe) am not a wizard at this
-        let f ∷ (𝕊 ∧ Type RNF) → 𝑂 (Type RNF) → 𝑂 (Type RNF) = \ p acc →
-               case p of
-                 (a₂ :* v) | a₁ ≡ a₂ → Some v
-                 _ → acc
-            τₐ ∷ 𝑂 (Type RNF) = fold None f as
-        case τₐ of
-          Some τ' → return τ'
-          _ → error $ "RecordColSE attribute not found: " ⧺ (pprender (τ, τₐ))
-      _ → error $ "RecordColSE error: " ⧺ (pprender τ)
+  -- RecordColSE a₁ e → do
+  --   τ ← inferSens e
+  --   case τ of
+  --     RecordT as → do
+  --       -- TODO: I (Joe) am not a wizard at this
+  --       let f ∷ (𝕊 ∧ Type RNF) → 𝑂 (Type RNF) → 𝑂 (Type RNF) = \ p acc →
+  --              case p of
+  --                (a₂ :* v) | a₁ ≡ a₂ → Some v
+  --                _ → acc
+  --           τₐ ∷ 𝑂 (Type RNF) = fold None f as
+  --       case τₐ of
+  --         Some τ' → return τ'
+  --         _ → error $ "RecordColSE attribute not found: " ⧺ (pprender (τ, τₐ))
+  --     _ → error $ "RecordColSE error: " ⧺ (pprender τ)
   EqualsSE e₁ e₂ → do
     τ₁ ← inferSens e₁
     τ₂ ← inferSens e₂
@@ -802,28 +802,28 @@ inferSens eA = case extract eA of
       _ → error $ "Equals error: " ⧺ (pprender (τ₁, τ₂))
   TrueSE → return 𝔹T
   FalseSE → return 𝔹T
-  DFPartitionSE e₁ a e₂ → do
-    σ₁ :* τ₁ ← hijack $ inferSens e₁
-    τ₂ ← inferSens e₂
-    -- TODO: check that τ₁ and τ₂ overlap on some subset of their schemas
-    case (τ₁, τ₂) of
-      (BagT ℓ c (RecordT as), SetT τ₃) → do
-        -- TODO: helper?
-        let f ∷ (𝕊 ∧ Type RNF) → 𝑂 (Type RNF) → 𝑂 (Type RNF) = \ p acc →
-               case p of
-                 (a₂ :* v) | a ≡ a₂ → Some v
-                 _ → acc
-            τₐ ∷ 𝑂 (Type RNF) = fold None f as
-        case τₐ of
-          Some τ' → do
-            case τ' ≡ τ₃ of
-              False → error $ "Partition attribute type mismatch: " ⧺ (pprender (τ₁, τ₃))
-              True → do
-                tell σ₁
-                -- TODO: make sure ℓ and c are right
-                return $ BagT ℓ c τ₁
-          _ → error $ "Partition attribute not found: " ⧺ (pprender (τ₁, τₐ))
-      _ → error $ "Partition error: " ⧺ (pprender (τ₁, τ₂))
+  -- DFPartitionSE e₁ a e₂ → do
+  --   σ₁ :* τ₁ ← hijack $ inferSens e₁
+  --   τ₂ ← inferSens e₂
+  --   -- TODO: check that τ₁ and τ₂ overlap on some subset of their schemas
+  --   case (τ₁, τ₂) of
+  --     (BagT ℓ c (RecordT as), SetT τ₃) → do
+  --       -- TODO: helper?
+  --       let f ∷ (𝕊 ∧ Type RNF) → 𝑂 (Type RNF) → 𝑂 (Type RNF) = \ p acc →
+  --              case p of
+  --                (a₂ :* v) | a ≡ a₂ → Some v
+  --                _ → acc
+  --           τₐ ∷ 𝑂 (Type RNF) = fold None f as
+  --       case τₐ of
+  --         Some τ' → do
+  --           case τ' ≡ τ₃ of
+  --             False → error $ "Partition attribute type mismatch: " ⧺ (pprender (τ₁, τ₃))
+  --             True → do
+  --               tell σ₁
+  --               -- TODO: make sure ℓ and c are right
+  --               return $ BagT ℓ c τ₁
+  --         _ → error $ "Partition attribute not found: " ⧺ (pprender (τ₁, τₐ))
+  --     _ → error $ "Partition error: " ⧺ (pprender (τ₁, τ₂))
   BoxSE e → do
     σ :* τ ← hijack $ inferSens e
     return (BoxedT σ τ)

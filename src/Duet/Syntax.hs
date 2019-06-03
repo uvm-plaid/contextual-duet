@@ -233,10 +233,7 @@ data Type r =
   | 𝕀T r
   | 𝔹T
   | 𝕊T
-  | 𝔻𝔽T (𝐿 (𝕊 ∧ Type r)) -- TODO: remove
-  | BagT Norm Clip (Type r) -- TODO: remove
   | SetT (Type r)
-  | RecordT (𝐿 (𝕊 ∧ Type r)) -- TODO: remove
   | 𝕄T Norm Clip (RowsT r) (MExp r)
   | 𝔻T (Type r)
   | Type r :⊕: Type r
@@ -332,19 +329,6 @@ frSTLExp = undefined
 
 deriving instance (Show r) ⇒ Show (STLExpPre r)
 
--- data TypeLevelLang =
---     RealExpTLL
---   | TypeTLL
---   deriving (Eq,Ord,Show)
-
--- data STypeLevelLang ∷ TypeLevelLang → ★ where
---   RealExpSTLL ∷ STypeLevelLang 'RealExpTLL
---   TypeSTLL ∷ STypeLevelLang 'TypeTLL
---
--- data TLCheckedExpr ∷ TypeLevelLang → ★ where
---   RExpTLCE ∷ RExp → TLCheckedExpr 'RealExpTLL
---   TypeTLCE ∷ Type RExp → TLCheckedExpr 'TypeTLL
-
 instance Functor Type where
   map ∷ (a → b) → Type a → Type b
   map f = \case
@@ -355,10 +339,7 @@ instance Functor Type where
     𝕀T r → 𝕀T $ f r
     𝔹T → 𝔹T
     𝕊T → 𝕊T
-    𝔻𝔽T as → 𝔻𝔽T $ map (mapPair id $ map f) as -- TODO: remove
-    BagT ℓ c τ → BagT ℓ c (map f τ)
     SetT τ → SetT (map f τ)
-    RecordT as → RecordT $ map (mapPair id $ map f) as
     𝕄T ℓ c r₁ r₂ → 𝕄T ℓ c (map f r₁) (map f r₂)
     𝔻T τ → 𝔻T $ map f τ
     τ₁ :⊕: τ₂ → map f τ₁ :⊕: map f τ₂
