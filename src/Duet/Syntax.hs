@@ -206,7 +206,7 @@ data KindE =
 instance Join KindE where
   ℕKE ⊔ ℝKE = ℝKE
   ℝKE ⊔ ℕKE = ℝKE
-  x  ⊔ y 
+  x  ⊔ y
     | x ≡ y = x
     | otherwise = ErrorKE
 
@@ -221,7 +221,7 @@ frKindE ℝKE = Some ℝK
 frKindE TypeKE = Some TypeK
 frKindE ErrorKE = None
 
--- concrete syntax: 
+-- concrete syntax:
 -- (x : τ₁) ⊸[ x⋅0 ] (y : τ₂) ⊸⋆ [ x⋅p₁ y⋅p₂ ] τ₃
 type TypeSource r = Annotated FullContext (Type r)
 data Type r =
@@ -266,7 +266,7 @@ data TLExp r =
   | TLExp r :⊕♭: TLExp r
   | TLExp r :⊗♭: TLExp r
   | TLExp r :&♭: TLExp r
-  | TLExp r :⊸♭: (Sens r ∧ TLExp r)
+  | (𝕏 ∧ TLExp r) :⊸♭: ((𝕏 ⇰ Sens r) ∧ TLExp r)
   | (𝕏 ∧ TLExp r) :⊸⋆♭: (PEnv r ∧ TLExp r)
   | ForallTE 𝕏 Kind (TLExp r)
   -- | (𝐿 (𝕏 ∧ Kind) ∧ TLExp r) :⊸♭: (Sens r ∧ TLExp r)
@@ -463,7 +463,7 @@ data SExp (p ∷ PRIV) where
   -- now we write:    Λ  α:κ ⇒ sλ x:ℝ[α] ⇒ e
   --
   -- the before type was: ∀ α:κ . (x:ℝ[α]) ⊸[ x⋅s ] τ
-  -- now the type is:     ∀ α:κ . (x:ℝ[α]) ⊸[ Σ ] τ 
+  -- now the type is:     ∀ α:κ . (x:ℝ[α]) ⊸[ Σ ] τ
   --
   -- before we had: f@[ τ ] x
   -- now we have:   (f@τ) x

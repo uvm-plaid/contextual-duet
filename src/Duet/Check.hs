@@ -120,7 +120,7 @@ typeToTLExp = \case
   τ₁ :⊕: τ₂ → typeToTLExp τ₁ :⊕♭: typeToTLExp τ₂
   τ₁ :⊗: τ₂ → typeToTLExp τ₁ :⊗♭: typeToTLExp τ₂
   τ₁ :&: τ₂ → typeToTLExp τ₁ :&♭: typeToTLExp τ₂
-  τ₁ :⊸: (s :* τ₂) → typeToTLExp τ₁ :⊸♭: (s :* typeToTLExp τ₂)
+  (x :* τ₁) :⊸: (sσ :* τ₂) → (x :* typeToTLExp τ₁) :⊸♭: (sσ :* typeToTLExp τ₂)
   (x :* τ₁) :⊸⋆: (pσ :* τ₂) → (x :* typeToTLExp τ₁) :⊸⋆♭: (pσ :* typeToTLExp τ₂)
   ForallT x κ τ → ForallTE x κ $ typeToTLExp τ
 
@@ -153,10 +153,10 @@ checkTypeLang e₀ = case e₀ of
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
     return $ τ₁ :&: τ₂
-  e₁ :⊸♭: (s :* e₂) → do
+  (x :* e₁) :⊸♭: (sσ :* e₂) → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
-    return $ τ₁ :⊸: (s :* τ₂)
+    return $ (x :* τ₁) :⊸: (sσ :* τ₂)
   (x :* e₁) :⊸⋆♭: (pσ :* e₂) → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
@@ -301,10 +301,13 @@ checkType τA = case τA of
   τ₁ :&: τ₂ → do
     checkType τ₁
     checkType τ₂
-  τ₁ :⊸: (s :* τ₂) → do
+  (x :* τ₁) :⊸: (sσ :* τ₂) → do
     checkType τ₁
-    checkType τ₂
-    checkSens $ map extract s
+    mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
+      eachWith sσ $ \ (x' :* s) → do
+        void $ inferKindVar x'
+        checkSens $ map extract s
+      checkType τ₂
   (x :* τ₁) :⊸⋆: (PEnv (pσ ∷ 𝕏 ⇰ Pr p' RExp) :* τ₂) → do
     checkType τ₁
     mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
@@ -696,7 +699,7 @@ inferSens eA = case extract eA of
       --   True → do
       do
           tell σ'
-          return $ τ' :⊸: (ς :* τ'')
+          return $ (x :* τ') :⊸: (σ :* τ'')
   -- DiscFSE e₁ → do
   --   τ₁ ← inferSens e₁
   --   case τ₁ of
@@ -705,8 +708,9 @@ inferSens eA = case extract eA of
     τ₁ ← inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
     case τ₁ of
-      τ₁₁ :⊸: (s :* τ₁₂) | τ₁₁ ≡ τ₂ → do
-        tell $ s ⨵ σ₂
+      (x :* τ₁₁) :⊸: (sσ :* τ₁₂) | τ₁₁ ≡ τ₂ → do
+        -- QUESTION
+        tell $ (sσ ⋕! x) ⨵ σ₂
         return τ₁₂
   PFunSE x τ e → do
     checkType $ extract τ
@@ -1098,8 +1102,8 @@ substTL x tl₁ tl₂ = case tl₂ of
   τ₁ :⊗♭: τ₂ → substTL x tl₁ τ₁ :⊗♭: substTL x tl₁ τ₂
   τ₁ :&♭: τ₂ → substTL x tl₁ τ₁ :&♭: substTL x tl₁ τ₂
   -- TODO: sens -> tlexp -> then substTL -> sens
-  τ₁ :⊸♭: (s :* τ₂) → substTL x tl₁ τ₁ :⊸♭: (s :* substTL x tl₁ τ₂)
-  (x :* τ₁) :⊸⋆♭: (penv :* τ₂) → (x :* substTL x tl₁ τ₁) :⊸⋆♭: (penv :* substTL x tl₁ τ₂)
+  (x :* τ₁) :⊸♭: (sσ :* τ₂) → (x :* substTL x tl₁ τ₁) :⊸♭: (sσ :* substTL x tl₁ τ₂)
+  (x :* τ₁) :⊸⋆♭: (pσ :* τ₂) → (x :* substTL x tl₁ τ₁) :⊸⋆♭: (pσ :* substTL x tl₁ τ₂)
   ForallTE x κ τ → ForallTE x κ $ substTL x tl₁ τ
    -- RExp Stuff →
   NatTE n → NatTE n
