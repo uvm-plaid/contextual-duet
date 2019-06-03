@@ -677,11 +677,6 @@ inferSens eA = case extract eA of
     σ₁ :* τ₁ ← hijack $ inferSens e₁
     σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁) ⩌ γ) $ inferSens e₂
     let (ς :* σ₂') = ifNone (zero :* σ₂) $ dview x σ₂
-    -- let fvs = freeBvs τ₂
-    -- let isClosed = (fvs ∩ single𝑃 x) ≡ pø
-    -- case isClosed of
-    --   False → error $ "Let type/scoping error in return expression of type: " ⧺ (pprender τ₂)
-    --   True → do
     do
         tell $ ς ⨵ σ₁
         tell σ₂'
@@ -690,8 +685,15 @@ inferSens eA = case extract eA of
     mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
       τ ← inferSens e
       return $ ForallT x κ τ
-  TAppSE e τ → do
-    undefined
+  TAppSE e τ' → do
+    τ ← inferSens e
+    case τ of
+      ForallT x κ τ → do
+        let τ'' = checkTypeLang $ substTL x (typeToTLExp $ map normalizeRNF $ extract τ') (typeToTLExp τ)
+        case τ'' of
+          None → undefined
+          Some τ''' → return τ'''
+      _ → error $ "expected ForallT"
   SFunSE x τ e → do
       checkType $ extract τ
       let τ' = map normalizeRNF $ extract τ
