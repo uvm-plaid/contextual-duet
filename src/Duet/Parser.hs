@@ -134,6 +134,9 @@ parKind p = pNew "kind" $ tries
 parPEnv ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (PEnv RExp)
 parPEnv = undefined
 
+parSEnv ∷ Parser Token (𝕏 ⇰ Sens r)
+parSEnv = undefined
+
 parRowsT :: Parser Token (RowsT RExp)
 parRowsT = tries
   [ do const StarRT ^$ parLit "★"
@@ -267,15 +270,9 @@ parSTLExp mode = mixfixParserWithContext "tlexp" $ concat
   ]
 
 parSens ∷ Parser Token (Sens RExp)
-parSens = mixfixParser $ concat
-  [ mix $ MixTerminal $ const (Sens Zero) ^$ parLit "⊥"
-  , mix $ MixTerminal $ const (Sens Inf) ^$ parLit "⊤"
-  , mix $ MixTerminal $ do
-      parLit "⟨"
-      η ← parRExp
-      parLit "⟩"
-      return $ Sens $ Quantity η
-  ]
+parSens = do
+  e ← parRExp
+  return $ Sens e
 
 -- parSensExp ∷ Parser Token (SensExp RExp)
 -- parSensExp = tries
@@ -422,12 +419,16 @@ parType mode = mixfixParser $ concat
   , mix $ MixInfixL 4 $ const (:⊗:) ^$ parLit "×"
   , mix $ MixInfixL 4 $ const (:&:) ^$ parLit "&"
   , mix $ MixPrefix 2 $ do
+      parLit "("
+      x ← parVar
+      parLit ":"
       τ₁ ← parType mode
+      parLit ")"
       parLit "⊸"
       parLit "["
-      s ← parSens
+      σ ← parSEnv
       parLit "]"
-      return $ \ τ₂ → τ₁ :⊸: (s :* τ₂)
+      return $ \ τ₂ → (x :* τ₁) :⊸: (σ :* τ₂)
   , mix $ MixPrefix 2 $ do
       x ← parVar
       parLit ":"
@@ -874,14 +875,6 @@ parPExp p = pWithContext "pexp" $ tries
   , do parLit "return"
        e ← parSExp p
        return $ ReturnPE e
-  , do e ← parSExp p
-       parLit "@"
-       parLit "["
-       ks ← pManySepBy (parLit ",") $ parSTLExp p
-       parLit "."
-       xs ← pManySepBy (parLit ",") $ parSExp p
-       parLit "]"
-       return $ AppPE e ks xs
   , do parLit "mmapp"
        e₁ ← parSExp p
        parLit "{"
@@ -1312,6 +1305,12 @@ parPExp p = pWithContext "pexp" $ tries
              return $ ConvertEPSZCPE e₁
         ]
       _ → abort
+  , do e ← parSExp p
+       case extract e of
+         -- QUESTION: not sure how to add the right annotation stuff here
+         -- QUESTION: should AppPE have a SExp or PExp as its first argument?
+         AppSE e₁ e₂ → return $ BindPE (var "f") (ReturnPE %⋅ e₁) $ AppPE (VarSE $ var "f") e₂
+         _ → error "Bad privacy-language application"
   ]
 
 tokSkip ∷ Token → 𝔹
