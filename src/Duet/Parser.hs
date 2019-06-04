@@ -751,16 +751,24 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       x ← parVar
       parLit ":"
       τ ← parTypeSource p
-      xτs ← pOneOrMoreSepBy (parLit ",") $ do
-        x' ← parVar
-        parLit ":"
-        τ' ← parTypeSource p
-        return $ x :* τ
       parLit "⇒"
       e ← parPExp p
-      return $ 
-        let ecxt = annotatedTag e
-        in PFunSE x τ $ foldr e (\ (x' :* τ') e' → Annotated ecxt $ ReturnPE $ Annotated ecxt $ PFunSE x' τ' e') xτs
+      return $ PFunSE x τ e
+  -- , mixF $ MixFTerminal $ do
+  --     parLit "pλ"
+  --     x ← parVar
+  --     parLit ":"
+  --     τ ← parTypeSource p
+  --     xτs ← pOneOrMoreSepBy (parLit ",") $ do
+  --       x' ← parVar
+  --       parLit ":"
+  --       τ' ← parTypeSource p
+  --       return $ x :* τ
+  --     parLit "⇒"
+  --     e ← parPExp p
+  --     return $ 
+  --       let ecxt = annotatedTag e
+  --       in PFunSE x τ $ foldr e (\ (x' :* τ') e' → Annotated ecxt $ ReturnPE $ Annotated ecxt $ PFunSE x' τ' e') xτs
   , mixF $ MixFPrefix 1 $ do
       parLit "∀"
       x ← parVar
@@ -1291,7 +1299,7 @@ parPExp p = pWithContext "pexp" $ tries
        case extract e of
          -- QUESTION: should AppPE have a SExp or PExp as its first argument?
          AppSE e₁ e₂ → return $ AppPE e₁ e₂
-         _ → error "Bad privacy-language application"
+         _ → abort
   ]
 
 tokSkip ∷ Token → 𝔹

@@ -1,0 +1,7 @@
+let f =
+  -- TODO: why is the σ for this sλ empty?
+  sλ a : ℝ ⇒
+    pλ b : ℝ ⇒
+      x ← return a + b;
+      return x + x
+in f

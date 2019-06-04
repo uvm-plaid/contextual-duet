@@ -953,7 +953,7 @@ logRNF e =
   SymRNF α̇ → elimAddTop (ConstantRNF TopBT) SymRNF $ logRNFMaxs α̇
 
 truncateRNF ∷ RNF → RNF
-truncateRNF = undefined
+truncateRNF r = r
 
 instance HasPrism RNF ℕ where
   hasPrism = Prism (dblRNF ∘ dbl) $ \case

@@ -1,0 +1,5 @@
+let f =
+  sλ a : ℝ ⇒
+    sλ b : ℝ ⇒
+      a + b
+in f

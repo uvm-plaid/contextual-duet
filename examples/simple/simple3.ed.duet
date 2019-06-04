@@ -1,0 +1,5 @@
+let f =
+  pλ a : ℝ ⇒
+    x ← return a + a;
+    return x + x
+in f

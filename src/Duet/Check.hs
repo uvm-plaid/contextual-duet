@@ -488,10 +488,6 @@ inferSens eA = case extract eA of
         tell $ ι (ηₘ × ηₙ) ⨵ σ₃'
         return $ 𝕄T ℓ UClip (RexpRT ηₘ) (RexpME ηₙ τ₃)
       _ → undefined -- TypeError
-  -- CSVtoMatrixSE f τ → do
-  --   case map normalizeRNF (extract τ) of
-  --     (𝕄T _ℓ _c StarRT (RexpME r τ₁')) → return (𝕄T _ℓ _c StarRT (RexpME r τ₁'))
-  --     _ → error $ "CSVtoMatrixSE error: " ⧺ (pprender $ (f :* τ)) -- TypeError
   MIndexSE e₁ e₂ e₃ → do
     τ₁ ← inferSens e₁
     τ₂ ← inferSens e₂
@@ -669,10 +665,13 @@ inferSens eA = case extract eA of
       checkType $ extract τ
       let τ' = map normalizeRNF $ extract τ
       σ :* τ'' ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferSens e
-      let (ς :* σ') = ifNone (zero :* σ) $ dview x σ
+      let σ' = case σ ⋕? x of
+                 None → (x ↦ bot) ⩌ σ
+                 Some _ → σ
       do
-          tell σ'
-          return $ (x :* τ') :⊸: (σ :* τ'')
+        -- TODO: do we want `tell σ'` here?
+          tell $ snd $ ifNone (zero :* σ') $ dview x σ'
+          return $ (x :* τ') :⊸: (σ' :* τ'')
   AppSE e₁ e₂ → do
     τ₁ ← inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
