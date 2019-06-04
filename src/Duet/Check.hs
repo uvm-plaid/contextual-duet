@@ -96,13 +96,18 @@ checkPrivLang p e₀ = case p of
   _ → undefined
 
 privToTLExp ∷ Pr p RNF → TLExp RNF
-privToTLExp p = undefined
+privToTLExp = \case
+  EpsPriv r → rnfToTLExp r
+  EDPriv r₁ r₂ → PairTE (rnfToTLExp r₁) (rnfToTLExp r₂)
+  RenyiPriv r₁ r₂ → PairTE (rnfToTLExp r₁) (rnfToTLExp r₂)
+  ZCPriv r → rnfToTLExp r
+  TCPriv r₁ r₂ → PairTE (rnfToTLExp r₁) (rnfToTLExp r₂)
 
 sensToTLExp ∷ Sens RNF → TLExp RNF
-sensToTLExp s = undefined
+sensToTLExp s = rnfToTLExp $ unSens s
 
-rexpToTLExp ∷ RNF → TLExp RNF
-rexpToTLExp τ = undefined
+rnfToTLExp ∷ RNF → TLExp RNF
+rnfToTLExp τ = undefined
 
 typeToTLExp ∷ Type RNF → TLExp RNF
 typeToTLExp = \case
