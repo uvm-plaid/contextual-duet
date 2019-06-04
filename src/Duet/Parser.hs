@@ -798,6 +798,10 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       return $ \ e →
         let ecxt = annotatedTag e
         in TAbsSE x κ $ foldr e (\ (x' :* κ') e' → Annotated ecxt $ TAbsSE x' κ' e') xκs
+  , mixF $ MixFPostfix 10 $ do
+      parLit "@"
+      τ ← parTypeSource p
+      return $ \ e → TAppSE e τ
   , mixF $ MixFTerminal $ do
       parLit "℘"
       parLit "{"
