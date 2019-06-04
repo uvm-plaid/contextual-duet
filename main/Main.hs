@@ -4,7 +4,8 @@ import Duet
 
 initEnv ∷ 𝕏 ⇰ Type RNF
 initEnv = dict
-  [ var "sign" ↦ ((Nil :* ℝT) :⊸: (one :* ℝT))
+  [
+  -- var "sign" ↦ ((Nil :* ℝT) :⊸: (one :* ℝT))
   -- , var "pmmap" ↦ (A@p ⊸⋆ B) ⊸∞ M[c,ℓ|m,n]A@(mnp) ⊸⋆ M[U,ℓ|m,n]B
   ]
 
@@ -123,39 +124,40 @@ main = do
           pprint (r,w)
           pprint $ concat [ pretty (100.0 × dbl r / dbl (r+w)) , ppText "%" ]
     "run":fn:_ → do
+      undefined
       -- make this spit out concrete privacy costs based on the input
-      do pprint $ ppHeader "READING" ; flushOut
-      s ← read fn
-      do pprint $ ppHeader "TOKENIZING" ; flushOut
-      ts ← tokenizeIO tokDuet $ stream $ list $ tokens s
-      do pprint $ ppHeader "PARSING" ; flushOut
-      unpack_C (parseMode fn) $ \ mode → do
-        e ← parseIO (pSkip tokSkip $ pFinal $ parSExp mode) $ stream ts
-        do pprint $ ppHeader "TYPE CHECKING" ; flushOut
-        let τ = runSM dø initEnv dø $ inferSens e
-        do pprint τ ; flushOut
-        do pprint $ ppHeader "RUNNING" ; flushOut
-        let r = seval dø (extract e)
-        do pprint r ; flushOut
-        fnargs ← drop 2 args
-        case τ of
-          Inr rv → do
-            case rv of
-              _ :* (_ :* PArgs pargs) :⊸⋆: _ → do
-                let τs = map fst pargs
-                as ← buildArgs τs (list fnargs)
-                case r of
-                  PFunV xs (ExPriv (Ex_C e₁)) γ → do
-                    r' ← peval (assoc (zip xs as) ⩌ γ) e₁
-                    case r' of
-                      MatrixV m → do
-                        pprint r'
-                        write "out/model.csv" (intercalate "\n" (map (intercalate ",") (mapp (show𝕊 ∘ urv) (toRows m))))
-                      _ → do pprint r'
-                    pprint $ ppHeader "DONE" ; flushOut
-                  _ → error "expected pλ at top level"
-              _ → error "expected pλ at top level"
-          _ → error "typechecking phase encountered an error"
+      -- do pprint $ ppHeader "READING" ; flushOut
+      -- s ← read fn
+      -- do pprint $ ppHeader "TOKENIZING" ; flushOut
+      -- ts ← tokenizeIO tokDuet $ stream $ list $ tokens s
+      -- do pprint $ ppHeader "PARSING" ; flushOut
+      -- unpack_C (parseMode fn) $ \ mode → do
+      --   e ← parseIO (pSkip tokSkip $ pFinal $ parSExp mode) $ stream ts
+      --   do pprint $ ppHeader "TYPE CHECKING" ; flushOut
+      --   let τ = runSM dø initEnv dø $ inferSens e
+      --   do pprint τ ; flushOut
+      --   do pprint $ ppHeader "RUNNING" ; flushOut
+      --   let r = seval dø (extract e)
+      --   do pprint r ; flushOut
+      --   fnargs ← drop 2 args
+      --   case τ of
+      --     Inr rv → do
+      --       case rv of
+      --         _ :* (_ :* PArgs pargs) :⊸⋆: _ → do
+      --           let τs = map fst pargs
+      --           as ← buildArgs τs (list fnargs)
+      --           case r of
+      --             PFunV xs (ExPriv (Ex_C e₁)) γ → do
+      --               r' ← peval (assoc (zip xs as) ⩌ γ) e₁
+      --               case r' of
+      --                 MatrixV m → do
+      --                   pprint r'
+      --                   write "out/model.csv" (intercalate "\n" (map (intercalate ",") (mapp (show𝕊 ∘ urv) (toRows m))))
+      --                 _ → do pprint r'
+      --               pprint $ ppHeader "DONE" ; flushOut
+      --             _ → error "expected pλ at top level"
+      --         _ → error "expected pλ at top level"
+      --     _ → error "typechecking phase encountered an error"
     _ → do
       pprint $ ppHeader "USAGE"
       out $ "duet parse <file>"
