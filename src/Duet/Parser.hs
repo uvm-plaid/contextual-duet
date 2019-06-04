@@ -386,34 +386,12 @@ parType mode = mixfixParser $ concat
       parLit "𝔻"
       return $ 𝔻T ℝT
   , mix $ MixTerminal $ do
-      parLit "𝔻𝔽"
-      parLit "["
-      as ← pOneOrMoreSepBy (parLit ",") $ do
-        a ← parName
-        parLit ":"
-        τ ← parType mode
-        return $ a :* τ
-      parLit "]"
-      -- TODO: support parsing sensitivity and clip
-      return $ BagT L1 UClip (RecordT as)
-  , mix $ MixTerminal $ do
-      parLit "record"
-      parLit "["
-      as ← pOneOrMoreSepBy (parLit ",") $ do
-        a ← parName
-        parLit ":"
-        τ ← parType mode
-        return $ a :* τ
-      parLit "]"
-      return $ RecordT as
-  , mix $ MixTerminal $ do
       parLit "℘"
       parLit "("
       τ ← parType mode
       parLit ")"
       return $ SetT τ
   -- TODO: support parsing sensitivity and clip
-  , mix $ MixPrefix 6 $ const (BagT L1 UClip) ^$ parLit "bag"
   , mix $ MixPrefix 6 $ const (𝔻T) ^$ parLit "𝐝"
   , mix $ MixInfixL 3 $ const (:⊕:) ^$ parLit "+"
   , mix $ MixInfixL 4 $ const (:⊗:) ^$ parLit "×"
@@ -798,6 +776,10 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       return $ \ e →
         let ecxt = annotatedTag e
         in TAbsSE x κ $ foldr e (\ (x' :* κ') e' → Annotated ecxt $ TAbsSE x' κ' e') xκs
+  , mixF $ MixFPostfix 10 $ do
+      parLit "@"
+      τ ← parTypeSource p
+      return $ \ e → TAppSE e τ
   , mixF $ MixFTerminal $ do
       parLit "℘"
       parLit "{"
@@ -1307,9 +1289,8 @@ parPExp p = pWithContext "pexp" $ tries
       _ → abort
   , do e ← parSExp p
        case extract e of
-         -- QUESTION: not sure how to add the right annotation stuff here
          -- QUESTION: should AppPE have a SExp or PExp as its first argument?
-         AppSE e₁ e₂ → return $ BindPE (var "f") (ReturnPE %⋅ e₁) $ AppPE (VarSE $ var "f") e₂
+         AppSE e₁ e₂ → return $ AppPE e₁ e₂
          _ → error "Bad privacy-language application"
   ]
 

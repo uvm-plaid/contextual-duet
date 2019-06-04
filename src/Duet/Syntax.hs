@@ -501,6 +501,25 @@ deriving instance Eq (SVTParams p)
 deriving instance Ord (SVTParams p)
 deriving instance Show (SVTParams p)
 
+
+-- let f =
+--       pλ a b ⇒
+--        return a + b
+
+-- sλ a ⇒
+--  pλ b ⇒
+--   return a + b
+
+-- ((f x) y)
+
+
+-- AppSE (AppSE f x) y
+-- ⇒
+-- AppPE (AppSE f x) y
+
+
+  
+
 type PExpSource (p ∷ PRIV) = Annotated FullContext (PExp p)
 data PExp (p ∷ PRIV) where
   ReturnPE ∷ SExpSource p → PExp p
