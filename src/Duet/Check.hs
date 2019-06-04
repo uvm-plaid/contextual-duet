@@ -107,7 +107,11 @@ sensToTLExp ∷ Sens RNF → TLExp RNF
 sensToTLExp s = rnfToTLExp $ unSens s
 
 rnfToTLExp ∷ RNF → TLExp RNF
-rnfToTLExp τ = undefined
+rnfToTLExp = \case
+  ConstantRNF r → case r of
+    TopBT → TopTE
+    BotBT → ℝˢTE $ dblRNF 0.0
+    AddBT a → ℝˢTE $ dblRNF a
 
 typeToTLExp ∷ Type RNF → TLExp RNF
 typeToTLExp = \case
