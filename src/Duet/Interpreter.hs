@@ -24,7 +24,7 @@ data Val =
   | ListV (𝐿 Val)
   | SetV (𝑃 Val)
   | SFunV 𝕏 (ExPriv SExp) Env  -- See UVMHS.Core.Init for definition of Ex
-  | PFunV (𝐿 𝕏) (ExPriv PExp) Env
+  | PFunV 𝕏 (ExPriv PExp) Env
   | MatrixV (ExMatrix Val)
   deriving (Eq,Ord,Show)
 
@@ -336,10 +336,10 @@ seval env (MMap2SE e₁ e₂ x₁ x₂ e₃) =
           in MatrixV $ ExMatrix c
 
 -- functions and application
-seval env (PFunSE _ args body) =
-  PFunV (map fst args) (ExPriv (Ex_C (extract body))) env
+seval env (PFunSE x _ body) =
+  PFunV x (ExPriv (Ex_C (extract body))) env
 
-seval env (SFunSE _ x _ body) =
+seval env (SFunSE x _ body) =
   SFunV x (ExPriv (Ex_C (extract body))) env
 
 seval env (BoxSE e) = seval env (extract e)
@@ -350,7 +350,7 @@ seval env TrueSE = BoolV True
 
 seval env FalseSE = BoolV False
 
-seval env (AppSE e₁ _ e₂) =
+seval env (AppSE e₁ e₂) =
   case seval env (extract e₁) of
     (SFunV x (ExPriv (Ex_C body)) env') →
       let env'' = (x ↦ (seval env (extract e₂))) ⩌ env'
@@ -505,7 +505,7 @@ laplaceNoise ∷ 𝔻 → IO 𝔻
 laplaceNoise scale = do
   gen ← createSystemRandom
   u ← uniformR (neg 0.5, 0.5) gen
-  return $ neg $ scale × (signum u) × log(1.0 - 2.0 × (abs u))
+  return $ neg $ scale × (signum u) × log(1.0 - 2.0 × (abso u))
 
 -- -- | Helper function for PSampleE
 sampleHelper :: (PRIV_C p, Rℕ o) ⇒ Sℕ32 o → Vᴍ m n 𝔻 → Vᴍ m 1 𝔻 → 𝕏 → 𝕏 → PExp p → Env → IO Val
@@ -555,8 +555,8 @@ signum x = case compare x zero of
   EQ → zero
   GT → one
 
-abs ∷ (Ord p, Zero p, Minus p) ⇒ p → p
-abs x = case compare x zero of
+abso ∷ (Ord p, Zero p, Minus p) ⇒ p → p
+abso x = case compare x zero of
   LT → neg x
   EQ → zero
   GT → x
