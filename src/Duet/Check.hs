@@ -707,10 +707,13 @@ inferSens eA = case extract eA of
       checkType $ extract τ
       let τ' = map normalizeRNF $ extract τ
       σ :* τ'' ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferSens e
-      let (ς :* σ') = ifNone (zero :* σ) $ dview x σ
+      let σ' = case σ ⋕? x of
+                 None → (x ↦ bot) ⩌ σ
+                 Some _ → σ
       do
-          tell σ'
-          return $ (x :* τ') :⊸: (σ :* τ'')
+        -- TODO: do we want `tell σ'` here?
+          tell $ snd $ ifNone (zero :* σ') $ dview x σ'
+          return $ (x :* τ') :⊸: (σ' :* τ'')
   -- DiscFSE e₁ → do
   --   τ₁ ← inferSens e₁
   --   case τ₁ of

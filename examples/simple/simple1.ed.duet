@@ -1,0 +1,2 @@
+let f = pλ a : ℝ ⇒ return a + a
+in f
