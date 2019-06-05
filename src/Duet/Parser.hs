@@ -21,7 +21,7 @@ tokKeywords ∷ 𝐿 𝕊
 tokKeywords = list
   ["let","in","sλ","pλ","return","on"
   ,"ℕ","ℝ","ℝ⁺","𝔻","𝕀","𝕄","𝔻𝔽","𝔹","𝕊","★","∷","⋅","[]","⧺","☆"
-  ,"∀","⊥","⊤","sens","priv"
+  ,"∀","⊥","⊤","sens","priv","∞"
   ,"LR","L2","U"
   ,"real","bag","set","record", "unionAll"
   ,"partitionDF","addColDF","mapDF","join₁","joinDF₁","parallel"
@@ -132,12 +132,32 @@ parKind p = pNew "kind" $ tries
   ]
 
 parPEnv ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (PEnv RExp)
-parPEnv = undefined
+parPEnv mode = tries
+  [ do
+      parLit "["
+      xprs ← pManySepBy (parLit ",") $ do
+        x ← parVar
+        parLit "⋅"
+        pr ← parPriv mode
+        return (x :* pr)
+      parLit "]"
+      return $ PEnv $ assoc xprs
+  ]
 
-parSEnv ∷ Parser Token (𝕏 ⇰ Sens r)
-parSEnv = undefined
+parSEnv ∷ Parser Token (𝕏 ⇰ Sens RExp)
+parSEnv = tries
+  [ do
+      parLit "["
+      xsens ← pManySepBy (parLit ",") $ do
+        x ← parVar
+        parLit "⋅"
+        sens ← parSens
+        return (x :* sens)
+      parLit "]"
+      return $ assoc xsens
+  ]
 
-parRowsT :: Parser Token (RowsT RExp)
+parRowsT ∷ Parser Token (RowsT RExp)
 parRowsT = tries
   [ do const StarRT ^$ parLit "★"
   , do η ← parRExp; return $ RexpRT η
@@ -231,7 +251,7 @@ parSTLExp mode = mixfixParserWithContext "tlexp" $ concat
       x ← parVar
       parLit ":"
       τ₁ ← parSTLExp mode
-      parLit "⊸"
+      parLit "⊸⋆"
       parLit "["
       σ ← parPEnv mode
       parLit "]"
@@ -274,18 +294,14 @@ parSens = do
   e ← parRExp
   return $ Sens e
 
--- parSensExp ∷ Parser Token (SensExp RExp)
--- parSensExp = tries
---   [
---    do x ← parVar ; return $ VarSens x
---   ,do s ← parSens ; return $ SensExp s
---   ]
-
 parRExp ∷ Parser Token RExp
 parRExp = mixfixParserWithContext "rexp" $ concat
   [ mixF $ MixFTerminal $ do
       x ← parVar
       return $ VarRE x
+  , mixF $ MixFTerminal $ do
+      parLit "∞"
+      return $ ConstRE Top
   , mixF $ MixFTerminal $ ConstRE ∘ AddTop ^$ parNNDbl
   , mixF $ MixFInfixL 2 $ const MaxRE ^$ parLit "⊔"
   , mixF $ MixFInfixL 3 $ const MinRE ^$ parLit "⊓"
@@ -309,14 +325,6 @@ parClip = tries
   [ do NormClip ^$ parNorm
   , do const UClip ^$ parLit "U"
   ]
-
---
--- parPrivExp ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (PrivExp p RExp)
--- parPrivExp p = tries
---   [
---    do x ← parVar ; return $ VarPriv x
---   ,do s ← parPriv p ; return $ PrivExp s
---   ]
 
 parPriv ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (Pr p RExp)
 parPriv p = tries
@@ -403,26 +411,31 @@ parType mode = mixfixParser $ concat
       τ₁ ← parType mode
       parLit ")"
       parLit "⊸"
-      parLit "["
       σ ← parSEnv
-      parLit "]"
       return $ \ τ₂ → (x :* τ₁) :⊸: (σ :* τ₂)
   , mix $ MixPrefix 2 $ do
+      parLit "("
       x ← parVar
       parLit ":"
       τ₁ ← parType mode
-      parLit "⊸"
-      parLit "["
+      parLit ")"
+      parLit "⊸⋆"
       σ ← parPEnv mode
-      parLit "]"
       return $ \ τ₂ → (x :* τ₁) :⊸⋆: (σ :* τ₂)
   , mix $ MixPrefix 2 $ do
       parLit "∀"
-      α ← parVar
+      x ← parVar
       parLit ":"
       κ ← parKind mode
+      xκs ← pMany $ do
+        parLit ","
+        x' ← parVar
+        parLit ":"
+        κ' ← parKind mode
+        return $ x' :* κ'
       parLit "."
-      return $ \ τ → ForallT α κ τ
+      return $ \ e →
+        ForallT x κ $ foldr e (\ (x' :* κ') e' → ForallT x' κ' e') xκs
   , mix $ MixPrefix 3 $ do
       parLit "box"
       parLit "["
@@ -766,7 +779,7 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
   --       return $ x :* τ
   --     parLit "⇒"
   --     e ← parPExp p
-  --     return $ 
+  --     return $
   --       let ecxt = annotatedTag e
   --       in PFunSE x τ $ foldr e (\ (x' :* τ') e' → Annotated ecxt $ ReturnPE $ Annotated ecxt $ PFunSE x' τ' e') xτs
   , mixF $ MixFPrefix 1 $ do
