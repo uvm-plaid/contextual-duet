@@ -13,7 +13,7 @@ let f =
      myLoop2 : ∀ ε: ℝ, δ: ℝ, k: ℝ, Γ: PEnv . ((x : ℝ) ⊸⋆ Γ⋅⟨ε,δ⟩+[x⋅∞] ℝ) ⊸ [?] (x : ℝ) ⊸⋆ Γ⋅⟨kε,kδ⟩+[x⋅∞] ℝ,
 
      -- how do we separate "stuff we care about" from "stuff we don't care about"? Will pλs need type annotations to specify this?
-     myALoop : ∀ ε: ℝ, δ: ℝ, k: ℝ, Γ₁: PEnv, Γ₂: PEnv, Γ₃: PEnv . ((x : ℝ) ⊸⋆ Γ₁⋅⟨ε,δ⟩+Γ₂⋅⟨∞,∞⟩ ℝ) ⊸ [?] (x : ℝ) ⊸⋆ Γ₁⋅⟨2ε√(2k㏒(1/δ′),k⋅δ+δ′⟩+Γ₃⋅∞ ℝ,
+     myALoop : ∀ ε: ℝ, δ: ℝ, δ′: ℝ, k: ℝ, Γ₁: PEnv, Γ₂: PEnv, Γ₃: PEnv . ((x : ℝ) ⊸⋆ Γ₁⋅⟨ε,δ⟩+Γ₂⋅⟨∞,∞⟩ ℝ) ⊸ [?] (x : ℝ) ⊸ [?] (δ′ : ℝ⁺[δ′]) ⊸⋆ Γ₁⋅⟨2ε√(2k㏒(1/δ′),k⋅δ+δ′⟩+Γ₂⋅⟨∞,∞⟩+[ε⋅⟨∞,∞⟩ δ⋅⟨∞,∞⟩ δ′⋅⟨∞,∞⟩ k⋅⟨∞,∞⟩] ℝ,
    ⇒
    pλ a : ℝ
    ⇒
