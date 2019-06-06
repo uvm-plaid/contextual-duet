@@ -1,11 +1,11 @@
 let f =
-  sλ myLaplaceOne : (x : ℝ) ⊸⋆ [ x⋅⟨1.0,0.0⟩ ] ℝ ,
-     myLaplace : ∀ εₛ : ℝ⁺ . (ε : ℝ⁺[εₛ]) ⊸ [ε⋅0.0] (x : ℝ) ⊸⋆ [ ε⋅⟨∞,∞⟩, x⋅⟨εₛ,0.0⟩ ] ℝ ,
-     myGauss : ∀ εₛ : ℝ⁺, δₛ : ℝ⁺ . (ε : ℝ⁺[εₛ]) ⊸ [ε⋅0.0] (δ : ℝ⁺[δₛ]) ⊸ [ε⋅0.0, δ⋅0.0] (x : ℝ) ⊸⋆ [ ε⋅⟨∞,∞⟩, δ⋅⟨∞,∞⟩, x⋅⟨εₛ,δₛ⟩ ] ℝ ⇒
+  sλ myLaplaceOne : (a : ℝ) ⊸⋆ [ a⋅⟨1.0,0.0⟩ ] ℝ ,
+     myLaplace : ∀ εₛ : ℝ⁺ . (ε : ℝ⁺[εₛ]) ⊸ [ε⋅0.0] (b : ℝ) ⊸⋆ [ ε⋅⟨∞,∞⟩, b⋅⟨εₛ,0.0⟩ ] ℝ ,
+     myGauss : ∀ εₛ : ℝ⁺, δₛ : ℝ⁺ . (ε : ℝ⁺[εₛ]) ⊸ [ε⋅0.0] (δ : ℝ⁺[δₛ]) ⊸ [ε⋅0.0, δ⋅0.0] (c : ℝ) ⊸⋆ [ ε⋅⟨∞,∞⟩, δ⋅⟨∞,∞⟩, c⋅⟨εₛ,δₛ⟩ ] ℝ ⇒
    pλ a : ℝ
    ⇒
    r₁ ← myLaplaceOne a;
    r₂ ← myLaplace 1.0 a;
    r₃ ← myGauss 1.0 0.001 a;
-   return ⟨r₁, r₂, r₃⟩       -- should give a⋅⟨3.0, 0.001⟩ differential privacy
+   return ⟨⟨r₁, r₂⟩, r₃⟩       -- should give a⋅⟨3.0, 0.001⟩ differential privacy
 in f

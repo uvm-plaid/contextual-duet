@@ -229,13 +229,25 @@ checkSens ∷ Sens RExpPre → SM p ()
 checkSens (Sens r) = checkKind ℝK r
 
 checkPriv ∷ Pr p' RExpPre → SM p ()
--- multiple cases..
-checkPriv _ = undefined
+checkPriv = \case
+  EpsPriv r → checkKind ℝK r
+  EDPriv r₁ r₂ → do
+    checkKind ℝK r₁
+    checkKind ℝK r₂
+  RenyiPriv r₁ r₂ → do
+    checkKind ℝK r₁
+    checkKind ℝK r₂
+  ZCPriv r → checkKind ℝK r
+  TCPriv r₁ r₂ → do
+    checkKind ℝK r₁
+    checkKind ℝK r₂
 
 checkKind ∷ Kind → RExpPre → SM p ()
 checkKind κ r = do
   κ' ← inferKind r
-  when (not $ κ' ⊑ κ) $ error "kind error"
+  case κ' ⊑ κ of
+    True → return ()
+    False → error $ "kind error on : " ⧺ pprender r ⧺ ", expected: " ⧺ pprender κ' ⧺ " to be a subtype of " ⧺ pprender κ
 
 frKindEM ∷ KindE → SM p Kind
 frKindEM κ = case frKindE κ of
@@ -314,14 +326,16 @@ checkType τA = case τA of
     checkType τ₁
     mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
       eachWith sσ $ \ (x' :* s) → do
-        void $ inferKindVar x'
+        --TODO
+        -- void $ inferKindVar x'
         checkSens $ map extract s
       checkType τ₂
   (x :* τ₁) :⊸⋆: (PEnv (pσ ∷ 𝕏 ⇰ Pr p' RExp) :* τ₂) → do
     checkType τ₁
     mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
       eachWith pσ $ \ (x' :* p) → do
-        void $ inferKindVar x'
+        --TODO
+        -- void $ inferKindVar x'
         checkPriv $ map extract p
       checkType τ₂
   VarT x → void $ inferKindVar x
