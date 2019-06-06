@@ -1,7 +1,20 @@
 let f =
   sλ myLaplaceOne : (a : ℝ) ⊸⋆ [ a⋅⟨1.0,0.0⟩ ] ℝ ,
      myLaplace : ∀ εₛ : ℝ⁺ . (ε : ℝ⁺[εₛ]) ⊸ [ε⋅0.0] (b : ℝ) ⊸⋆ [ ε⋅⟨∞,∞⟩, b⋅⟨εₛ,0.0⟩ ] ℝ ,
-     myGauss : ∀ εₛ : ℝ⁺, δₛ : ℝ⁺ . (ε : ℝ⁺[εₛ]) ⊸ [ε⋅0.0] (δ : ℝ⁺[δₛ]) ⊸ [ε⋅0.0, δ⋅0.0] (c : ℝ) ⊸⋆ [ ε⋅⟨∞,∞⟩, δ⋅⟨∞,∞⟩, c⋅⟨εₛ,δₛ⟩ ] ℝ ⇒
+     myGauss : ∀ εₛ : ℝ⁺, δₛ : ℝ⁺ . (ε : ℝ⁺[εₛ]) ⊸ [ε⋅0.0] (δ : ℝ⁺[δₛ]) ⊸ [ε⋅0.0, δ⋅0.0] (c : ℝ) ⊸⋆ [ ε⋅⟨∞,∞⟩, δ⋅⟨∞,∞⟩, c⋅⟨εₛ,δₛ⟩ ] ℝ ,
+
+     -- I think this is the type of Bind
+     mySequentialComposition : ∀ ε₁: ℝ, δ₁: ℝ, ε₂: ℝ, δ₂: ℝ . ((x₁ : ℝ) ⊸⋆ [ x₁⋅⟨ε₁,δ₁⟩ ] ℝ) ⊸ ((x₂ : ℝ) ⊸⋆ [ x₂⋅⟨ε₂,δ₂⟩ ] ℝ) ⊸ (x : ℝ) ⊸⋆ [ x⋅⟨ε₁+ε₂,δ₁+δ₂⟩ ] ℝ,
+
+     -- this is loop of a single variable (doesn't close over anything)
+     myLoop : ∀ ε: ℝ, δ: ℝ, k: ℝ . ((x : ℝ) ⊸⋆ [ x⋅⟨ε,δ⟩ ] ℝ) ⊸ (x : ℝ) ⊸⋆ [ x⋅⟨kε,kδ⟩ ] ℝ,
+
+     -- this is "better" type of loop - the function closes over some things. How do we write this type, with the quantified Γ? What goes in the [?]
+     myLoop2 : ∀ ε: ℝ, δ: ℝ, k: ℝ, Γ: PEnv . ((x : ℝ) ⊸⋆ Γ⋅⟨ε,δ⟩+[x⋅∞] ℝ) ⊸ [?] (x : ℝ) ⊸⋆ Γ⋅⟨kε,kδ⟩+[x⋅∞] ℝ,
+
+     -- how do we separate "stuff we care about" from "stuff we don't care about"? Will pλs need type annotations to specify this?
+     myALoop : ∀ ε: ℝ, δ: ℝ, δ′: ℝ, k: ℝ, Γ₁: PEnv, Γ₂: PEnv, Γ₃: PEnv . ((x : ℝ) ⊸⋆ Γ₁⋅⟨ε,δ⟩+Γ₂⋅⟨∞,∞⟩ ℝ) ⊸ [?] (x : ℝ) ⊸ [?] (δ′ : ℝ⁺[δ′]) ⊸⋆ Γ₁⋅⟨2ε√(2k㏒(1/δ′),k⋅δ+δ′⟩+Γ₂⋅⟨∞,∞⟩+[ε⋅⟨∞,∞⟩ δ⋅⟨∞,∞⟩ δ′⋅⟨∞,∞⟩ k⋅⟨∞,∞⟩] ℝ,
+   ⇒
    pλ a : ℝ
    ⇒
    r₁ ← myLaplaceOne a;
