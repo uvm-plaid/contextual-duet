@@ -326,7 +326,7 @@ checkType τA = case τA of
     checkType τ₁
     mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
       eachWith sσ $ \ (x' :* s) → do
-        --TODO
+        --TODO: checkTermVar
         -- void $ inferKindVar x'
         checkSens $ map extract s
       checkType τ₂
@@ -334,11 +334,14 @@ checkType τA = case τA of
     checkType τ₁
     mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
       eachWith pσ $ \ (x' :* p) → do
-        --TODO
+        --TODO: checkTermVar
         -- void $ inferKindVar x'
         checkPriv $ map extract p
       checkType τ₂
   VarT x → void $ inferKindVar x
+  ForallT x κ τ → do
+    mapEnvL contextKindL ( \ γ → (x ↦ κ) ⩌ γ) $ do
+      checkType τ
   _ → error $ "checkType error on " ⧺ pprender τA
 
 inferSens ∷ ∀ p. (PRIV_C p) ⇒ SExpSource p → SM p (Type RNF)
@@ -670,10 +673,14 @@ inferSens eA = case extract eA of
     τ ← inferSens e
     case τ of
       ForallT x κ τ → do
-        let τ'' = checkTypeLang $ substTL x (typeToTLExp $ map normalizeRNF $ extract τ') (typeToTLExp τ)
-        case τ'' of
-          None → undefined
-          Some τ''' → return τ'''
+        -- TODO: check that τ' is of kind κ
+        let τ'' = case κ of
+              ℕK → case extract τ' of
+                ℕˢT r → substTypeR x (normalizeRNF r) τ
+              ℝK → case extract τ' of
+                ℝˢT r → substTypeR x (normalizeRNF r) τ
+              TypeK → checkOption $ checkTypeLang $ substTL x (typeToTLExp $ map normalizeRNF $ extract τ') (typeToTLExp τ)
+        return τ''
       _ → error $ "expected ForallT"
   SFunSE x τ e → do
       checkType $ extract τ
@@ -691,9 +698,20 @@ inferSens eA = case extract eA of
     σ₂ :* τ₂ ← hijack $ inferSens e₂
     case τ₁ of
       (x :* τ₁₁) :⊸: (sσ :* τ₁₂) | τ₁₁ ≡ τ₂ → do
-        -- QUESTION
         tell $ (sσ ⋕! x) ⨵ σ₂
         return τ₁₂
+      (x :* τ₁₁) :⊸: (sσ :* τ₁₂) → error $ concat
+            [ "AppSE error 1: "
+            , pprender $ (τ₁₁ :* τ₂)
+            , "\n"
+            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+            ]
+      _ →  error $ concat
+            [ "AppSE error 2: "
+            , pprender τ₁
+            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+            ]
+
   PFunSE x τ e → do
     checkType $ extract τ
     let τ' = map normalizeRNF $ extract τ
@@ -1028,7 +1046,12 @@ inferPriv eA = case extract eA of
         , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
         ]
 
-substTL ∷ 𝕏 → TLExp r → TLExp r → TLExp r
+checkOption ∷ 𝑂 a → a
+checkOption = \case
+  None → error "checkOption failed"
+  Some α → α
+
+substTL ∷ 𝕏 → TLExp RNF → TLExp RNF → TLExp RNF
 substTL x tl₁ tl₂ = case tl₂ of
   VarTE x' → case x ≡ x' of
     True → tl₁
@@ -1098,16 +1121,32 @@ substType x τ₁ τ₂ =
           None → error "type coercion failed"
           Some τ'' → τ''
 
--- substRExp ∷ 𝕏 → RNF → Type RNF → Type RNF
--- substRExp x r τ = substRExpR pø x r (fvRNF r) τ
+substMExpR ∷ 𝕏 → RNF → MExp RNF → MExp RNF
+substMExpR x r' = \case
+  EmptyME → EmptyME
+  VarME x' → VarME x'
+  ConsME τ me → ConsME (substTypeR x r' τ) (substMExpR x r' me)
+  AppendME me₁ me₂ → AppendME (substMExpR x r' me₁) (substMExpR x r' me₂)
+  RexpME r τ → RexpME (substRNF x  r' r) (substTypeR x r' τ)
 
--- substMExpR ∷ 𝑃 𝕏 → 𝕏 → RNF → 𝑃 𝕏 → MExp RNF → MExp RNF
--- substMExpR 𝓈 x r' fv = \case
---   EmptyME → EmptyME
---   VarME x' → VarME x'
---   ConsME τ me → ConsME (substRExpR 𝓈 x r' fv τ) (substMExpR 𝓈 x r' fv me)
---   AppendME me₁ me₂ → AppendME (substMExpR 𝓈 x r' fv me₁) (substMExpR 𝓈 x r' fv me₂)
---   RexpME r τ → RexpME (substRNF x (renameRNF (renaming 𝓈 fv) r') r) (substRExpR 𝓈 x r' fv τ)
-
--- substRExpR ∷ 𝑃 𝕏 → 𝕏 → RNF → 𝑃 𝕏 → Type RNF → Type RNF
--- substRExpR 𝓈 x r' fv = undefined
+substTypeR ∷ 𝕏 → RNF → Type RNF → Type RNF
+substTypeR x r' = \case
+  ℕˢT r → ℕˢT $ substRNF x r' r
+  ℝˢT r → ℝˢT $ substRNF x r' r
+  ℕT → ℕT
+  ℝT → ℝT
+  𝕀T r → 𝕀T $ substRNF x r' r
+  𝔹T → 𝔹T
+  𝕊T → 𝕊T
+  SetT τ → SetT $ substTypeR x r' τ
+  𝕄T ℓ c rs me →
+    let rs' = case rs of
+          RexpRT r → RexpRT $ substRNF x r' r
+          StarRT → StarRT
+    in 𝕄T ℓ c rs' $ substMExpR x r' me
+  𝔻T τ → 𝔻T $ substTypeR x r' τ
+  τ₁ :⊕: τ₂ → substTypeR x r' τ₁ :⊕: substTypeR x r' τ₂
+  τ₁ :⊗: τ₂ → substTypeR x r' τ₁ :⊗: substTypeR x r' τ₂
+  τ₁ :&: τ₂ → substTypeR x r' τ₁ :&: substTypeR x r' τ₂
+  (x :* τ₁) :⊸: (sσ :* τ₂) → (x :* substTypeR x r' τ₁) :⊸: (sσ :* substTypeR x r' τ₂)
+  (x :* τ₁) :⊸⋆: (pσ :* τ₂) → (x :* substTypeR x r' τ₁) :⊸⋆: (pσ :* substTypeR x r' τ₂)
