@@ -18,7 +18,7 @@ let f =
    pλ a : ℝ
    ⇒
    r₁ ← myLaplaceOne a;
-   r₂ ← myLaplace@ℝ⁺[1.0] ℝ⁺[1.0] a;
-   r₃ ← myGauss 1.0 0.001 a;
+   r₂ ← myLaplace @ ℝ⁺[1.0] ℝ⁺[1.0] a;
+   r₃ ← myGauss @ ℝ⁺[1.0] @ ℝ⁺[1.0] ℝ⁺[1.0] ℝ⁺[1.0] a;
    return ⟨⟨r₁, r₂⟩, r₃⟩       -- should give a⋅⟨3.0, 0.001⟩ differential privacy
 in f

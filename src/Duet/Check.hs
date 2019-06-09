@@ -701,13 +701,13 @@ inferSens eA = case extract eA of
         tell $ (sσ ⋕! x) ⨵ σ₂
         return τ₁₂
       (x :* τ₁₁) :⊸: (sσ :* τ₁₂) → error $ concat
-            [ "AppSE error 1: "
+            [ "AppSE error 1 (argument type mismatch): "
             , pprender $ (τ₁₁ :* τ₂)
             , "\n"
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             ]
       _ →  error $ concat
-            [ "AppSE error 2: "
+            [ "AppSE error 2 (tried to apply a non sλ): "
             , pprender τ₁
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             ]
@@ -1130,23 +1130,25 @@ substMExpR x r' = \case
   RexpME r τ → RexpME (substRNF x  r' r) (substTypeR x r' τ)
 
 substTypeR ∷ 𝕏 → RNF → Type RNF → Type RNF
-substTypeR x r' = \case
-  ℕˢT r → ℕˢT $ substRNF x r' r
-  ℝˢT r → ℝˢT $ substRNF x r' r
+substTypeR x' r' τ' = case τ' of
+  ℕˢT r → ℕˢT $ substRNF x' r' r
+  ℝˢT r → ℝˢT $ substRNF x' r' r
   ℕT → ℕT
   ℝT → ℝT
-  𝕀T r → 𝕀T $ substRNF x r' r
+  𝕀T r → 𝕀T $ substRNF x' r' r
   𝔹T → 𝔹T
   𝕊T → 𝕊T
-  SetT τ → SetT $ substTypeR x r' τ
+  SetT τ → SetT $ substTypeR x' r' τ
   𝕄T ℓ c rs me →
     let rs' = case rs of
-          RexpRT r → RexpRT $ substRNF x r' r
+          RexpRT r → RexpRT $ substRNF x' r' r
           StarRT → StarRT
-    in 𝕄T ℓ c rs' $ substMExpR x r' me
-  𝔻T τ → 𝔻T $ substTypeR x r' τ
-  τ₁ :⊕: τ₂ → substTypeR x r' τ₁ :⊕: substTypeR x r' τ₂
-  τ₁ :⊗: τ₂ → substTypeR x r' τ₁ :⊗: substTypeR x r' τ₂
-  τ₁ :&: τ₂ → substTypeR x r' τ₁ :&: substTypeR x r' τ₂
-  (x :* τ₁) :⊸: (sσ :* τ₂) → (x :* substTypeR x r' τ₁) :⊸: (sσ :* substTypeR x r' τ₂)
-  (x :* τ₁) :⊸⋆: (pσ :* τ₂) → (x :* substTypeR x r' τ₁) :⊸⋆: (pσ :* substTypeR x r' τ₂)
+    in 𝕄T ℓ c rs' $ substMExpR x' r' me
+  𝔻T τ → 𝔻T $ substTypeR x' r' τ
+  τ₁ :⊕: τ₂ → substTypeR x' r' τ₁ :⊕: substTypeR x' r' τ₂
+  τ₁ :⊗: τ₂ → substTypeR x' r' τ₁ :⊗: substTypeR x' r' τ₂
+  τ₁ :&: τ₂ → substTypeR x' r' τ₁ :&: substTypeR x' r' τ₂
+  (x :* τ₁) :⊸: (sσ :* τ₂) → (x :* substTypeR x' r' τ₁) :⊸: (sσ :* substTypeR x' r' τ₂)
+  (x :* τ₁) :⊸⋆: (pσ :* τ₂) → (x :* substTypeR x' r' τ₁) :⊸⋆: (pσ :* substTypeR x' r' τ₂)
+  ForallT x κ τ → ForallT x κ $ substTypeR x' r' τ
+  _ → error $ "substTypeR" ⧺ pprender τ'
