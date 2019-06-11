@@ -188,6 +188,7 @@ data Kind =
     ℕK
   | ℝK
   | TypeK
+  | CxtK
   deriving (Eq,Ord,Show)
 
 -- DAVID STILL HATES THIS
@@ -518,7 +519,7 @@ deriving instance Show (SVTParams p)
 -- AppPE (AppSE f x) y
 
 
-  
+
 
 type PExpSource (p ∷ PRIV) = Annotated FullContext (PExp p)
 data PExp (p ∷ PRIV) where

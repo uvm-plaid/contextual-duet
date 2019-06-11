@@ -1129,6 +1129,15 @@ substMExpR x r' = \case
   AppendME me₁ me₂ → AppendME (substMExpR x r' me₁) (substMExpR x r' me₂)
   RexpME r τ → RexpME (substRNF x  r' r) (substTypeR x r' τ)
 
+
+substPrivR ∷ 𝕏 → RNF → Pr p RNF → Pr p RNF
+substPrivR x' r' p' = case p' of
+  EpsPriv r → EpsPriv $ substRNF x' r' r
+  EDPriv r₁ r₂ → EDPriv (substRNF x' r' r₁) (substRNF x' r' r₂)
+  RenyiPriv r₁ r₂ → RenyiPriv (substRNF x' r' r₁) (substRNF x' r' r₂)
+  ZCPriv r → ZCPriv $ substRNF x' r' r
+  TCPriv r₁ r₂ → TCPriv (substRNF x' r' r₁) (substRNF x' r' r₂)
+
 substTypeR ∷ 𝕏 → RNF → Type RNF → Type RNF
 substTypeR x' r' τ' = case τ' of
   ℕˢT r → ℕˢT $ substRNF x' r' r
@@ -1148,7 +1157,9 @@ substTypeR x' r' τ' = case τ' of
   τ₁ :⊕: τ₂ → substTypeR x' r' τ₁ :⊕: substTypeR x' r' τ₂
   τ₁ :⊗: τ₂ → substTypeR x' r' τ₁ :⊗: substTypeR x' r' τ₂
   τ₁ :&: τ₂ → substTypeR x' r' τ₁ :&: substTypeR x' r' τ₂
-  (x :* τ₁) :⊸: (sσ :* τ₂) → (x :* substTypeR x' r' τ₁) :⊸: (sσ :* substTypeR x' r' τ₂)
-  (x :* τ₁) :⊸⋆: (pσ :* τ₂) → (x :* substTypeR x' r' τ₁) :⊸⋆: (pσ :* substTypeR x' r' τ₂)
+  (x :* τ₁) :⊸: (sσ :* τ₂) →
+    (x :* substTypeR x' r' τ₁) :⊸: (assoc (map (\(xₐ :* s) → xₐ :* Sens (substRNF x' r' (unSens s))) (iter sσ)) :* substTypeR x' r' τ₂)
+  (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) →
+    (x :* substTypeR x' r' τ₁) :⊸⋆: ((PEnv (assoc (map (\(xₐ :* p) → xₐ :* substPrivR x' r' p) (iter pσ)))) :* substTypeR x' r' τ₂)
   ForallT x κ τ → ForallT x κ $ substTypeR x' r' τ
   _ → error $ "substTypeR" ⧺ pprender τ'
