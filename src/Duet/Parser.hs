@@ -297,6 +297,11 @@ parSens = do
 parRExp ∷ Parser Token RExp
 parRExp = mixfixParserWithContext "rexp" $ concat
   [ mixF $ MixFTerminal $ do
+      parLit "("
+      e ← parRExp
+      parLit ")"
+      return $ extract e
+  , mixF $ MixFTerminal $ do
       x ← parVar
       return $ VarRE x
   , mixF $ MixFTerminal $ do
