@@ -4,7 +4,6 @@ import Duet.UVMHS
 
 import Duet.Syntax
 import Duet.RNF2
-import Duet.Quantity
 
 data Token =
     TokenName 𝕊
@@ -21,7 +20,7 @@ tokKeywords ∷ 𝐿 𝕊
 tokKeywords = list
   ["let","in","sλ","pλ","return","on"
   ,"ℕ","ℝ","ℝ⁺","𝔻","𝕀","𝕄","𝔻𝔽","𝔹","𝕊","★","∷","⋅","[]","⧺","☆"
-  ,"∀","⊥","⊤","sens","priv","∞"
+  ,"∀","⊥","⊤","sens","priv","∞","cxt"
   ,"LR","L2","U"
   ,"real","bag","set","record", "unionAll"
   ,"partitionDF","addColDF","mapDF","join₁","joinDF₁","parallel"
@@ -129,6 +128,7 @@ parKind p = pNew "kind" $ tries
   [ do parLit "ℕ" ; return ℕK
   , do parLit "ℝ⁺" ; return ℝK
   , do parLit "☆" ; return TypeK
+  , do parLit "cxt" ; return CxtK
   ]
 
 parPEnv ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (PEnv RExp)

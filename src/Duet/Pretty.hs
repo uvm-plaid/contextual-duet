@@ -40,6 +40,7 @@ instance Pretty Kind where
     ℕK → ppKeyPun "ℕ"
     ℝK → ppKeyPun "ℝ⁺"
     TypeK → ppKeyPun "☆"
+    CxtK → ppKeyPun "cxt"
     -- SensK → ppKeyPun "sens"
     -- PrivK _ → ppKeyPun "priv"
 

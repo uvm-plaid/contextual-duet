@@ -225,6 +225,27 @@ inferKindVar x = do
       , pprender δ
       ]
 
+checkTermVar ∷ 𝕏 → SM p ()
+checkTermVar x = do
+  σ ← askL contextTypeL
+  case σ ⋕? x of
+    Some _τ → return ()
+    None → do
+      δ ← askL contextKindL
+      case δ ⋕? x of
+        Some κ → case κ of
+          CxtK → return ()
+          _ → error $ concat
+            [ "checkTermVar: failed on " ⧺ (pprender x) ⧺ " in the environments:\n"
+            , pprender σ
+            , pprender δ
+            ]
+        None → error $ concat
+          [ "checkTermVar: failed on " ⧺ (pprender x) ⧺ " in the environments:\n"
+          , pprender σ
+          , pprender δ
+          ]
+
 checkSens ∷ Sens RExpPre → SM p ()
 checkSens (Sens r) = checkKind ℝK r
 
@@ -288,6 +309,10 @@ inferKind = \case
   LogRE e → do
     void $ inferKind $ extract e
     return ℝK
+  DivRE e₁ e₂ → do
+    κ₁ ← inferKind $ extract e₁
+    κ₂ ← inferKind $ extract e₂
+    frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
 
 checkType ∷ ∀ p. (PRIV_C p) ⇒ Type RExp → SM p ()
 checkType τA = case τA of
@@ -326,16 +351,14 @@ checkType τA = case τA of
     checkType τ₁
     mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
       eachWith sσ $ \ (x' :* s) → do
-        --TODO: checkTermVar
-        -- void $ inferKindVar x'
+        void $ checkTermVar x'
         checkSens $ map extract s
       checkType τ₂
   (x :* τ₁) :⊸⋆: (PEnv (pσ ∷ 𝕏 ⇰ Pr p' RExp) :* τ₂) → do
     checkType τ₁
     mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
       eachWith pσ $ \ (x' :* p) → do
-        --TODO: checkTermVar
-        -- void $ inferKindVar x'
+        void $ checkTermVar x'
         checkPriv $ map extract p
       checkType τ₂
   VarT x → void $ inferKindVar x
