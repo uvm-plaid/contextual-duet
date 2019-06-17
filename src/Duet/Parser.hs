@@ -175,7 +175,7 @@ parMExp mode = mixfixParser $ concat
       return AppendME
   , mix $ MixTerminal $ do
       r ← parRExp
-      parLit "⋅"
+      parLit "↦"
       τ ← parType mode
       return $ RexpME r τ
   , mix $ MixTerminal $ VarME ^$ parVar
@@ -263,6 +263,11 @@ parSTLExp mode = mixfixParserWithContext "tlexp" $ concat
       κ ← parKind mode
       parLit "."
       return $ \ τ → ForallSTE α κ τ
+  , mixF $ MixFTerminal $ do
+      parLit "<"
+      xs ← pManySepBy (parLit ",") parVar
+      parLit ">"
+      return $ CxtSTE $ pow xs
   , mixF $ MixFPrefix 3 $ do
       parLit "box"
       parLit "["
@@ -436,6 +441,11 @@ parType mode = mixfixParser $ concat
       parLit "."
       return $ \ e →
         ForallT x κ $ foldr e (\ (x' :* κ') e' → ForallT x' κ' e') xκs
+  , mix $ MixTerminal $ do
+      parLit "<"
+      xs ← pManySepBy (parLit ",") parVar
+      parLit ">"
+      return $ CxtT $ pow xs
   , mix $ MixPrefix 3 $ do
       parLit "box"
       parLit "["

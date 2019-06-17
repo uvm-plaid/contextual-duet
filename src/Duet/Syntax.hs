@@ -243,6 +243,7 @@ data Type r =
   | (𝕏 ∧ Type r) :⊸: ((𝕏 ⇰ Sens r) ∧ Type r)
   | (𝕏 ∧ Type r) :⊸⋆: (PEnv r ∧ Type r)
   | ForallT 𝕏 Kind (Type r)
+  | CxtT (𝑃 𝕏)
   | BoxedT (𝕏 ⇰ Sens r) (Type r)
   -- eventually we want:
   -- - contextual/lazy function, pair, and sum connectives
@@ -267,6 +268,7 @@ data TLExp r =
   | (𝕏 ∧ TLExp r) :⊸♭: ((𝕏 ⇰ Sens r) ∧ TLExp r)
   | (𝕏 ∧ TLExp r) :⊸⋆♭: (PEnv r ∧ TLExp r)
   | ForallTE 𝕏 Kind (TLExp r)
+  | CxtTE (𝑃 𝕏)
   -- | (𝐿 (𝕏 ∧ Kind) ∧ TLExp r) :⊸♭: (Sens r ∧ TLExp r)
   -- -- ∀α:κ,…,α:κ. (x:τ,…,x:τ) → {x⋅p,…,x⋅p} τ
   -- | (𝐿 (𝕏 ∧ Kind) ∧ 𝐿 (𝕏 ∧ TLExp r)) :⊸⋆♭: (PEnv r ∧ TLExp r)
@@ -306,6 +308,7 @@ data STLExpPre r =
   | STLExp r :⊸♭♭: (Sens r ∧ STLExp r)
   | (𝕏 ∧ STLExp r) :⊸⋆♭♭: (PEnv r ∧ STLExp r)
   | ForallSTE 𝕏 Kind (STLExp r)
+  | CxtSTE (𝑃 𝕏)
   -- | (𝐿 (𝕏 ∧ Kind) ∧ STLExp r) :⊸♭: (Sens r ∧ STLExp r)
   -- -- ∀α:κ,…,α:κ. (x:τ,…,x:τ) → {x⋅p,…,x⋅p} τ
   -- | (𝐿 (𝕏 ∧ Kind) ∧ 𝐿 (𝕏 ∧ STLExp r)) :⊸⋆♭: (PEnv r ∧ STLExp r)
@@ -349,6 +352,7 @@ instance Functor Type where
     (x :* τ₁) :⊸: (s :* τ₂) → (x :* map f τ₁) :⊸: (mapp f s :*  map f τ₂)
     (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → (x :* map f τ₁) :⊸⋆: (PEnv (map (map f) pσ) :* map f τ₂)
     ForallT α κ τ → ForallT α κ $ map f τ
+    CxtT xs → CxtT xs
     BoxedT σ τ → BoxedT (map (map f) σ) (map f τ)
     VarT x → VarT x
 

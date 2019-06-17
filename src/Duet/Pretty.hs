@@ -178,6 +178,7 @@ instance (Pretty r) ⇒ Pretty (Type r) where
         ]
       , ppNest 2 $ ppAlign $ pretty τ
       ]
+    CxtT xs → pretty xs
     BoxedT σ τ → ppAtLevel 5 $ ppSeparated $ list
       [ concat [ ppKeyPun "□" , ppPun "[" ]
       , ppSeparated $ list $ inbetween (ppPun ",") $ mapOn (iter σ) $ \ (x :* Sens q) →

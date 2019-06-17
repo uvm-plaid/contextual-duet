@@ -702,6 +702,8 @@ inferSens eA = case extract eA of
                 ℕˢT r → substTypeR x (normalizeRNF r) τ
               ℝK → case extract τ' of
                 ℝˢT r → substTypeR x (normalizeRNF r) τ
+              CxtK → case extract τ' of
+                CxtT xs → substTypeCxt x (list $ iter $ xs) τ
               TypeK → checkOption $ checkTypeLang $ substTL x (typeToTLExp $ map normalizeRNF $ extract τ') (typeToTLExp τ)
         return τ''
       _ → error $ "expected ForallT"
@@ -1160,6 +1162,20 @@ substPrivR x' r' p' = case p' of
   RenyiPriv r₁ r₂ → RenyiPriv (substRNF x' r' r₁) (substRNF x' r' r₂)
   ZCPriv r → ZCPriv $ substRNF x' r' r
   TCPriv r₁ r₂ → TCPriv (substRNF x' r' r₁) (substRNF x' r' r₂)
+
+substTypeCxt ∷ 𝕏 → 𝐿 𝕏 → Type RNF → Type RNF
+substTypeCxt x' xs τ' = case τ' of
+  (x :* τ₁) :⊸: (sσ :* τ₂) → (x :* τ₁) :⊸: ((spliceCxt x xs sσ) :* τ₂)
+  (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → (x :* τ₁) :⊸⋆: (PEnv (spliceCxt x xs pσ) :* τ₂)
+
+spliceCxt ∷ 𝕏 → 𝐿 𝕏 → 𝕏 ⇰ a → 𝕏 ⇰ a
+spliceCxt x' xs σ = case σ ⋕? x' of
+  None → σ
+  Some a → spliceCxt' xs a σ
+
+spliceCxt' ∷ 𝐿 𝕏 → a → 𝕏 ⇰ a → 𝕏 ⇰ a
+spliceCxt' Nil _a σ = σ
+spliceCxt' (x:&xs) a σ = spliceCxt' xs a $ (x ↦ a) ⩌ σ
 
 substTypeR ∷ 𝕏 → RNF → Type RNF → Type RNF
 substTypeR x' r' τ' = case τ' of
