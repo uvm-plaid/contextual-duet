@@ -725,27 +725,6 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       e₃ ← parSExp p
       parLit "}"
       return $ MFoldSE e₁ e₂ x₁ x₂ e₃
-  , mixF $ MixFTerminal $ do
-      parLit "bmap"
-      e₁ ← parSExp p
-      e₂O ← pOptional $ do
-        parLit ","
-        e₂ ← parSExp p
-        return e₂
-      parLit "{"
-      x₁ ← parVar
-      e₂x₂O ← case e₂O of
-        None → return None
-        Some e₂ → do
-          parLit ","
-          x₂ ← parVar
-          return $ Some $ e₂ :* x₂
-      parLit "⇒"
-      e₃ ← parSExp p
-      parLit "}"
-      return $ case e₂x₂O of
-        None → BMapSE e₁ x₁ e₃
-        Some (e₂ :* x₂) → BMap2SE e₁ e₂ x₁ x₂ e₃
   , mixF $ MixFTerminal $ VarSE ^$ parVar
   , mixF $ MixFPrefix 1 $ do
       parLit "let"
@@ -792,24 +771,17 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       x ← parVar
       parLit ":"
       τ ← parTypeSource p
+      xτs ← pMany $ do
+        parLit ","
+        x' ← parVar
+        parLit ":"
+        τ' ← parTypeSource p
+        return $ x' :* τ'
       parLit "⇒"
       e ← parPExp p
-      return $ PFunSE x τ e
-  -- , mixF $ MixFTerminal $ do
-  --     parLit "pλ"
-  --     x ← parVar
-  --     parLit ":"
-  --     τ ← parTypeSource p
-  --     xτs ← pOneOrMoreSepBy (parLit ",") $ do
-  --       x' ← parVar
-  --       parLit ":"
-  --       τ' ← parTypeSource p
-  --       return $ x :* τ
-  --     parLit "⇒"
-  --     e ← parPExp p
-  --     return $
-  --       let ecxt = annotatedTag e
-  --       in PFunSE x τ $ foldr e (\ (x' :* τ') e' → Annotated ecxt $ ReturnPE $ Annotated ecxt $ PFunSE x' τ' e') xτs
+      return $
+        let ecxt = annotatedTag e
+        in PFunSE x τ $ foldr e (\ (x' :* τ') e' → Annotated ecxt $ ReturnPE $ Annotated ecxt $ PFunSE x' τ' e') xτs
   , mixF $ MixFPrefix 1 $ do
       parLit "∀"
       x ← parVar

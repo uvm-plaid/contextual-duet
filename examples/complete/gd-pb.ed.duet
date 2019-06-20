@@ -4,25 +4,25 @@
 --
 -- gradient descent
 -- per-iteration bound
-let main = pλ m  : ℕ,
+let main =  ∀ m  : ℕ,
               n  : ℕ,
               ε  : ℝ⁺,
               k  : ℕ,
               δ  : ℝ⁺,
               δ′ : ℝ⁺
               .
-              xs : 𝕄 [L∞, U|m, n⋅𝔻 ] ,
-              ys : 𝕄 [L∞, U|m, 1⋅𝔻 ] ,
+           pλ xs : 𝕄 [L∞, U|m, n↦𝔻 ] ,
+              ys : 𝕄 [L∞, U|m, 1.0↦𝔻 ] ,
               ε  : ℝ⁺[ε],
               k  : ℕ[k],
               δ  : ℝ⁺[δ],
               δ′ : ℝ⁺[δ′],
               η  : ℝ
               ⇒
-  let m₀ = mcreate @ 1 @ n @ 𝔻 ℕ[1] ℕ[n] (sλ . i : 𝕀[m] , j : 𝕀[n] ⇒ 0.0) in
+  let m₀ = mcreate @ ℕ[1.0] @ n @ 𝔻 ℕ[1] (cols xs) (sλ i : 𝕀[m] , j : 𝕀[n] ⇒ 0.0) in
   aloop @ ε @ δ @ δ′ @ k @ <xs,ys>@<θ>
-    (pλ θ : 𝕄 [L∞, U|ℕ[1], n⋅𝔻 ] ⇒
-      g ← mgauss[ s , ε , δ ] <xs,ys> { ∇[ LR | θ ; mclip[L2] xs , ys ] } ;
+    (pλ θ : 𝕄 [L∞, U|1.0, n↦𝔻 ] ⇒
+      g ← mgauss @ ε @ δ @ m @ n ϵ δ (mLipGrad @ m @ n @ ℝ⁺[1.0] @ ℝ⁺[1.0] θ (mclip xs) ys) ;
       return (myMatSub @ m @ n θ g))
     m₀
     δ′
