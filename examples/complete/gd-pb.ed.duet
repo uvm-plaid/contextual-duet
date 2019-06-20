@@ -19,23 +19,11 @@ let main = pλ m  : ℕ,
               δ′ : ℝ⁺[δ′],
               η  : ℝ
               ⇒
-  let m₀ = mcreate[ L∞ | ℕ[1] , cols xs ] { i , j ⇒ 0.0 } in
-  let c = box (mclip[L2] xs) in
-  aloop[ δ′ ] k on m₀ <xs,ys> { a, θ ⇒
-    let s = ℝ⁺[1.0] / real (rows xs) in
-    g ← mgauss[ s , ε , δ ] <xs,ys> { ∇[ LR | θ ; unbox c , ys ] } ;
-    return mmap θ , mmap g { x ⇒ η ⋅ x } { x , y ⇒ x - y }
-  }
--- in main
+  let m₀ = mcreate @ 1 @ n @ 𝔻 ℕ[1] ℕ[n] (sλ . i : 𝕀[m] , j : 𝕀[n] ⇒ 0.0) in
+  aloop @ ε @ δ @ δ′ @ k @ <xs,ys>@<θ>
+    (pλ θ : 𝕄 [L∞, U|ℕ[1], n⋅𝔻 ] ⇒
+      g ← mgauss[ s , ε , δ ] <xs,ys> { ∇[ LR | θ ; mclip[L2] xs , ys ] } ;
+      return (myMatSub @ m @ n θ g))
+    m₀
+    δ′
 in main
--- in return (pλ . 
---               xs : 𝕄 [L∞, U|1000, 10⋅𝔻 ] ,
---               ys : 𝕄 [L∞, U|1000, 10⋅𝔻 ] ,
---               ε  : ℝ⁺[0.001],
---               k  : ℕ[100],
---               δ  : ℝ⁺[0.0001],
---               δ′ : ℝ⁺[0.0001],
---               η  : ℝ ⇒
---             main@[ 1000 , 10 , 0.001 , 100 , 0.0001 , 0.0001 ](xs, ys, ε, k, δ, δ′, η))
-
--- fold [1, 2, 3, ... k] m₀ (λ i, a → <ignore i>)

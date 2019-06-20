@@ -25,8 +25,8 @@ tokKeywords = list
   ,"real","bag","set","record", "unionAll"
   ,"partitionDF","addColDF","mapDF","join₁","joinDF₁","parallel"
   ,"chunks","mfold-row","mfilter","zip","AboveThreshold","mmap-col","mmap-row","pfld-rows","pmap-col"
-  ,"matrix","mcreate","mclip","clip","∇","U∇","mmap","bmap","idx","℘","𝐝","conv","disc","∈"
-  ,"aloop","loop","gauss","mgauss","bgauss","laplace","mlaplace","mconv","×","tr","mmapp"
+  ,"matrix","idx","℘","𝐝","conv","disc","∈"
+  ,"×","tr"
   ,"rows","cols", "count","exponential","rand-resp","discf"
   ,"sample","rand-nat"
   ,"L1","L2","L∞","U"
@@ -35,6 +35,7 @@ tokKeywords = list
   ,"box","unbox","boxed"
   ,"if","then","else"
   ,"true","false"
+  ,"primitive"
   ,"CSVtoMatrix"
   ]
 
@@ -155,6 +156,18 @@ parSEnv = tries
         return (x :* sens)
       parLit "]"
       return $ assoc xsens
+  ]
+
+parPrimitives ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (𝕏 ⇰ Type RExp)
+parPrimitives mode = tries
+  [ do
+      prims ← pManySepBy (parLit ",") $ do
+        parLit "primitive"
+        x ← parVar
+        parLit ":"
+        τ ← parType mode
+        return (x :* τ)
+      return $ assoc prims
   ]
 
 parRowsT ∷ Parser Token (RowsT RExp)
@@ -574,23 +587,23 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       e₂ ← parSExp p
       parLit "]"
       return $ DFJoin1SE x e₁ e₂
-  , mixF $ MixFTerminal $ do
-      parLit "mcreate"
-      parLit "["
-      ℓ ← parNorm
-      parLit "|"
-      e₁ ← parSExp p
-      parLit ","
-      e₂ ← parSExp p
-      parLit "]"
-      parLit "{"
-      x₁ ← parVar
-      parLit ","
-      x₂ ← parVar
-      parLit "⇒"
-      e₃ ← parSExp p
-      parLit "}"
-      return $ MCreateSE ℓ e₁ e₂ x₁ x₂ e₃
+  -- , mixF $ MixFTerminal $ do
+  --     parLit "mcreate"
+  --     parLit "["
+  --     ℓ ← parNorm
+  --     parLit "|"
+  --     e₁ ← parSExp p
+  --     parLit ","
+  --     e₂ ← parSExp p
+  --     parLit "]"
+  --     parLit "{"
+  --     x₁ ← parVar
+  --     parLit ","
+  --     x₂ ← parVar
+  --     parLit "⇒"
+  --     e₃ ← parSExp p
+  --     parLit "}"
+  --     return $ MCreateSE ℓ e₁ e₂ x₁ x₂ e₃
   -- , mixF $ MixFTerminal $ do
   --   parLit "CSVtoMatrix"
   --   parLit "("
@@ -617,24 +630,24 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
   , mixF $ MixFPrefix 10 $ const MTransposeSE ^$ parLit "tr"
   , mixF $ MixFPrefix 10 $ const IdxSE ^$ parLit "idx"
   , mixF $ MixFPrefix 10 $ const DiscFSE ^$ parLit "discf"
-  , mixF $ MixFPrefix 10 $ do
-      parLit "mclip"
-      parLit "["
-      ℓ ← parNorm
-      parLit "]"
-      return $ MClipSE ℓ
-  , mixF $ MixFTerminal $ do
-      parLit "∇"
-      parLit "["
-      g ← parGrad
-      parLit "|"
-      e₁ ← parSExp p
-      parLit ";"
-      e₂ ← parSExp p
-      parLit ","
-      e₃ ← parSExp p
-      parLit "]"
-      return $ MLipGradSE g e₁ e₂ e₃
+  -- , mixF $ MixFPrefix 10 $ do
+  --     parLit "mclip"
+  --     parLit "["
+  --     ℓ ← parNorm
+  --     parLit "]"
+  --     return $ MClipSE ℓ
+  -- , mixF $ MixFTerminal $ do
+  --     parLit "∇"
+  --     parLit "["
+  --     g ← parGrad
+  --     parLit "|"
+  --     e₁ ← parSExp p
+  --     parLit ";"
+  --     e₂ ← parSExp p
+  --     parLit ","
+  --     e₃ ← parSExp p
+  --     parLit "]"
+  --     return $ MLipGradSE g e₁ e₂ e₃
   , mixF $ MixFTerminal $ do
       parLit "U∇"
       parLit "["
@@ -647,27 +660,27 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       e₃ ← parSExp p
       parLit "]"
       return $ MUnbGradSE g e₁ e₂ e₃
-  , mixF $ MixFTerminal $ do
-      parLit "mmap"
-      e₁ ← parSExp p
-      e₂O ← pOptional $ do
-        parLit ","
-        e₂ ← parSExp p
-        return e₂
-      parLit "{"
-      x₁ ← parVar
-      e₂x₂O ← case e₂O of
-        None → return None
-        Some e₂ → do
-          parLit ","
-          x₂ ← parVar
-          return $ Some $ e₂ :* x₂
-      parLit "⇒"
-      e₃ ← parSExp p
-      parLit "}"
-      return $ case e₂x₂O of
-        None → MMapSE e₁ x₁ e₃
-        Some (e₂ :* x₂) → MMap2SE e₁ e₂ x₁ x₂ e₃
+  -- , mixF $ MixFTerminal $ do
+  --     parLit "mmap"
+  --     e₁ ← parSExp p
+  --     e₂O ← pOptional $ do
+  --       parLit ","
+  --       e₂ ← parSExp p
+  --       return e₂
+  --     parLit "{"
+  --     x₁ ← parVar
+  --     e₂x₂O ← case e₂O of
+  --       None → return None
+  --       Some e₂ → do
+  --         parLit ","
+  --         x₂ ← parVar
+  --         return $ Some $ e₂ :* x₂
+  --     parLit "⇒"
+  --     e₃ ← parSExp p
+  --     parLit "}"
+  --     return $ case e₂x₂O of
+  --       None → MMapSE e₁ x₁ e₃
+  --       Some (e₂ :* x₂) → MMap2SE e₁ e₂ x₁ x₂ e₃
   , mixF $ MixFTerminal $ do
       parLit "mmap-col"
       e₁ ← parSExp p
@@ -893,14 +906,14 @@ parPExp p = pWithContext "pexp" $ tries
   , do parLit "return"
        e ← parSExp p
        return $ ReturnPE e
-  , do parLit "mmapp"
-       e₁ ← parSExp p
-       parLit "{"
-       x ← parVar
-       parLit "⇒"
-       e₂ ← parPExp p
-       parLit "}"
-       return $ MMapPE e₁ x e₂
+  -- , do parLit "mmapp"
+  --      e₁ ← parSExp p
+  --      parLit "{"
+  --      x ← parVar
+  --      parLit "⇒"
+  --      e₂ ← parPExp p
+  --      parLit "}"
+  --      return $ MMapPE e₁ x e₂
   , do parLit "pmap-col"
        e₁ ← parSExp p
        parLit "{"
@@ -958,27 +971,6 @@ parPExp p = pWithContext "pexp" $ tries
        e₄ ← parPExp p
        parLit "}"
        return $ ParallelPE e₁ e₂ x₁ e₃ x₂ x₃ e₄
-  , case p of
-      ED_W → do
-        parLit "aloop"
-        parLit "["
-        e₁ ← parSExp p
-        parLit "]"
-        e₂ ← parSExp p
-        parLit "on"
-        e₃ ← parSExp p
-        parLit "<"
-        xs ← pManySepBy (parLit ",") parVar
-        parLit ">"
-        parLit "{"
-        x₁ ← parVar
-        parLit ","
-        x₂ ← parVar
-        parLit "⇒"
-        e₄ ← parPExp p
-        parLit "}"
-        return $ EDLoopPE e₁ e₂ e₃ xs x₁ x₂ e₄
-      _ → abort
   , do parLit "loop"
        e₂ ← parSExp p
        parLit "on"
@@ -994,118 +986,6 @@ parPExp p = pWithContext "pexp" $ tries
        e₄ ← parPExp p
        parLit "}"
        return $ LoopPE e₂ e₃ xs x₁ x₂ e₄
-  , case p of
-      ED_W → do
-        parLit "mgauss"
-        parLit "["
-        e₁ ← parSExp p
-        parLit ","
-        e₂ ← parSExp p
-        parLit ","
-        e₃ ← parSExp p
-        parLit "]"
-        parLit "<"
-        xs ← pManySepBy (parLit ",") parVar
-        parLit ">"
-        parLit "{"
-        e₄ ← parSExp p
-        parLit "}"
-        return $ MGaussPE e₁ (EDGaussParams e₂ e₃) xs e₄
-      RENYI_W → do
-        parLit "mgauss"
-        parLit "["
-        e₁ ← parSExp p
-        parLit ","
-        e₂ ← parSExp p
-        parLit ","
-        e₃ ← parSExp p
-        parLit "]"
-        parLit "<"
-        xs ← pManySepBy (parLit ",") parVar
-        parLit ">"
-        parLit "{"
-        e₄ ← parSExp p
-        parLit "}"
-        return $ MGaussPE e₁ (RenyiGaussParams e₂ e₃) xs e₄
-      TC_W → do
-        parLit "mgauss"
-        parLit "["
-        e₁ ← parSExp p
-        parLit ","
-        e₂ ← parSExp p
-        parLit ","
-        e₃ ← parSExp p
-        parLit "]"
-        parLit "<"
-        xs ← pManySepBy (parLit ",") parVar
-        parLit ">"
-        parLit "{"
-        e₄ ← parSExp p
-        parLit "}"
-        return $ MGaussPE e₁ (TCGaussParams e₂ e₃) xs e₄
-      ZC_W → do
-        parLit "mgauss"
-        parLit "["
-        e₁ ← parSExp p
-        parLit ","
-        e₂ ← parSExp p
-        parLit "]"
-        parLit "<"
-        xs ← pManySepBy (parLit ",") parVar
-        parLit ">"
-        parLit "{"
-        e₄ ← parSExp p
-        parLit "}"
-        return $ MGaussPE e₁ (ZCGaussParams e₂) xs e₄
-      _ → abort
-  , case p of
-      ED_W → do
-        parLit "bgauss"
-        parLit "["
-        e₁ ← parSExp p
-        parLit ","
-        e₂ ← parSExp p
-        parLit ","
-        e₃ ← parSExp p
-        parLit "]"
-        parLit "<"
-        xs ← pManySepBy (parLit ",") parVar
-        parLit ">"
-        parLit "{"
-        e₄ ← parSExp p
-        parLit "}"
-        return $ BGaussPE e₁ (EDGaussParams e₂ e₃) xs e₄
-      RENYI_W → do
-        parLit "bgauss"
-        parLit "["
-        e₁ ← parSExp p
-        parLit ","
-        e₂ ← parSExp p
-        parLit ","
-        e₃ ← parSExp p
-        parLit "]"
-        parLit "<"
-        xs ← pManySepBy (parLit ",") parVar
-        parLit ">"
-        parLit "{"
-        e₄ ← parSExp p
-        parLit "}"
-        return $ BGaussPE e₁ (RenyiGaussParams e₂ e₃) xs e₄
-      ZC_W → do
-        parLit "bgauss"
-        parLit "["
-        e₁ ← parSExp p
-        parLit ","
-        e₂ ← parSExp p
-        parLit "]"
-        parLit "<"
-        xs ← pManySepBy (parLit ",") parVar
-        parLit ">"
-        parLit "{"
-        e₄ ← parSExp p
-        parLit "}"
-        return $ BGaussPE e₁ (ZCGaussParams e₂) xs e₄
-      _ → abort
   , case p of
       EPS_W → do
         parLit "laplace"
