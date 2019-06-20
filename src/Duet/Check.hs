@@ -700,13 +700,15 @@ inferSens eA = case extract eA of
         let τ'' = case κ of
               ℕK → case extract τ' of
                 ℕˢT r → substTypeR x (normalizeRNF r) τ
+                VarT x' → substTypeR x (varRNF x') τ
+                _ → error $ "in type-level application: expected static nat, got: " ⧺ pprender τ'
               ℝK → case extract τ' of
                 ℝˢT r → substTypeR x (normalizeRNF r) τ
               CxtK → case extract τ' of
                 CxtT xs → substTypeCxt x (list $ iter $ xs) τ
               TypeK → checkOption $ checkTypeLang $ substTL x (typeToTLExp $ map normalizeRNF $ extract τ') (typeToTLExp τ)
         return τ''
-      _ → error $ "expected ForallT"
+      _ → error $ "expected ForallT, got: " ⧺ pprender τ
   SFunSE x τ e → do
       checkType $ extract τ
       let τ' = map normalizeRNF $ extract τ
@@ -727,7 +729,9 @@ inferSens eA = case extract eA of
         return τ₁₂
       (x :* τ₁₁) :⊸: (sσ :* τ₁₂) → error $ concat
             [ "AppSE error 1 (argument type mismatch): "
-            , pprender $ (τ₁₁ :* τ₂)
+            , "expected: " ⧺ pprender τ₁₁
+            , "\n"
+            , "got: " ⧺ pprender τ₂
             , "\n"
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             ]
@@ -1179,6 +1183,7 @@ spliceCxt' (x:&xs) a σ = spliceCxt' xs a $ (x ↦ a) ⩌ σ
 
 substTypeR ∷ 𝕏 → RNF → Type RNF → Type RNF
 substTypeR x' r' τ' = case τ' of
+  VarT x → VarT x
   ℕˢT r → ℕˢT $ substRNF x' r' r
   ℝˢT r → ℝˢT $ substRNF x' r' r
   ℕT → ℕT
@@ -1201,4 +1206,4 @@ substTypeR x' r' τ' = case τ' of
   (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) →
     (x :* substTypeR x' r' τ₁) :⊸⋆: ((PEnv (assoc (map (\(xₐ :* p) → xₐ :* substPrivR x' r' p) (iter pσ)))) :* substTypeR x' r' τ₂)
   ForallT x κ τ → ForallT x κ $ substTypeR x' r' τ
-  _ → error $ "substTypeR" ⧺ pprender τ'
+  _ → error $ "error in substTypeR: " ⧺ pprender τ'
