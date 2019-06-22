@@ -21,11 +21,14 @@ let main =  ∀ m  : ℕ,
               m  : ℕ[m],
               n  : ℕ[n]
               ⇒
-  let m₀ = mcreate @ ℕ[1.0] @ n @ ℝ ℕ[1] (cols xs) (sλ i : 𝕀[m] , j : 𝕀[n] ⇒ 0.0) in
+  --TODO: capture-avoiding substitution
+  --TODO: less than comparisons for sensitivities/privacies
+  let m₀ = mcreate @ ℕ[1.0] @ n @ ℝ ℕ[1] (cols xs) (sλ i : 𝕀[1.0] , j : 𝕀[n] ⇒ 0.0) in
   aloop @ ε @ δ @ δ′ @ k @ <xs,ys>@<θ>
     (pλ θ : 𝕄 [L∞, U|1.0, n↦𝔻 ] ⇒
-      g ← mgauss @ ε @ δ @ m @ n ϵ δ (mLipGrad @ m @ n @ ℝ⁺[1.0] @ ℝ⁺[1.0] θ (mclip xs) ys) ;
-      return (myMatSub @ m @ n θ g))
+      g ← mgauss @ ε @ δ @ ℕ[1.0] @ n ε δ
+            (mLipGrad @ m @ n @ ℝ⁺[1.0] @ ℝ⁺[1.0] θ (mclip @ m @ n @ 𝔻 xs) ys) ;
+      return (matsub @ ℕ[1.0] @ n θ g))
     m₀
     δ′
 in main

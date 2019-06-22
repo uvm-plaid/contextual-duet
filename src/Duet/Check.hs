@@ -704,6 +704,8 @@ inferSens eA = case extract eA of
                 _ → error $ "in type-level application: expected static nat, got: " ⧺ pprender τ'
               ℝK → case extract τ' of
                 ℝˢT r → substTypeR x (normalizeRNF r) τ
+                VarT x' → substTypeR x (varRNF x') τ
+                _ → error $ "in type-level application: expected static real, got: " ⧺ pprender τ'
               CxtK → case extract τ' of
                 CxtT xs → substTypeCxt x (list $ iter $ xs) τ
               TypeK → checkOption $ checkTypeLang $ substTL x (typeToTLExp $ map normalizeRNF $ extract τ') (typeToTLExp τ)
@@ -1058,6 +1060,19 @@ inferPriv eA = case extract eA of
             tell $ σ₂'
             tell $ σ''
             return τ₁₂
+      (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ 𝕏 ⇰ Pr p' RNF) :* τ₁₂) → error $ concat
+            [ "AppPE error 1 (argument type/sensitivity mismatch): "
+            , "expected: " ⧺ pprender τ₁₁
+            , "\n"
+            , "got: " ⧺ pprender τ₂
+            , "\n"
+            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+            , "\n or sσ: \n"
+            , pprender σ₂
+            , "\nhas max sensitivity GT one"
+            ]
+      _ → error $ "AppPE expected pλ, got: " ⧺ pprender τ₁
+
   IfPE e₁ e₂ e₃ → do
     τ₁ ← pmFromSM $ inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferPriv e₂
@@ -1080,6 +1095,17 @@ checkOption = \case
   None → error "checkOption failed"
   Some α → α
 
+
+substTLMExp ∷ 𝕏 → TLExp RNF → MExp RNF → MExp RNF
+substTLMExp x tl = \case
+  EmptyME → EmptyME
+  VarME x' → VarME x'
+  ConsME τ me →
+    ConsME (checkOption $ checkTypeLang (substTL x tl (typeToTLExp τ))) (substTLMExp x tl me)
+  AppendME me₁ me₂ → AppendME (substTLMExp x tl me₁) (substTLMExp x tl me₂)
+  RexpME r τ → RexpME r (checkOption $ checkTypeLang (substTL x tl (typeToTLExp τ)))
+
+
 substTL ∷ 𝕏 → TLExp RNF → TLExp RNF → TLExp RNF
 substTL x tl₁ tl₂ = case tl₂ of
   VarTE x' → case x ≡ x' of
@@ -1094,15 +1120,15 @@ substTL x tl₁ tl₂ = case tl₂ of
   𝔹TE → 𝔹TE
   𝕊TE → 𝕊TE
   SetTE τ → SetTE $ substTL x tl₁ τ
-  𝕄TE ℓ c rows cols → 𝕄TE ℓ c rows cols
+  𝕄TE ℓ c rows cols → 𝕄TE ℓ c rows $ substTLMExp x tl₁ cols
   𝔻TE τ → 𝔻TE $ substTL x tl₁ τ
   τ₁ :⊕♭: τ₂ → substTL x tl₁ τ₁ :⊕♭: substTL x tl₁ τ₂
   τ₁ :⊗♭: τ₂ → substTL x tl₁ τ₁ :⊗♭: substTL x tl₁ τ₂
   τ₁ :&♭: τ₂ → substTL x tl₁ τ₁ :&♭: substTL x tl₁ τ₂
   -- TODO: sens -> tlexp -> then substTL -> sens
-  (x :* τ₁) :⊸♭: (sσ :* τ₂) → (x :* substTL x tl₁ τ₁) :⊸♭: (sσ :* substTL x tl₁ τ₂)
-  (x :* τ₁) :⊸⋆♭: (pσ :* τ₂) → (x :* substTL x tl₁ τ₁) :⊸⋆♭: (pσ :* substTL x tl₁ τ₂)
-  ForallTE x κ τ → ForallTE x κ $ substTL x tl₁ τ
+  (x' :* τ₁) :⊸♭: (sσ :* τ₂) → (x' :* substTL x tl₁ τ₁) :⊸♭: (sσ :* substTL x tl₁ τ₂)
+  (x' :* τ₁) :⊸⋆♭: (pσ :* τ₂) → (x' :* substTL x tl₁ τ₁) :⊸⋆♭: (pσ :* substTL x tl₁ τ₂)
+  ForallTE x' κ τ → ForallTE x' κ $ substTL x tl₁ τ
    -- RExp Stuff →
   NatTE n → NatTE n
   NNRealTE d → NNRealTE d
@@ -1158,6 +1184,13 @@ substMExpR x r' = \case
   AppendME me₁ me₂ → AppendME (substMExpR x r' me₁) (substMExpR x r' me₂)
   RexpME r τ → RexpME (substRNF x  r' r) (substTypeR x r' τ)
 
+substMExpCxt ∷ 𝕏 → 𝐿 𝕏 → MExp RNF → MExp RNF
+substMExpCxt x xs = \case
+  EmptyME → EmptyME
+  VarME x' → VarME x'
+  ConsME τ me → ConsME (substTypeCxt x xs τ) (substMExpCxt x xs me)
+  AppendME me₁ me₂ → AppendME (substMExpCxt x xs me₁) (substMExpCxt x xs me₂)
+  RexpME r τ → RexpME r (substTypeCxt x xs τ)
 
 substPrivR ∷ 𝕏 → RNF → Pr p RNF → Pr p RNF
 substPrivR x' r' p' = case p' of
@@ -1169,8 +1202,23 @@ substPrivR x' r' p' = case p' of
 
 substTypeCxt ∷ 𝕏 → 𝐿 𝕏 → Type RNF → Type RNF
 substTypeCxt x' xs τ' = case τ' of
+  VarT x → VarT x
+  ℕˢT r → ℕˢT r
+  ℝˢT r → ℝˢT r
+  ℕT → ℕT
+  ℝT → ℝT
+  𝕀T r → 𝕀T r
+  𝔹T → 𝔹T
+  𝕊T → 𝕊T
+  SetT τ → SetT $ substTypeCxt x' xs τ
+  𝕄T ℓ c rs me → 𝕄T ℓ c rs $ substMExpCxt x' xs me
+  𝔻T τ → 𝔻T $ substTypeCxt x' xs τ
+  τ₁ :⊕: τ₂ → substTypeCxt x' xs τ₁ :⊕: substTypeCxt x' xs τ₂
+  τ₁ :⊗: τ₂ → substTypeCxt x' xs τ₁ :⊗: substTypeCxt x' xs τ₂
+  τ₁ :&: τ₂ → substTypeCxt x' xs τ₁ :&: substTypeCxt x' xs τ₂
   (x :* τ₁) :⊸: (sσ :* τ₂) → (x :* τ₁) :⊸: ((spliceCxt x xs sσ) :* τ₂)
   (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → (x :* τ₁) :⊸⋆: (PEnv (spliceCxt x xs pσ) :* τ₂)
+  ForallT x κ τ → ForallT x κ $ substTypeCxt x' xs τ
 
 spliceCxt ∷ 𝕏 → 𝐿 𝕏 → 𝕏 ⇰ a → 𝕏 ⇰ a
 spliceCxt x' xs σ = case σ ⋕? x' of
