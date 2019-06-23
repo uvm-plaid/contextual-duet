@@ -1216,14 +1216,14 @@ substTypeCxt x' xs τ' = case τ' of
   τ₁ :⊕: τ₂ → substTypeCxt x' xs τ₁ :⊕: substTypeCxt x' xs τ₂
   τ₁ :⊗: τ₂ → substTypeCxt x' xs τ₁ :⊗: substTypeCxt x' xs τ₂
   τ₁ :&: τ₂ → substTypeCxt x' xs τ₁ :&: substTypeCxt x' xs τ₂
-  (x :* τ₁) :⊸: (sσ :* τ₂) → (x :* τ₁) :⊸: ((spliceCxt x xs sσ) :* τ₂)
-  (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → (x :* τ₁) :⊸⋆: (PEnv (spliceCxt x xs pσ) :* τ₂)
+  (x :* τ₁) :⊸: (sσ :* τ₂) → (x :* substTypeCxt x' xs τ₁) :⊸: ((spliceCxt x' xs sσ) :* substTypeCxt x' xs τ₂)
+  (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → (x :* substTypeCxt x' xs τ₁) :⊸⋆: (PEnv (spliceCxt x' xs pσ) :* substTypeCxt x' xs τ₂)
   ForallT x κ τ → ForallT x κ $ substTypeCxt x' xs τ
 
 spliceCxt ∷ 𝕏 → 𝐿 𝕏 → 𝕏 ⇰ a → 𝕏 ⇰ a
 spliceCxt x' xs σ = case σ ⋕? x' of
   None → σ
-  Some a → spliceCxt' xs a σ
+  Some a → without (single x') (spliceCxt' xs a σ)
 
 spliceCxt' ∷ 𝐿 𝕏 → a → 𝕏 ⇰ a → 𝕏 ⇰ a
 spliceCxt' Nil _a σ = σ
