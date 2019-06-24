@@ -350,7 +350,7 @@ seval env TrueSE = BoolV True
 
 seval env FalseSE = BoolV False
 
-seval env (AppSE e₁ e₂) =
+seval env (AppSE e₁ eₓₛ e₂) =
   case seval env (extract e₁) of
     (SFunV x (ExPriv (Ex_C body)) env') →
       let env'' = (x ↦ (seval env (extract e₂))) ⩌ env'

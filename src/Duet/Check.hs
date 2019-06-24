@@ -688,6 +688,8 @@ inferSens eA = case extract eA of
         tell $ ς ⨵ σ₁
         tell σ₂'
         return τ₂
+  CxtSE xs → do
+    return $ CxtT $ pow xs
   TAbsSE x κ e → do
     mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
       τ ← inferSens e
@@ -722,14 +724,17 @@ inferSens eA = case extract eA of
         -- TODO: do we want `tell σ'` here?
           tell $ snd $ ifNone (zero :* σ') $ dview x σ'
           return $ (x :* τ') :⊸: (σ' :* τ'')
-  AppSE e₁ e₂ → do
+  AppSE e₁ eₓₛ e₂ → do
     τ₁ ← inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
-    case τ₁ of
-      (x :* τ₁₁) :⊸: (sσ :* τ₁₂) | τ₁₁ ≡ τ₂ → do
-        tell $ (sσ ⋕! x) ⨵ σ₂
+    τₓₛ ← inferSens eₓₛ
+    case (τ₁,τₓₛ) of
+      ((x :* τ₁₁) :⊸: (sσ :* τ₁₂), CxtT xs) | τ₁₁ ≡ τ₂ → do
+        tell $ (sσ ⋕! x) ⨵ (restrict xs σ₂)
+        tell $ top ⨵ (without xs σ₂)
+        tell $ without (single x) sσ
         return τ₁₂
-      (x :* τ₁₁) :⊸: (sσ :* τ₁₂) → error $ concat
+      ((x :* τ₁₁) :⊸: (sσ :* τ₁₂), CxtT xs) → error $ concat
             [ "AppSE error 1 (argument type mismatch): "
             , "expected: " ⧺ pprender τ₁₁
             , "\n"
@@ -742,7 +747,6 @@ inferSens eA = case extract eA of
             , pprender τ₁
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             ]
-
   PFunSE x τ e → do
     checkType $ extract τ
     let τ' = map normalizeRNF $ extract τ

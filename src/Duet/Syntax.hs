@@ -431,7 +431,7 @@ data SExp (p ∷ PRIV) where
   VarSE ∷ 𝕏 → SExp p
   LetSE ∷ 𝕏  → SExpSource p → SExpSource p → SExp p
   SFunSE ∷ 𝕏  → TypeSource RExp → SExpSource p → SExp p
-  AppSE ∷ SExpSource p → SExpSource p → SExp p
+  AppSE ∷ SExpSource p → SExpSource p → SExpSource p → SExp p
   PFunSE ∷ 𝕏 → TypeSource RExp → PExpSource p → SExp p
   -- Δ⨃{α:κ} , Γ ⊢ e : τ
   -- ---------------------
@@ -456,6 +456,7 @@ data SExp (p ∷ PRIV) where
   --                ^^^^^
   --                TAppSE
   TAppSE ∷ SExpSource p → TypeSource RExp → SExp p
+  CxtSE ∷ 𝐿 𝕏 → SExp p
   InlSE ∷ TypeSource RExp → SExpSource p → SExp p
   InrSE ∷ TypeSource RExp → SExpSource p → SExp p
   CaseSE ∷ SExpSource p → 𝕏 → SExpSource p → 𝕏 → SExpSource p → SExp p

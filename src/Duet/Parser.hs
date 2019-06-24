@@ -588,23 +588,6 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       parLit "]"
       return $ DFJoin1SE x e₁ e₂
   -- , mixF $ MixFTerminal $ do
-  --     parLit "mcreate"
-  --     parLit "["
-  --     ℓ ← parNorm
-  --     parLit "|"
-  --     e₁ ← parSExp p
-  --     parLit ","
-  --     e₂ ← parSExp p
-  --     parLit "]"
-  --     parLit "{"
-  --     x₁ ← parVar
-  --     parLit ","
-  --     x₂ ← parVar
-  --     parLit "⇒"
-  --     e₃ ← parSExp p
-  --     parLit "}"
-  --     return $ MCreateSE ℓ e₁ e₂ x₁ x₂ e₃
-  -- , mixF $ MixFTerminal $ do
   --   parLit "CSVtoMatrix"
   --   parLit "("
   --   f ← parName
@@ -630,24 +613,6 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
   , mixF $ MixFPrefix 10 $ const MTransposeSE ^$ parLit "tr"
   , mixF $ MixFPrefix 10 $ const IdxSE ^$ parLit "idx"
   , mixF $ MixFPrefix 10 $ const DiscFSE ^$ parLit "discf"
-  -- , mixF $ MixFPrefix 10 $ do
-  --     parLit "mclip"
-  --     parLit "["
-  --     ℓ ← parNorm
-  --     parLit "]"
-  --     return $ MClipSE ℓ
-  -- , mixF $ MixFTerminal $ do
-  --     parLit "∇"
-  --     parLit "["
-  --     g ← parGrad
-  --     parLit "|"
-  --     e₁ ← parSExp p
-  --     parLit ";"
-  --     e₂ ← parSExp p
-  --     parLit ","
-  --     e₃ ← parSExp p
-  --     parLit "]"
-  --     return $ MLipGradSE g e₁ e₂ e₃
   , mixF $ MixFTerminal $ do
       parLit "U∇"
       parLit "["
@@ -660,27 +625,6 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       e₃ ← parSExp p
       parLit "]"
       return $ MUnbGradSE g e₁ e₂ e₃
-  -- , mixF $ MixFTerminal $ do
-  --     parLit "mmap"
-  --     e₁ ← parSExp p
-  --     e₂O ← pOptional $ do
-  --       parLit ","
-  --       e₂ ← parSExp p
-  --       return e₂
-  --     parLit "{"
-  --     x₁ ← parVar
-  --     e₂x₂O ← case e₂O of
-  --       None → return None
-  --       Some e₂ → do
-  --         parLit ","
-  --         x₂ ← parVar
-  --         return $ Some $ e₂ :* x₂
-  --     parLit "⇒"
-  --     e₃ ← parSExp p
-  --     parLit "}"
-  --     return $ case e₂x₂O of
-  --       None → MMapSE e₁ x₁ e₃
-  --       Some (e₂ :* x₂) → MMap2SE e₁ e₂ x₁ x₂ e₃
   , mixF $ MixFTerminal $ do
       parLit "mmap-col"
       e₁ ← parSExp p
@@ -744,13 +688,13 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
              parLit "in"
              return $ \ e₂ → UntupSE x y e₁ e₂
         ]
-  , mixF $ MixFInfixL 10 $ const (\ e₁ e₂ → AppSE e₁ e₂) ^$ parSpace
-      -- ακs ← pManySepBy (parLit ",") $ do
-      --   α ← parVar
-      --   parLit ":"
-      --   κ ← parKind p
-      --   return $ α :* κ
-      -- parLit "."
+  , mixF $ MixFTerminal $ do
+      e₁ ← parSExp p
+      parSpace
+      eₓₛ ← parSExp p
+      parSpace
+      e₂ ← parSExp p
+      return $ AppSE e₁ eₓₛ e₂
   , mixF $ MixFPrefix 1 $ do
       parLit "sλ"
       x ← parVar
@@ -807,6 +751,11 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       ses ← pManySepBy (parLit ",") $ parSExp p
       parLit "}"
       return $ SetSE ses
+  , mixF $ MixFTerminal $ do
+      parLit "<"
+      xs ← pManySepBy (parLit ",") $ parVar
+      parLit ">"
+      return $ CxtSE xs
   , mixF $ MixFTerminal $ do
       parLit "unionAll"
       e ← parSExp p
@@ -1178,7 +1127,7 @@ parPExp p = pWithContext "pexp" $ tries
   , do e ← parSExp p
        case extract e of
          -- QUESTION: should AppPE have a SExp or PExp as its first argument?
-         AppSE e₁ e₂ → return $ AppPE e₁ e₂
+         AppSE e₁ eₓₛ e₂ → return $ AppPE e₁ e₂
          _ → abort
   ]
 
