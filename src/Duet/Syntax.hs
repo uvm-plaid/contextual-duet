@@ -364,7 +364,6 @@ data Grad = LR
   deriving (Eq,Ord,Show)
 makePrettySum ''Grad
 
-
 type SExpSource (p ∷ PRIV) = Annotated FullContext (SExp p)
 -- this is using GADT syntax and extension
 data SExp (p ∷ PRIV) where
@@ -431,7 +430,7 @@ data SExp (p ∷ PRIV) where
   VarSE ∷ 𝕏 → SExp p
   LetSE ∷ 𝕏  → SExpSource p → SExpSource p → SExp p
   SFunSE ∷ 𝕏  → TypeSource RExp → SExpSource p → SExp p
-  AppSE ∷ SExpSource p → SExpSource p → SExpSource p → SExp p
+  AppSE ∷ SExpSource p → 𝑂 (𝐿 𝕏) → SExpSource p → SExp p
   PFunSE ∷ 𝕏 → TypeSource RExp → PExpSource p → SExp p
   -- Δ⨃{α:κ} , Γ ⊢ e : τ
   -- ---------------------
@@ -530,7 +529,7 @@ type PExpSource (p ∷ PRIV) = Annotated FullContext (PExp p)
 data PExp (p ∷ PRIV) where
   ReturnPE ∷ SExpSource p → PExp p
   BindPE ∷ 𝕏 → PExpSource p → PExpSource p → PExp p
-  AppPE ∷ SExpSource p → SExpSource p → SExpSource p → PExp p
+  AppPE ∷ SExpSource p → 𝑂 (𝐿 𝕏) → SExpSource p → PExp p
   EDLoopPE ∷ SExpSource 'ED → SExpSource 'ED → SExpSource 'ED → 𝐿 𝕏 → 𝕏 → 𝕏 → PExpSource 'ED → PExp 'ED
   LoopPE ∷ SExpSource p → SExpSource p → 𝐿 𝕏 → 𝕏 → 𝕏 → PExpSource p → PExp p
   GaussPE ∷ SExpSource p → GaussParams p → 𝐿 𝕏 → SExpSource p → PExp p

@@ -21,14 +21,16 @@ let main =  ∀ m  : ℕ,
               m  : ℕ[m],
               n  : ℕ[n]
               ⇒
-  --TODO: capture-avoiding substitution
-  --TODO: less than comparisons for sensitivities/privacies
-  let m₀ = !{!{!{mcreate @ ℕ[1.0] @ n @ ℝ, <>, ℕ[1]}, <>, (cols xs)}, <>, (sλ i : 𝕀[1.0] , j : 𝕀[n] ⇒ 0.0)} in
-  !{!{!{aloop @ ε @ δ @ δ′ @ k @ <xs,ys> @ <matsub,mgauss,ε,δ,θ> @ <mLipGrad,mclip>, <xs,ys>,
+  -- TODO: capture-avoiding substitution
+  -- TODO: less than comparisons for sensitivities/privacies
+  -- TODO: If we leave off (1) (the last annotation of <xs,ys>) it should still
+  --       work, I think -DCD
+  let m₀ = mcreate @ ℕ[1.0] @ n @ ℝ ℕ[1] (cols xs) (sλ i : 𝕀[1.0] , j : 𝕀[n] ⇒ 0.0) in
+  aloop @ ε @ δ @ δ′ @ k @ <xs,ys> @ <matsub,mgauss,ε,δ,θ> @ <mLipGrad,mclip> <xs,ys> -- <-- (1)
     (pλ θ : 𝕄 [L∞, U|1.0, n↦𝔻 ] ⇒
-      g ← !{!{!{mgauss @ ε @ δ @ ℕ[1.0] @ n, <>, ε}, <>, δ}, <xs,ys>,
-            (!{!{!{mLipGrad @ m @ n @ ℝ⁺[1.0] @ ℝ⁺[1.0], <θ>, θ}, <mclip,xs>, (!{mclip @ m @ n @ 𝔻, <xs>, xs})}, <ys>, ys})} ;
-      return (!{!{matsub @ ℕ[1.0] @ n, <θ>, θ}, <g>, g}))}
-    ,<>, m₀}
-    ,<>, δ′}
+      g ← mgauss @ ε @ δ @ ℕ[1.0] @ n ε δ <xs,ys>
+            (mLipGrad @ m @ n @ ℝ⁺[1.0] @ ℝ⁺[1.0] θ (mclip @ m @ n @ 𝔻 xs) ys) ;
+      return (matsub @ ℕ[1.0] @ n θ g))
+    m₀
+    δ′
 in main

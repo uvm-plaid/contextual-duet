@@ -689,16 +689,24 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
              parLit "in"
              return $ \ e₂ → UntupSE x y e₁ e₂
         ]
-  , mixF $ MixFTerminal $ do
-      parLit "!"
-      parLit "{"
-      e₁ ← parSExp p
-      parLit ","
-      eₓₛ ← parSExp p
-      parLit ","
-      e₂ ← parSExp p
-      parLit "}"
-      return $ AppSE e₁ eₓₛ e₂
+  , mixF $ MixFInfixL 10 $ do
+      parSpace
+      xsO ← pOptional $ do
+        parLit "<"
+        xs ← pManySepBy (parLit ",") $ parVar
+        parLit ">"
+        return xs
+      return $ \ e₁ e₂ → AppSE e₁ xsO e₂
+    -- mixF $ MixFTerminal $ do
+    --   parLit "!"
+    --   parLit "{"
+    --   e₁ ← parSExp p
+    --   parLit ","
+    --   eₓₛ ← parSExp p
+    --   parLit ","
+    --   e₂ ← parSExp p
+    --   parLit "}"
+    --   return $ AppSE e₁ eₓₛ e₂
   , mixF $ MixFPrefix 1 $ do
       parLit "sλ"
       x ← parVar
@@ -851,7 +859,7 @@ parPExp p = pWithContext "pexp" $ tries
   , do e ← parSExp p
        case extract e of
          -- QUESTION: should AppPE have a SExp or PExp as its first argument?
-         AppSE e₁ eₓₛ e₂ → return $ AppPE e₁ eₓₛ e₂
+         AppSE e₁ xs e₂ → return $ AppPE e₁ xs e₂
          _ → abort
   ]
 

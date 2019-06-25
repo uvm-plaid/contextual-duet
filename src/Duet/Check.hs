@@ -724,17 +724,22 @@ inferSens eA = case extract eA of
         -- TODO: do we want `tell σ'` here?
           tell $ snd $ ifNone (zero :* σ') $ dview x σ'
           return $ (x :* τ') :⊸: (σ' :* τ'')
-  AppSE e₁ eₓₛ e₂ → do
+  AppSE e₁ xsO e₂ → do
     τ₁ ← inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
-    τₓₛ ← inferSens eₓₛ
-    case (τ₁,τₓₛ) of
-      ((x :* τ₁₁) :⊸: (sσ :* τ₁₂), CxtT xs) | τ₁₁ ≡ τ₂ → do
+    -- τₓₛ ← inferSens eₓₛ
+    allInScope ← map keys $ askL contextTypeL
+    let xs = elim𝑂 allInScope pow xsO
+    case xs ⊆ allInScope of
+      True → skip
+      False → error $ "provided variables to application which are not in scope: " ⧺ show𝕊 (xs ∖ allInScope)
+    case (τ₁) of
+      (x :* τ₁₁) :⊸: (sσ :* τ₁₂) | τ₁₁ ≡ τ₂ → do
         tell $ (sσ ⋕! x) ⨵ (restrict xs σ₂)
         tell $ top ⨵ (without xs σ₂)
         tell $ without (single x) sσ
         return τ₁₂
-      ((x :* τ₁₁) :⊸: (sσ :* τ₁₂), CxtT xs) → error $ concat
+      (x :* τ₁₁) :⊸: (sσ :* τ₁₂) → error $ concat
             [ "AppSE error 1 (argument type mismatch): "
             , "expected: " ⧺ pprender τ₁₁
             , "\n"
@@ -1050,12 +1055,16 @@ inferPriv eA = case extract eA of
     σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁) ⩌ γ) $ inferPriv e₂
     tell $ delete x σ₂
     return τ₂
-  AppPE e₁ eₓₛ e₂ → do
+  AppPE e₁ xsO e₂ → do
     τ₁ ← pmFromSM $ inferSens e₁
     σ₂ :* τ₂ ← pmFromSM $ hijack $ inferSens e₂
-    τₓₛ ← pmFromSM $ inferSens eₓₛ
-    case (τ₁,τₓₛ) of
-      ((x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ 𝕏 ⇰ Pr p' RNF) :* τ₁₂), CxtT xs) | (τ₁₁ ≡ τ₂) ⩓ (joins (values σ₂) ⊑ one) →
+    allInScope ← map keys $ askL contextTypeL
+    let xs = elim𝑂 allInScope pow xsO
+    case xs ⊆ allInScope of
+      True → skip
+      False → error $ "provided variables to application which are not in scope: " ⧺ show𝕊 (xs ∖ allInScope)
+    case τ₁ of
+      (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ 𝕏 ⇰ Pr p' RNF) :* τ₁₂) | (τ₁₁ ≡ τ₂) ⩓ (joins (values σ₂) ⊑ one) →
         case eqPRIV (priv @ p) (priv @ p') of
           None → error "not same priv mode"
           Some Refl → do
@@ -1067,7 +1076,7 @@ inferPriv eA = case extract eA of
             tell $ σinf
             tell $ σ''
             return τ₁₂
-      ((x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ 𝕏 ⇰ Pr p' RNF) :* τ₁₂), CxtT xs) → error $ concat
+      (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ 𝕏 ⇰ Pr p' RNF) :* τ₁₂) → error $ concat
             [ "AppPE error 1 (argument type/sensitivity mismatch): "
             , "expected: " ⧺ pprender τ₁₁
             , "\n"
