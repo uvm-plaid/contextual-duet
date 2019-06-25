@@ -47,6 +47,7 @@ tokPunctuation = list
   ,"-","%","≟"
   ,"×","&","⊸","⊸⋆"
   ,"∧","∨"
+  ,"?","!"
   ]
 
 tokComment ∷ Parser ℂ ()
@@ -689,11 +690,14 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
              return $ \ e₂ → UntupSE x y e₁ e₂
         ]
   , mixF $ MixFTerminal $ do
+      parLit "!"
+      parLit "{"
       e₁ ← parSExp p
-      parSpace
+      parLit ","
       eₓₛ ← parSExp p
-      parSpace
+      parLit ","
       e₂ ← parSExp p
+      parLit "}"
       return $ AppSE e₁ eₓₛ e₂
   , mixF $ MixFPrefix 1 $ do
       parLit "sλ"
@@ -827,35 +831,6 @@ parPExp p = pWithContext "pexp" $ tries
   , do parLit "return"
        e ← parSExp p
        return $ ReturnPE e
-  -- , do parLit "mmapp"
-  --      e₁ ← parSExp p
-  --      parLit "{"
-  --      x ← parVar
-  --      parLit "⇒"
-  --      e₂ ← parPExp p
-  --      parLit "}"
-  --      return $ MMapPE e₁ x e₂
-  , do parLit "pmap-col"
-       e₁ ← parSExp p
-       parLit "{"
-       x ← parVar
-       parLit "⇒"
-       e₂ ← parPExp p
-       parLit "}"
-       return $ PMapColPE e₁ x e₂
-  , do parLit "pfld-rows"
-       parLit "["
-       e₁ ← parSExp p
-       parLit ","
-       e₂ ← parSExp p
-       parLit ","
-       e₃ ← parSExp p
-       parLit ","
-       e₄ ← parSExp p
-       parLit ","
-       e₅ ← parSExp p
-       parLit "]"
-       return $ PFldRows2PE e₁ e₂ e₃ e₄ e₅
   , do x ← parVar
        parLit "←"
        e₁ ← parPExp p
@@ -873,261 +848,10 @@ parPExp p = pWithContext "pexp" $ tries
        e₃ ← parPExp p
        parLit "}"
        return $ IfPE e₁ e₂ e₃
-  , do parLit "parallel"
-       parLit "["
-       e₁ ← parSExp p
-       parLit ","
-       e₂ ← parSExp p
-       parLit "]"
-       parLit "{"
-       x₁ ← parVar
-       parLit "⇒"
-       e₃ ← parSExp p
-       parLit "}"
-       parLit "{"
-       x₂ ← parVar
-       parLit ","
-       x₃ ← parVar
-       parLit "⇒"
-       e₄ ← parPExp p
-       parLit "}"
-       return $ ParallelPE e₁ e₂ x₁ e₃ x₂ x₃ e₄
-  , do parLit "loop"
-       e₂ ← parSExp p
-       parLit "on"
-       e₃ ← parSExp p
-       parLit "<"
-       xs ← pManySepBy (parLit ",") parVar
-       parLit ">"
-       parLit "{"
-       x₁ ← parVar
-       parLit ","
-       x₂ ← parVar
-       parLit "⇒"
-       e₄ ← parPExp p
-       parLit "}"
-       return $ LoopPE e₂ e₃ xs x₁ x₂ e₄
-  , case p of
-      EPS_W → do
-        parLit "laplace"
-        parLit "["
-        e₁ ← parSExp p
-        parLit ","
-        e₂ ← parSExp p
-        parLit "]"
-        parLit "<"
-        xs ← pManySepBy (parLit ",") parVar
-        parLit ">"
-        parLit "{"
-        e₃ ← parSExp p
-        parLit "}"
-        return $ LaplacePE e₁ (EpsLaplaceParams e₂) xs e₃
-      _ → abort
-  , case p of
-      ED_W → do
-        parLit "gauss"
-        parLit "["
-        e₁ ← parSExp p
-        parLit ","
-        e₂ ← parSExp p
-        parLit ","
-        e₃ ← parSExp p
-        parLit "]"
-        parLit "<"
-        xs ← pManySepBy (parLit ",") parVar
-        parLit ">"
-        parLit "{"
-        e₄ ← parSExp p
-        parLit "}"
-        return $ GaussPE e₁ (EDGaussParams e₂ e₃) xs e₄
-      RENYI_W → do
-        parLit "gauss"
-        parLit "["
-        e₁ ← parSExp p
-        parLit ","
-        e₂ ← parSExp p
-        parLit ","
-        e₃ ← parSExp p
-        parLit "]"
-        parLit "<"
-        xs ← pManySepBy (parLit ",") parVar
-        parLit ">"
-        parLit "{"
-        e₄ ← parSExp p
-        parLit "}"
-        return $ GaussPE e₁ (RenyiGaussParams e₂ e₃) xs e₄
-      ZC_W → do
-        parLit "gauss"
-        parLit "["
-        e₁ ← parSExp p
-        parLit ","
-        e₂ ← parSExp p
-        parLit "]"
-        parLit "<"
-        xs ← pManySepBy (parLit ",") parVar
-        parLit ">"
-        parLit "{"
-        e₄ ← parSExp p
-        parLit "}"
-        return $ GaussPE e₁ (ZCGaussParams e₂) xs e₄
-      _ → abort
-  , case p of
-      ED_W → do
-        parLit "exponential"
-        parLit "["
-        e₁ ← parSExp p
-        parLit ","
-        e₂ ← parSExp p
-        parLit "]"
-        e₃ ← parSExp p
-        parLit "<"
-        xs ← pManySepBy (parLit ",") parVar
-        parLit ">"
-        parLit "{"
-        x ← parVar
-        parLit "⇒"
-        e₄ ← parSExp p
-        parLit "}"
-        return $ ExponentialPE e₁ (EDExponentialParams e₂) e₃ xs x e₄
-      _ → abort
-  , case p of
-      EPS_W → do
-        parLit "AboveThreshold"
-        parLit "["
-        e₁ ← parSExp p
-        parLit ","
-        e₂ ← parSExp p
-        parLit ","
-        e₃ ← parSExp p
-        parLit "]"
-        parLit "<"
-        xs ← pManySepBy (parLit ",") parVar
-        parLit ">"
-        parLit "{"
-        e₄ ← parSExp p
-        parLit "}"
-        return $ SVTPE (EPSSVTParams e₁) e₂ e₃ xs e₄
-      ED_W → do
-        parLit "AboveThreshold"
-        parLit "["
-        e₁ ← parSExp p
-        parLit ","
-        e₂ ← parSExp p
-        parLit ","
-        e₃ ← parSExp p
-        parLit "]"
-        parLit "<"
-        xs ← pManySepBy (parLit ",") parVar
-        parLit ">"
-        parLit "{"
-        e₄ ← parSExp p
-        parLit "}"
-        return $ SVTPE (EDSVTParams e₁) e₂ e₃ xs e₄
-      _ → abort
-  , case p of
-      ED_W → do
-        parLit "rand-resp"
-        parLit "["
-        e₁ ← parSExp p
-        parLit ","
-        e₂ ← parSExp p
-        parLit "]"
-        parLit "<"
-        xs ← pManySepBy (parLit ",") parVar
-        parLit ">"
-        parLit "{"
-        e₃ ← parSExp p
-        parLit "}"
-        return $ RRespPE e₁ e₂ xs e₃
-      _ → abort
-  , case p of
-      ED_W → do
-        parLit "sample"
-        parLit "["
-        e₁ ← parSExp p
-        parLit "]"
-        e₂ ← parSExp p
-        parLit ","
-        e₃ ← parSExp p
-        parLit "{"
-        x₁ ← parVar
-        parLit ","
-        x₂ ← parVar
-        parLit "⇒"
-        e₄ ← parPExp p
-        parLit "}"
-        return $ EDSamplePE e₁ e₂ e₃ x₁ x₂ e₄
-      RENYI_W → do
-        parLit "sample"
-        parLit "["
-        e₁ ← parSExp p
-        parLit "]"
-        e₂ ← parSExp p
-        parLit ","
-        e₃ ← parSExp p
-        parLit "{"
-        x₁ ← parVar
-        parLit ","
-        x₂ ← parVar
-        parLit "⇒"
-        e₄ ← parPExp p
-        parLit "}"
-        return $ RenyiSamplePE e₁ e₂ e₃ x₁ x₂ e₄
-      TC_W → do
-        parLit "sample"
-        parLit "["
-        e₁ ← parSExp p
-        parLit "]"
-        e₂ ← parSExp p
-        parLit ","
-        e₃ ← parSExp p
-        parLit "{"
-        x₁ ← parVar
-        parLit ","
-        x₂ ← parVar
-        parLit "⇒"
-        e₄ ← parPExp p
-        parLit "}"
-        return $ TCSamplePE e₁ e₂ e₃ x₁ x₂ e₄
-      _ → abort
-  , do parLit "rand-nat"
-       parLit "["
-       e₁ ← parSExp p
-       parLit ","
-       e₂ ← parSExp p
-       parLit "]"
-       return $ RandNatPE e₁ e₂
-  , case p of
-      ED_W → tries
-        [ do parLit "ZCDP"
-             parLit "["
-             e₁ ← parSExp ED_W
-             parLit "]"
-             parLit "{"
-             e₂ ← parPExp ZC_W
-             parLit "}"
-             return $ ConvertZCEDPE e₁ e₂
-        , do parLit "RENYI"
-             parLit "["
-             e₁ ← parSExp ED_W
-             parLit "]"
-             parLit "{"
-             e₂ ← parPExp RENYI_W
-             parLit "}"
-             return $ ConvertRENYIEDPE e₁ e₂
-        ]
-      ZC_W → tries
-        [ do parLit "EPSDP"
-             parLit "{"
-             e₁ ← parPExp EPS_W
-             parLit "}"
-             return $ ConvertEPSZCPE e₁
-        ]
-      _ → abort
   , do e ← parSExp p
        case extract e of
          -- QUESTION: should AppPE have a SExp or PExp as its first argument?
-         AppSE e₁ eₓₛ e₂ → return $ AppPE e₁ e₂
+         AppSE e₁ eₓₛ e₂ → return $ AppPE e₁ eₓₛ e₂
          _ → abort
   ]
 

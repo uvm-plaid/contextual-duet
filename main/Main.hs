@@ -90,9 +90,11 @@ main = do
         parseIOMain (pSkip tokSkip $ pFinal $ parSExp mode) $ stream ts
     ["check",fn] → do
       do pprint $ ppHeader "READING PRIMITIVES" ; flushOut
-      s₁ :* tRead ← timeIO $ read "primitives/core.duet.prim"
+      s₁ :* tRead₁ ← timeIO $ read "primitives/core.duet.prim"
+      do out $ "(" ⧺ show𝕊 (secondsTimeD tRead₁) ⧺ "s)" ; flushOut
       do pprint $ ppHeader "TOKENIZING PRIMITIVES" ; flushOut
-      ts₁ :* tToken ← timeIO $ tokenizeIO tokDuet $ stream $ list $ tokens s₁
+      ts₁ :* tToken₁ ← timeIO $ tokenizeIO tokDuet $ stream $ list $ tokens s₁
+      do out $ "(" ⧺ show𝕊 (secondsTimeD tToken₁) ⧺ "s)" ; flushOut
       do pprint $ ppHeader "READING" ; flushOut
       s :* tRead ← timeIO $ read fn
       do out $ "(" ⧺ show𝕊 (secondsTimeD tRead) ⧺ "s)" ; flushOut
@@ -101,9 +103,9 @@ main = do
       do out $ "(" ⧺ show𝕊 (secondsTimeD tToken) ⧺ "s)" ; flushOut
       unpack_C (parseMode fn) $ \ mode → do
         do pprint $ ppHeader "PARSING PRIMITIVES" ; flushOut
-        e₁ :* tParse ← timeIO $ parseIO (pSkip tokSkip $ pFinal $ parPrimitives mode) $ stream ts₁
+        e₁ :* tParse₁ ← timeIO $ parseIO (pSkip tokSkip $ pFinal $ parPrimitives mode) $ stream ts₁
+        do out $ "(" ⧺ show𝕊 (secondsTimeD tParse₁) ⧺ "s)" ; flushOut
         let initEnv₁ = initEnv ⩌ (mapp normalizeRNF e₁)
-        do pprint initEnv₁ ; flushOut
         do pprint $ ppHeader "PARSING" ; flushOut
         e :* tParse ← timeIO $ parseIO (pSkip tokSkip $ pFinal $ parSExp mode) $ stream ts
         do out $ "(" ⧺ show𝕊 (secondsTimeD tParse) ⧺ "s)" ; flushOut

@@ -1050,21 +1050,24 @@ inferPriv eA = case extract eA of
     σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁) ⩌ γ) $ inferPriv e₂
     tell $ delete x σ₂
     return τ₂
-  AppPE e₁ e₂ → do
+  AppPE e₁ eₓₛ e₂ → do
     τ₁ ← pmFromSM $ inferSens e₁
     σ₂ :* τ₂ ← pmFromSM $ hijack $ inferSens e₂
-    case τ₁ of
-      (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ 𝕏 ⇰ Pr p' RNF) :* τ₁₂) | (τ₁₁ ≡ τ₂) ⩓ (joins (values σ₂) ⊑ one) →
+    τₓₛ ← pmFromSM $ inferSens eₓₛ
+    case (τ₁,τₓₛ) of
+      ((x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ 𝕏 ⇰ Pr p' RNF) :* τ₁₂), CxtT xs) | (τ₁₁ ≡ τ₂) ⩓ (joins (values σ₂) ⊑ one) →
         case eqPRIV (priv @ p) (priv @ p') of
           None → error "not same priv mode"
           Some Refl → do
             let (pₓ :* σ'') = ifNone (makePr zero :* σ') $ dview x σ'
             -- TODO: change iteratePr to something functionally the same but less hacky
-            let σ₂' = mapOn σ₂ $ (\ i → iteratePr i pₓ) ∘ truncateRNF ∘ unSens
+            let σ₂' = mapOn (restrict xs σ₂) $ (\ i → iteratePr i pₓ) ∘ truncateRNF ∘ unSens
+            let σinf = mapOn (without xs σ₂) $ (\ i → iteratePr i $ makePr top) ∘ truncateRNF ∘ unSens
             tell $ σ₂'
+            tell $ σinf
             tell $ σ''
             return τ₁₂
-      (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ 𝕏 ⇰ Pr p' RNF) :* τ₁₂) → error $ concat
+      ((x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ 𝕏 ⇰ Pr p' RNF) :* τ₁₂), CxtT xs) → error $ concat
             [ "AppPE error 1 (argument type/sensitivity mismatch): "
             , "expected: " ⧺ pprender τ₁₁
             , "\n"
