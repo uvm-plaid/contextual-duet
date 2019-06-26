@@ -249,6 +249,97 @@ data Type r =
   -- - contextual/lazy function, pair, and sum connectives
   deriving (Eq,Ord,Show)
 
+freshen ∷ (𝕏 ⇰ 𝕏) → Type RNF → ℕ → (Type RNF ∧ ℕ)
+freshen ρ τ''' n = let n' = n + one in
+  case τ''' of
+    VarT x → (VarT (ρ ⋕! x)) :* n
+    ℕˢT r → (ℕˢT (substAlphaRNF (list ρ) r)) :* n
+    ℝˢT r → (ℝˢT (substAlphaRNF (list ρ) r)) :* n
+    ℕT → (ℕT :* n)
+    ℝT → (ℝT :* n)
+    𝕀T r → (𝕀T (substAlphaRNF (list ρ) r)) :* n
+    𝔹T → (𝔹T :* n)
+    𝕊T → (𝕊T :* n)
+    SetT τ → let (τ' :* n'') = freshen ρ τ n' in (SetT τ') :* n''
+    𝕄T l c rows cols → undefined
+    𝔻T τ → let (τ' :* n'') = freshen ρ τ n' in (𝔻T τ') :* n''
+    τ₁ :⊕: τ₂ →
+      let (τ₁' :* n'') = freshen ρ τ₁ n' in
+      let (τ₂' :* n''') = freshen ρ τ₂ n'' in
+      (τ₁' :⊕: τ₂') :* n'''
+    τ₁ :⊗: τ₂ →
+      let (τ₁' :* n'') = freshen ρ τ₁ n' in
+      let (τ₂' :* n''') = freshen ρ τ₂ n'' in
+      (τ₁' :⊗: τ₂') :* n'''
+    τ₁ :&: τ₂ →
+      let (τ₁' :* n'') = freshen ρ τ₁ n' in
+      let (τ₂' :* n''') = freshen ρ τ₂ n'' in
+      (τ₁' :&: τ₂') :* n'''
+    (x₁ :* τ₁) :⊸: (sσ₁ :* τ₂) →
+      let (τ₁' :* n'') = freshen ρ τ₁ n' in
+      let (τ₂' :* n''') = freshen ρ τ₂ n'' in
+      let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁) in
+      ((x₁ :* τ₁') :⊸: (sσ₁' :* τ₂') :* n''')
+    (x₁ :* τ₁₁) :⊸⋆: (pσ₁ :* τ₁₂) → undefined
+    ForallT x κ τ →
+      let (τ' :* n'') = freshen (ρ ⩌ (x↦ 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some n})) τ n' in
+      (ForallT x κ τ' ) :* n''
+    CxtT xs → undefined
+    BoxedT sσ₁ τ₁ → undefined
+
+alphaEquiv ∷ (𝕏 ⇰ 𝕏) → Type RNF → Type RNF → 𝔹
+alphaEquiv xxs τ₁' τ₂' =
+  case (τ₁',τ₂') of
+    (VarT x₁,VarT x₂) → case xxs ⋕? x₁ of
+      Some x₁' → x₁' ≡ x₂
+      None → x₁ ≡ x₂
+    (ℕˢT r₁,ℕˢT r₂) → (substAlphaRNF (list xxs) r₁) ≡ r₂
+    (ℝˢT r₁,ℝˢT r₂) → (substAlphaRNF (list xxs) r₁) ≡ r₂
+    (ℕT,ℕT) → True
+    (ℝT,ℝT) → True
+    (𝕀T r₁,𝕀T r₂) → (substAlphaRNF (list xxs) r₁) ≡ r₂
+    (𝔹T,𝔹T) → True
+    (𝕊T,𝕊T) → True
+    (SetT τ₁,SetT τ₂) → alphaEquiv xxs τ₁ τ₂
+    (𝕄T l₁ c₁ rows₁ cols₁,𝕄T l₂ c₂ rows₂ cols₂) → case (l₁≡l₂,c₁≡c₂) of
+      (True,True) → (alphaEquivRows xxs rows₁ rows₂) ⩓ (alphaEquivMExp xxs cols₁ cols₂)
+      _ → False
+    (𝔻T τ₁,𝔻T τ₂) → alphaEquiv xxs τ₁ τ₂
+    (τ₁₁ :⊕: τ₁₂,τ₂₁ :⊕: τ₂₂) → (alphaEquiv xxs τ₁₁ τ₂₁) ⩓ (alphaEquiv xxs τ₁₂ τ₂₂)
+    (τ₁₁ :⊗: τ₁₂,τ₂₁ :⊗: τ₂₂) → (alphaEquiv xxs τ₁₁ τ₂₁) ⩓ (alphaEquiv xxs τ₁₂ τ₂₂)
+    (τ₁₁ :&: τ₁₂,τ₂₁ :&: τ₂₂) → (alphaEquiv xxs τ₁₁ τ₂₁) ⩓ (alphaEquiv xxs τ₁₂ τ₂₂)
+    ((x₁ :* τ₁₁) :⊸: (sσ₁ :* τ₁₂),(x₂ :* τ₂₁) :⊸: (sσ₂ :* τ₂₂)) →
+      ((mapp (\r → substAlphaRNF (list xxs) r) sσ₁) ≡ sσ₂) ⩓ (alphaEquiv xxs τ₁₁ τ₂₁) ⩓ (alphaEquiv xxs τ₂₁ τ₂₂)
+    ((x₁ :* τ₁₁) :⊸⋆: (PEnv (pσ₁ ∷ 𝕏 ⇰ Pr p RNF) :* τ₁₂),(x₂ :* τ₂₁) :⊸⋆: (PEnv (pσ₂ ∷ 𝕏 ⇰ Pr p' RNF) :* τ₂₂)) →
+      case eqPRIV (priv @ p) (priv @ p') of
+        None → False
+        Some Refl →
+          ((mapp (\r → substAlphaRNF (list xxs) r) pσ₁) ≡ pσ₂) ⩓ (alphaEquiv xxs τ₁₁ τ₂₁) ⩓ (alphaEquiv xxs τ₂₁ τ₂₂)
+    (ForallT x₁ κ₁ τ₁,ForallT x₂ κ₂ τ₂) → case (κ₁ ≡ κ₂) of
+      True → alphaEquiv (xxs ⩌ (x₁↦x₂)) τ₁ τ₂
+      False → False
+    (CxtT xs₁,CxtT xs₂) → xs₁ ≡ xs₂
+    (BoxedT sσ₁ τ₁,BoxedT sσ₂ τ₂) → undefined
+    _ → False
+
+alphaEquivMExp ∷ (𝕏 ⇰ 𝕏) → MExp RNF → MExp RNF → 𝔹
+alphaEquivMExp xxs me₁' me₂' = case (me₁',me₂') of
+  (EmptyME,EmptyME) → True
+  (VarME x₁,VarME x₂) → x₁ ≡ x₂
+  (ConsME τ₁ me₁,ConsME τ₂ me₂) → (alphaEquiv xxs τ₁ τ₂) ⩓ (alphaEquivMExp xxs me₁ me₂)
+  (AppendME me₁₁ me₁₂,AppendME me₂₁ me₂₂) → (alphaEquivMExp xxs me₁₁ me₂₁) ⩓ (alphaEquivMExp xxs me₁₂ me₂₂)
+  (RexpME r₁ τ₁,RexpME r₂ τ₂) → ((substAlphaRNF (list xxs) r₁) ≡ r₂) ⩓ (alphaEquiv xxs τ₁ τ₂)
+
+alphaEquivRows ∷ (𝕏 ⇰ 𝕏) → RowsT RNF → RowsT RNF → 𝔹
+alphaEquivRows xxs rows₁ rows₂ = case (rows₁,rows₂) of
+  (StarRT, StarRT) → True
+  (RexpRT r₁, RexpRT r₂) → (substAlphaRNF (list xxs) r₁) ≡ r₂
+  _ → False
+
+substAlphaRNF ∷ 𝐿 (𝕏 ∧ 𝕏) → RNF → RNF
+substAlphaRNF Nil r = r
+substAlphaRNF ((x₁:*x₂):&xxs) r = substAlphaRNF xxs $ substRNF x₁ (varRNF x₂) r
+
 data TLExp r =
     VarTE 𝕏
   -- Type Stuff

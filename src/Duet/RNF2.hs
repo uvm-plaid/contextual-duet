@@ -1095,6 +1095,9 @@ e3' = normalizeRNF $
 e1subst ∷ RNF
 e1subst = substRNF (var "x") (dblRNF 3.0) e1
 
+e1subst'' ∷ RNF
+e1subst'' = substRNF (var "x") (varRNF (var "α")) e1
+
 e1subst' ∷ RNF
 e1subst' = substRNF (var "x") (substRNF (var "x") e1 e1) e1
 
