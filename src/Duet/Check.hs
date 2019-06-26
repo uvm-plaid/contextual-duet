@@ -35,46 +35,46 @@ data Context = Context
 makeLenses ''Context
 makePrettyRecord ''Context
 
-newtype SM (p ∷ PRIV) a = SM { unSM ∷ ReaderT Context (WriterT (𝕏 ⇰ Sens RNF) (ErrorT TypeError ID)) a }
+newtype SM (p ∷ PRIV) a = SM { unSM ∷ RWST Context (𝕏 ⇰ Sens RNF) ℕ (ErrorT TypeError ID) a }
   deriving
   (Functor
   ,Return,Bind,Monad
   ,MonadError TypeError
   ,MonadReader Context
-  ,MonadWriter (𝕏 ⇰ Sens RNF))
+  ,MonadWriter (𝕏 ⇰ Sens RNF)
+  ,MonadState ℕ)
 
-mkSM ∷ (𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → TypeError ∨ ((𝕏 ⇰ Sens RNF) ∧ a)) → SM p a
-mkSM f = SM $ ReaderT $ \ (Context δ γ ᴍ) → WriterT $ ErrorT $ ID $ f δ γ ᴍ
+mkSM ∷ (𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → ℕ → TypeError ∨ (ℕ ∧ (𝕏 ⇰ Sens RNF) ∧ a)) → SM p a
+mkSM f = SM $ mkRWST $ \ (Context δ γ ᴍ) n → ErrorT $ ID $ f δ γ ᴍ n
 
-runSM ∷ 𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → SM p a → TypeError ∨ ((𝕏 ⇰ Sens RNF) ∧ a)
-runSM δ γ ᴍ = unID ∘ unErrorT ∘ unWriterT ∘ runReaderT (Context δ γ ᴍ) ∘ unSM
+runSM ∷ 𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → ℕ → SM p a → TypeError ∨ (ℕ ∧ (𝕏 ⇰ Sens RNF) ∧ a)
+runSM δ γ ᴍ n = unID ∘ unErrorT ∘ runRWST (Context δ γ ᴍ) n ∘ unSM
 
-newtype PM (p ∷ PRIV) a = PM { unPM ∷ ReaderT Context (WriterT (𝕏 ⇰ Pr p RNF) (ErrorT TypeError ID)) a }
+newtype PM (p ∷ PRIV) a = PM { unPM ∷ RWST Context (𝕏 ⇰ Pr p RNF) ℕ (ErrorT TypeError ID) a }
   deriving
   (Functor
   ,Return,Bind,Monad
   ,MonadError TypeError
   ,MonadReader Context
-  ,MonadWriter (𝕏 ⇰ Pr p RNF))
+  ,MonadWriter (𝕏 ⇰ Pr p RNF)
+  ,MonadState ℕ)
 
-mkPM ∷ (𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → TypeError ∨ ((𝕏 ⇰ Pr p RNF) ∧ a)) → PM p a
-mkPM f = PM $ ReaderT $ \ (Context δ γ ᴍ) → WriterT $ ErrorT $ ID $ f δ γ ᴍ
+mkPM ∷ (𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → ℕ → TypeError ∨ (ℕ ∧ (𝕏 ⇰ Pr p RNF) ∧ a)) → PM p a
+mkPM f = PM $ mkRWST $ \ (Context δ γ ᴍ) n → ErrorT $ ID $ f δ γ ᴍ n
 
---      kind env   type env    expression   type error    sens costs     expressions' type
---         ⌄⌄         ⌄⌄           ⌄⌄         ⌄⌄             ⌄⌄            ⌄⌄
-runPM ∷ 𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → PM p a → TypeError ∨ ((𝕏 ⇰ Pr p RNF) ∧ a)
-runPM δ γ ᴍ = unID ∘ unErrorT ∘ unWriterT ∘ runReaderT (Context δ γ ᴍ) ∘ unPM
+runPM ∷ 𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → ℕ → PM p a → TypeError ∨ (ℕ ∧ (𝕏 ⇰ Pr p RNF) ∧ a)
+runPM δ γ ᴍ n = unID ∘ unErrorT ∘ runRWST (Context δ γ ᴍ) n ∘ unPM
 
 smFromPM ∷ PM p a → SM p a
-smFromPM xM = mkSM $ \ δ γ ᴍ →
-  mapInr (mapFst $ map $ Sens ∘ (×) top ∘ truncateRNF ∘ indicatorPr) $ runPM δ γ ᴍ xM
+smFromPM xM = mkSM $ \ δ γ ᴍ n →
+  mapInr (mapFst $ mapSnd $ map $ Sens ∘ (×) top ∘ truncateRNF ∘ indicatorPr) $ runPM δ γ ᴍ n xM
 
 pmFromSM ∷ (PRIV_C p) ⇒ SM p a → PM p a
-pmFromSM xM = mkPM $ \ δ γ ᴍ →
-  mapInr (mapFst $ map $ makePr ∘ (×) top ∘ truncateRNF ∘ unSens) $ runSM δ γ ᴍ xM
+pmFromSM xM = mkPM $ \ δ γ ᴍ n →
+  mapInr (mapFst $ mapSnd $ map $ makePr ∘ (×) top ∘ truncateRNF ∘ unSens) $ runSM δ γ ᴍ n xM
 
 mapPPM ∷ (Pr p₁ RNF → Pr p₂ RNF) → PM p₁ a → PM p₂ a
-mapPPM f xM = mkPM $ \ δ γ ᴍ → mapInr (mapFst $ map f) $ runPM δ γ ᴍ xM
+mapPPM f xM = mkPM $ \ δ γ ᴍ n → mapInr (mapFst $ mapSnd $ map f) $ runPM δ γ ᴍ n xM
 
 checkSensLang ∷ TLExp RNF → 𝑂 (Sens RNF)
 checkSensLang e = do
