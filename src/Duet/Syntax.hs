@@ -252,7 +252,9 @@ data Type r =
 freshen ∷ (𝕏 ⇰ 𝕏) → Type RNF → ℕ → (Type RNF ∧ ℕ)
 freshen ρ τ''' n = let nplusone = n + one in
   case τ''' of
-    VarT x → (VarT (ρ ⋕! x)) :* n
+    VarT x → case ρ ⋕? x of
+      None → error $ "freshen VarT error " ⧺ pprender x ⧺ "\n" ⧺ pprender ρ
+      Some x' → (VarT x') :* n
     ℕˢT r → (ℕˢT (substAlphaRNF (list ρ) r)) :* n
     ℝˢT r → (ℝˢT (substAlphaRNF (list ρ) r)) :* n
     ℕT → (ℕT :* n)
