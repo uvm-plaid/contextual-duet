@@ -367,6 +367,20 @@ checkType τA = case τA of
       checkType τ
   _ → error $ "checkType error on " ⧺ pprender τA
 
+freshenSM ∷ Type RNF → SM p (Type RNF)
+freshenSM τ = do
+  n ← get
+  let τ' :* n' = freshen dø τ n
+  put n'
+  return τ'
+
+freshenPM ∷ Type RNF → PM p (Type RNF)
+freshenPM τ = do
+  n ← get
+  let τ' :* n' = freshen dø τ n
+  put n'
+  return τ'
+
 inferSens ∷ ∀ p. (PRIV_C p) ⇒ SExpSource p → SM p (Type RNF)
 inferSens eA = case extract eA of
   ℕˢSE n → return $ ℕˢT $ ι n
