@@ -250,7 +250,7 @@ data Type r =
   deriving (Eq,Ord,Show)
 
 freshen ∷ (𝕏 ⇰ 𝕏) → Type RNF → ℕ → (Type RNF ∧ ℕ)
-freshen ρ τ''' n = let n' = n + one in
+freshen ρ τ''' n = let nplusone = n + one in
   case τ''' of
     VarT x → (VarT (ρ ⋕! x)) :* n
     ℕˢT r → (ℕˢT (substAlphaRNF (list ρ) r)) :* n
@@ -260,32 +260,59 @@ freshen ρ τ''' n = let n' = n + one in
     𝕀T r → (𝕀T (substAlphaRNF (list ρ) r)) :* n
     𝔹T → (𝔹T :* n)
     𝕊T → (𝕊T :* n)
-    SetT τ → let (τ' :* n'') = freshen ρ τ n' in (SetT τ') :* n''
-    𝕄T l c rows cols → undefined
-    𝔻T τ → let (τ' :* n'') = freshen ρ τ n' in (𝔻T τ') :* n''
+    SetT τ → let (τ' :* n') = freshen ρ τ n
+      in (SetT τ') :* n'
+    𝕄T l c rows cols →
+      let rows' = case rows of
+                    StarRT → StarRT
+                    RexpRT r → RexpRT (substAlphaRNF (list ρ) r)
+      in let (cols' :* n') = (freshenMExp ρ cols n)
+      in (𝕄T l c rows' cols') :* n'
+    𝔻T τ → let (τ' :* n') = freshen ρ τ n
+      in (𝔻T τ') :* n'
     τ₁ :⊕: τ₂ →
-      let (τ₁' :* n'') = freshen ρ τ₁ n' in
-      let (τ₂' :* n''') = freshen ρ τ₂ n'' in
-      (τ₁' :⊕: τ₂') :* n'''
+      let (τ₁' :* n') = freshen ρ τ₁ n in
+      let (τ₂' :* n'') = freshen ρ τ₂ n' in
+      (τ₁' :⊕: τ₂') :* n''
     τ₁ :⊗: τ₂ →
-      let (τ₁' :* n'') = freshen ρ τ₁ n' in
-      let (τ₂' :* n''') = freshen ρ τ₂ n'' in
-      (τ₁' :⊗: τ₂') :* n'''
+      let (τ₁' :* n') = freshen ρ τ₁ n in
+      let (τ₂' :* n'') = freshen ρ τ₂ n' in
+      (τ₁' :⊗: τ₂') :* n''
     τ₁ :&: τ₂ →
-      let (τ₁' :* n'') = freshen ρ τ₁ n' in
-      let (τ₂' :* n''') = freshen ρ τ₂ n'' in
-      (τ₁' :&: τ₂') :* n'''
+      let (τ₁' :* n') = freshen ρ τ₁ n in
+      let (τ₂' :* n'') = freshen ρ τ₂ n' in
+      (τ₁' :&: τ₂') :* n''
     (x₁ :* τ₁) :⊸: (sσ₁ :* τ₂) →
-      let (τ₁' :* n'') = freshen ρ τ₁ n' in
-      let (τ₂' :* n''') = freshen ρ τ₂ n'' in
+      let (τ₁' :* n') = freshen ρ τ₁ n in
+      let (τ₂' :* n'') = freshen ρ τ₂ n' in
       let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁) in
-      ((x₁ :* τ₁') :⊸: (sσ₁' :* τ₂') :* n''')
-    (x₁ :* τ₁₁) :⊸⋆: (pσ₁ :* τ₁₂) → undefined
+      ((x₁ :* τ₁') :⊸: (sσ₁' :* τ₂') :* n'')
+    (x₁ :* τ₁) :⊸⋆: (PEnv (pσ₁ ∷ 𝕏 ⇰ Pr p RNF) :* τ₂) →
+      let (τ₁' :* n') = freshen ρ τ₁ n' in
+      let (τ₂' :* n'') = freshen ρ τ₂ n' in
+      let pσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) pσ₁) in
+      ((x₁ :* τ₁') :⊸⋆: (PEnv pσ₁' :* τ₂') :* n'')
     ForallT x κ τ →
-      let (τ' :* n'') = freshen (ρ ⩌ (x↦ 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some n})) τ n' in
-      (ForallT x κ τ' ) :* n''
-    CxtT xs → undefined
+      let (τ' :* n') = freshen (ρ ⩌ (x↦ 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some n})) τ nplusone in
+      (ForallT x κ τ' ) :* n'
+    CxtT xs → (CxtT xs :* n)
     BoxedT sσ₁ τ₁ → undefined
+
+freshenMExp ∷ (𝕏 ⇰ 𝕏) → MExp RNF → ℕ → (MExp RNF ∧ ℕ)
+freshenMExp ρ meInit n = case meInit of
+  EmptyME → EmptyME :* n
+  VarME x → (VarME x) :* n
+  ConsME τ me →
+    let (τ' :* n') =  (freshen ρ τ n) in
+    let (me' :* n'') = (freshenMExp ρ me n')
+    in (ConsME τ' me') :* n''
+  AppendME me₁ me₂ →
+    let (me₁' :* n') = (freshenMExp ρ me₁ n) in
+    let (me₂' :* n'') = (freshenMExp ρ me₂ n')
+    in (AppendME me₁ me₂) :* n''
+  RexpME r τ →
+    let (τ' :* n') =  (freshen ρ τ n) in
+    (RexpME (substAlphaRNF (list ρ) r) τ') :* n'
 
 alphaEquiv ∷ (𝕏 ⇰ 𝕏) → Type RNF → Type RNF → 𝔹
 alphaEquiv xxs τ₁' τ₂' =

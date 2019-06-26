@@ -110,7 +110,7 @@ main = do
         e :* tParse ← timeIO $ parseIO (pSkip tokSkip $ pFinal $ parSExp mode) $ stream ts
         do out $ "(" ⧺ show𝕊 (secondsTimeD tParse) ⧺ "s)" ; flushOut
         do pprint $ ppHeader "TYPE CHECKING" ; flushOut
-        r :* tCheck ← time (\ () → runSM dø initEnv₁ dø $ inferSens e) ()
+        r :* tCheck ← time (\ () → runSM dø initEnv₁ dø 0 (inferSens e)) ()
         do out $ "(" ⧺ show𝕊 (secondsTimeD tCheck) ⧺ "s)" ; flushOut
         _ ← shell $ "echo " ⧺ show𝕊 (secondsTimeD tCheck) ⧺ " >> typecheck-times"
         do pprint $ ppHeader "DONE" ; flushOut
