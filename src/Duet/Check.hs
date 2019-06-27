@@ -707,7 +707,10 @@ inferSens eA = case extract eA of
   TAbsSE x κ e → do
     mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
       τ ← inferSens e
-      freshenSM $ ForallT x κ τ
+      traceM "1"
+      τ'''' ← freshenSM $ ForallT x κ τ
+      traceM "2"
+      return τ''''
   TAppSE e τ' → do
     τ ← inferSens e
     case τ of
@@ -725,7 +728,11 @@ inferSens eA = case extract eA of
               CxtK → case extract τ' of
                 CxtT xs → substTypeCxt x (list $ iter $ xs) τ
               TypeK → checkOption $ checkTypeLang $ substTL x (typeToTLExp $ map normalizeRNF $ extract τ') (typeToTLExp τ)
-        freshenSM τ''
+        traceM "3"
+        traceM $ pprender $ pretty τ''
+        τ'''' ← freshenSM τ''
+        traceM "4"
+        return τ''''
       _ → error $ "expected ForallT, got: " ⧺ pprender τ
   SFunSE x τ e → do
       checkType $ extract τ
