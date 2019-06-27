@@ -290,7 +290,7 @@ freshen ρ τ''' n = let nplusone = n + one in
       let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁) in
       ((x₁ :* τ₁') :⊸: (sσ₁' :* τ₂') :* n'')
     (x₁ :* τ₁) :⊸⋆: (PEnv (pσ₁ ∷ 𝕏 ⇰ Pr p RNF) :* τ₂) →
-      let (τ₁' :* n') = freshen ρ τ₁ n' in
+      let (τ₁' :* n') = freshen ρ τ₁ n in
       let (τ₂' :* n'') = freshen ρ τ₂ n' in
       let pσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) pσ₁) in
       ((x₁ :* τ₁') :⊸⋆: (PEnv pσ₁' :* τ₂') :* n'')
@@ -312,7 +312,7 @@ freshenMExp ρ meInit n = case meInit of
   AppendME me₁ me₂ →
     let (me₁' :* n') = (freshenMExp ρ me₁ n) in
     let (me₂' :* n'') = (freshenMExp ρ me₂ n')
-    in (AppendME me₁ me₂) :* n''
+    in (AppendME me₁' me₂') :* n''
   RexpME r τ →
     let (τ' :* n') =  (freshen ρ τ n) in
     (RexpME (substAlphaRNF (list ρ) r) τ') :* n'
