@@ -707,7 +707,7 @@ inferSens eA = case extract eA of
   TAbsSE x κ e → do
     mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
       τ ← inferSens e
-      return $ ForallT x κ τ
+      freshenSM $ ForallT x κ τ
   TAppSE e τ' → do
     τ ← inferSens e
     case τ of
@@ -725,7 +725,7 @@ inferSens eA = case extract eA of
               CxtK → case extract τ' of
                 CxtT xs → substTypeCxt x (list $ iter $ xs) τ
               TypeK → checkOption $ checkTypeLang $ substTL x (typeToTLExp $ map normalizeRNF $ extract τ') (typeToTLExp τ)
-        return τ''
+        freshenSM τ''
       _ → error $ "expected ForallT, got: " ⧺ pprender τ
   SFunSE x τ e → do
       checkType $ extract τ
@@ -771,26 +771,6 @@ inferSens eA = case extract eA of
     let τ' = map normalizeRNF $ extract τ
     σ :* τ'' ← smFromPM $ hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferPriv e
     return $ (x :* τ') :⊸⋆: (PEnv σ :* τ'')
-    -- let (ς :* σ') = ifNone (zero :* σ) $ dview x σ
-    -- let xτs' = map (mapSnd (map normalizeRNF ∘ extract)) xτs
-    --     xs = map fst xτs
-    -- mapEnvL contextKindL (\ δ → assoc ακs ⩌ δ) $ do
-    --   σ :* τ ←
-    --     smFromPM
-    --     $ hijack
-    --     $ mapEnvL contextTypeL (\ γ → assoc xτs' ⩌ γ)
-    --     $ inferPriv e
-    --   each checkType $ map (extract ∘ snd) xτs
-    --   -- let fvs = freeBvs τ
-    --   -- let isClosed = (fvs ∩ pow xs) ≡ pø
-    --   -- case isClosed of
-    --   --   False → error $ "Lambda type/scoping error in return expression of type: " ⧺ (pprender τ)
-    --   --   True → do
-    --   do
-    --       -- TODO: make a name for: Sens ∘ (×) top ∘ truncateRNF ∘ indicatorPr ∘ unPriv
-    --       tell $ map (Sens ∘ (×) top ∘ truncateRNF ∘ indicatorPr) $ without (pow xs) σ
-    --       let pσ = dict $ mapOn xτs' $ \ (x :* _) → x ↦ ifNone null (σ ⋕? x)
-    --       return $ (ακs :* mapp (map normalizeRNF ∘ extract) xτs) :⊸⋆: (PEnv pσ :* τ)
   SetSE es → do
     -- homogeneity check
     l ← mapM (hijack ∘ inferSens) es
@@ -966,7 +946,6 @@ inferSens eA = case extract eA of
           𝕄T ℓ₂ c₂ (RexpRT ηₘ₂) (RexpME one τ₂') →
             return $ 𝕄T ℓ₂ c₂ (RexpRT ηₘ₂) (RexpME r τ₂')
           _ → return $ 𝕄T LInf UClip (RexpRT one) (RexpME r τ₂)
---          _ → error $ pprender τ₂
       _  → undefined -- TypeSource Error
   MMapCol2SE e₁ e₂ x₁ x₂ e₃ → do
     σ₁ :* τ₁ ← hijack $ inferSens e₁
@@ -1040,7 +1019,7 @@ isRealMExp me = case me of
   VarME x → do
     ᴍ ← askL contextMExpL
     case ᴍ ⋕? x of
-      None → error $ fromString (show x) -- TypeSource Error
+      None → error $ "isRealMExp: " ⧺ fromString (show x) -- TypeSource Error
       Some m → do
         isRealMExp $ m
   ConsME τ me₁ → do

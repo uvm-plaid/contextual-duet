@@ -295,8 +295,9 @@ freshen ρ τ''' n = let nplusone = n + one in
       let pσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) pσ₁) in
       ((x₁ :* τ₁') :⊸⋆: (PEnv pσ₁' :* τ₂') :* n'')
     ForallT x κ τ →
-      let (τ' :* n') = freshen (ρ ⩌ (x↦ 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some n})) τ nplusone in
-      (ForallT x κ τ' ) :* n'
+      let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some n} in
+      let (τ' :* n') = freshen (ρ ⩌ (x↦ xⁿ)) τ nplusone in
+      (ForallT xⁿ κ τ' ) :* n'
     CxtT xs → (CxtT xs :* n)
     BoxedT sσ₁ τ₁ → undefined
 
