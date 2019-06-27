@@ -252,9 +252,7 @@ data Type r =
 freshen ∷ (𝕏 ⇰ 𝕏) → Type RNF → ℕ → (Type RNF ∧ ℕ)
 freshen ρ τ''' n = let nplusone = n + one in
   case τ''' of
-    VarT x → case ρ ⋕? x of
-      None → error $ "freshen VarT error " ⧺ pprender x ⧺ "\n" ⧺ pprender ρ
-      Some x' → (VarT x') :* n
+    VarT x → (VarT $ freshenRef ρ x) :* n
     ℕˢT r → (ℕˢT (substAlphaRNF (list ρ) r)) :* n
     ℝˢT r → (ℝˢT (substAlphaRNF (list ρ) r)) :* n
     ℕT → (ℕT :* n)
@@ -288,18 +286,25 @@ freshen ρ τ''' n = let nplusone = n + one in
       let (τ₁' :* n') = freshen ρ τ₁ n in
       let (τ₂' :* n'') = freshen ρ τ₂ n' in
       let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁) in
-      ((x₁ :* τ₁') :⊸: (sσ₁' :* τ₂') :* n'')
+      let sσ₁'' = assoc $ map (\(x :* s) → freshenRef ρ x :* s) $ list sσ₁' in
+      ((x₁ :* τ₁') :⊸: (sσ₁'' :* τ₂') :* n'')
     (x₁ :* τ₁) :⊸⋆: (PEnv (pσ₁ ∷ 𝕏 ⇰ Pr p RNF) :* τ₂) →
-      let (τ₁' :* n') = freshen ρ τ₁ n' in
+      let (τ₁' :* n') = freshen ρ τ₁ n in
       let (τ₂' :* n'') = freshen ρ τ₂ n' in
       let pσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) pσ₁) in
-      ((x₁ :* τ₁') :⊸⋆: (PEnv pσ₁' :* τ₂') :* n'')
+      let pσ₁'' = assoc $ map (\(x :* p) → freshenRef ρ x :* p) $ list pσ₁' in
+      ((x₁ :* τ₁') :⊸⋆: (PEnv pσ₁'' :* τ₂') :* n'')
     ForallT x κ τ →
       let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some n} in
-      let (τ' :* n') = freshen (ρ ⩌ (x↦ xⁿ)) τ nplusone in
+      let (τ' :* n') = freshen ((x↦ xⁿ) ⩌ ρ) τ nplusone in
       (ForallT xⁿ κ τ' ) :* n'
     CxtT xs → (CxtT xs :* n)
     BoxedT sσ₁ τ₁ → undefined
+
+freshenRef ∷ (𝕏 ⇰ 𝕏) → 𝕏 → 𝕏
+freshenRef ρ x = case ρ ⋕? x of
+  None → x
+  Some x' → x'
 
 freshenMExp ∷ (𝕏 ⇰ 𝕏) → MExp RNF → ℕ → (MExp RNF ∧ ℕ)
 freshenMExp ρ meInit n = case meInit of
@@ -312,7 +317,7 @@ freshenMExp ρ meInit n = case meInit of
   AppendME me₁ me₂ →
     let (me₁' :* n') = (freshenMExp ρ me₁ n) in
     let (me₂' :* n'') = (freshenMExp ρ me₂ n')
-    in (AppendME me₁ me₂) :* n''
+    in (AppendME me₁' me₂') :* n''
   RexpME r τ →
     let (τ' :* n') =  (freshen ρ τ n) in
     (RexpME (substAlphaRNF (list ρ) r) τ') :* n'
@@ -346,7 +351,7 @@ alphaEquiv xxs τ₁' τ₂' =
         Some Refl →
           ((mapp (\r → substAlphaRNF (list xxs) r) pσ₁) ≡ pσ₂) ⩓ (alphaEquiv xxs τ₁₁ τ₂₁) ⩓ (alphaEquiv xxs τ₂₁ τ₂₂)
     (ForallT x₁ κ₁ τ₁,ForallT x₂ κ₂ τ₂) → case (κ₁ ≡ κ₂) of
-      True → alphaEquiv (xxs ⩌ (x₁↦x₂)) τ₁ τ₂
+      True → alphaEquiv ((x₁↦x₂) ⩌ xxs) τ₁ τ₂
       False → False
     (CxtT xs₁,CxtT xs₂) → xs₁ ≡ xs₂
     (BoxedT sσ₁ τ₁,BoxedT sσ₂ τ₂) → undefined
