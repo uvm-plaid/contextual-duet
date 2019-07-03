@@ -125,8 +125,8 @@ parNNDbl = pShaped "nn-dbl" $ \ t → do
     True → return d
     False → abort
 
-parKind ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token Kind
-parKind p = pNew "kind" $ tries
+parKind ∷ Parser Token Kind
+parKind = pNew "kind" $ tries
   [ do parLit "ℕ" ; return ℕK
   , do parLit "ℝ⁺" ; return ℝK
   , do parLit "☆" ; return TypeK
@@ -141,12 +141,12 @@ parPEnv mode = tries
         x ← parVar
         parLit "⋅"
         pr ← parPriv mode
-        return (x :* pr)
+        return (PLVar x :* pr)
       parLit "]"
       return $ PEnv $ assoc xprs
   ]
 
-parSEnv ∷ Parser Token (𝕏 ⇰ Sens RExp)
+parSEnv ∷ Parser Token (TermVar ⇰ Sens RExp)
 parSEnv = tries
   [ do
       parLit "["
@@ -154,7 +154,7 @@ parSEnv = tries
         x ← parVar
         parLit "⋅"
         sens ← parSens
-        return (x :* sens)
+        return (PLVar x :* sens)
       parLit "]"
       return $ assoc xsens
   ]
@@ -169,6 +169,17 @@ parPrimitives mode = tries
         τ ← parType mode
         return (x :* τ)
       return $ assoc prims
+  ]
+
+
+parTermVar ∷ Parser Token (TermVar)
+parTermVar = tries
+  [ do
+      parLit "["
+      x ← parVar
+      parLit "]"
+      return $ TLVar x
+  , do x ← parVar; return $ PLVar x
   ]
 
 parRowsT ∷ Parser Token (RowsT RExp)
@@ -274,7 +285,7 @@ parSTLExp mode = mixfixParserWithContext "tlexp" $ concat
       parLit "∀"
       α ← parVar
       parLit ":"
-      κ ← parKind mode
+      κ ← parKind
       parLit "."
       return $ \ τ → ForallSTE α κ τ
   , mixF $ MixFTerminal $ do
@@ -450,19 +461,19 @@ parType mode = mixfixParser $ concat
       parLit "∀"
       x ← parVar
       parLit ":"
-      κ ← parKind mode
+      κ ← parKind
       xκs ← pMany $ do
         parLit ","
         x' ← parVar
         parLit ":"
-        κ' ← parKind mode
+        κ' ← parKind
         return $ x' :* κ'
       parLit "."
       return $ \ e →
         ForallT x κ $ foldr e (\ (x' :* κ') e' → ForallT x' κ' e') xκs
   , mix $ MixTerminal $ do
       parLit "<"
-      xs ← pManySepBy (parLit ",") parVar
+      xs ← pManySepBy (parLit ",") parTermVar
       parLit ">"
       return $ CxtT $ pow xs
   , mix $ MixPrefix 3 $ do
@@ -697,16 +708,6 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
         parLit ">"
         return xs
       return $ \ e₁ e₂ → AppSE e₁ xsO e₂
-    -- mixF $ MixFTerminal $ do
-    --   parLit "!"
-    --   parLit "{"
-    --   e₁ ← parSExp p
-    --   parLit ","
-    --   eₓₛ ← parSExp p
-    --   parLit ","
-    --   e₂ ← parSExp p
-    --   parLit "}"
-    --   return $ AppSE e₁ eₓₛ e₂
   , mixF $ MixFPrefix 1 $ do
       parLit "sλ"
       x ← parVar
@@ -742,12 +743,12 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       parLit "∀"
       x ← parVar
       parLit ":"
-      κ ← parKind p
+      κ ← parKind
       xκs ← pMany $ do
         parLit ","
         x' ← parVar
         parLit ":"
-        κ' ← parKind p
+        κ' ← parKind
         return $ x' :* κ'
       parLit "."
       return $ \ e →
@@ -763,11 +764,11 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       ses ← pManySepBy (parLit ",") $ parSExp p
       parLit "}"
       return $ SetSE ses
-  , mixF $ MixFTerminal $ do
-      parLit "<"
-      xs ← pManySepBy (parLit ",") $ parVar
-      parLit ">"
-      return $ CxtSE xs
+  -- , mixF $ MixFTerminal $ do
+  --     parLit "<"
+  --     xs ← pManySepBy (parLit ",") $ parVar
+  --     parLit ">"
+  --     return $ CxtSE xs
   , mixF $ MixFTerminal $ do
       parLit "unionAll"
       e ← parSExp p

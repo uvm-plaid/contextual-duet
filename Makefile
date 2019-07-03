@@ -32,8 +32,11 @@ ARGS := run examples/complete/presna-queries.eps.duet data_short/incoming.csv da
 
 # Run Using GHCI
 # stack ghci
-# :set args check "examples/gd-pb.ed.duet"
+# :set args check "examples/complete/gd-pb.ed.duet"
 # main
+
+# Run Using ghcid
+# ghcid "--command=stack ghci src/Duet/Check.hs"
 
 default:
 	./examples.sh

@@ -8,6 +8,9 @@ import Duet.RNF2
 data Norm = L1 | L2 | LInf
   deriving (Eq,Ord,Show)
 
+data TermVar = TLVar 𝕏 | PLVar 𝕏
+  deriving (Eq,Ord,Show)
+
 data Clip = NormClip Norm | UClip
   deriving (Eq,Ord,Show)
 
@@ -145,16 +148,16 @@ instance Functor (Pr p) where
   map f (TCPriv ρ ω) = TCPriv (f ρ) (f ω)
 
 data PEnv r where
-  PEnv ∷ ∀ (p ∷ PRIV) r. (PRIV_C p) ⇒ 𝕏 ⇰ Pr p r → PEnv r
+  PEnv ∷ ∀ (p ∷ PRIV) r. (PRIV_C p) ⇒ TermVar ⇰ Pr p r → PEnv r
 
 instance (Eq r) ⇒ Eq (PEnv r) where
   (==) ∷ PEnv r → PEnv r → 𝔹
-  PEnv (xps₁ ∷ 𝕏 ⇰ Pr p₁ r) == PEnv (xps₂ ∷ 𝕏 ⇰ Pr p₂ r) = case eqPRIV (priv @ p₁) (priv @ p₂) of
+  PEnv (xps₁ ∷ TermVar ⇰ Pr p₁ r) == PEnv (xps₂ ∷ TermVar ⇰ Pr p₂ r) = case eqPRIV (priv @ p₁) (priv @ p₂) of
     Some Refl → xps₁ ≡ xps₂
     None → False
 instance (Ord r) ⇒ Ord (PEnv r) where
   compare ∷ PEnv r → PEnv r → Ordering
-  compare (PEnv (xps₁ ∷ 𝕏 ⇰ Pr p₁ r)) (PEnv (xps₂ ∷ 𝕏 ⇰ Pr p₂ r)) = case eqPRIV (priv @ p₁) (priv @ p₂) of
+  compare (PEnv (xps₁ ∷ TermVar ⇰ Pr p₁ r)) (PEnv (xps₂ ∷ TermVar ⇰ Pr p₂ r)) = case eqPRIV (priv @ p₁) (priv @ p₂) of
     Some Refl → compare xps₁ xps₂
     None → compare (stripPRIV (priv @ p₁)) (stripPRIV (priv @ p₂))
 deriving instance (Show r) ⇒ Show (PEnv r)
@@ -240,10 +243,10 @@ data Type r =
   | Type r :⊕: Type r
   | Type r :⊗: Type r
   | Type r :&: Type r
-  | (𝕏 ∧ Type r) :⊸: ((𝕏 ⇰ Sens r) ∧ Type r)
+  | (𝕏 ∧ Type r) :⊸: ((TermVar ⇰ Sens r) ∧ Type r)
   | (𝕏 ∧ Type r) :⊸⋆: (PEnv r ∧ Type r)
   | ForallT 𝕏 Kind (Type r)
-  | CxtT (𝑃 𝕏)
+  | CxtT (𝑃 TermVar)
   | BoxedT (𝕏 ⇰ Sens r) (Type r)
   -- eventually we want:
   -- - contextual/lazy function, pair, and sum connectives
@@ -252,7 +255,7 @@ data Type r =
 freshen ∷ (𝕏 ⇰ 𝕏) → Type RNF → ℕ → (Type RNF ∧ ℕ)
 freshen ρ τ''' n = let nplusone = n + one in
   case τ''' of
-    VarT x → (VarT $ freshenRef ρ x) :* n
+    VarT x → (VarT $ getTLVar $ freshenRef ρ (TLVar x)) :* n
     ℕˢT r → (ℕˢT (substAlphaRNF (list ρ) r)) :* n
     ℝˢT r → (ℝˢT (substAlphaRNF (list ρ) r)) :* n
     ℕT → (ℕT :* n)
@@ -286,9 +289,9 @@ freshen ρ τ''' n = let nplusone = n + one in
       let (τ₁' :* n') = freshen ρ τ₁ n in
       let (τ₂' :* n'') = freshen ρ τ₂ n' in
       let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁) in
-      let sσ₁'' = assoc $ map (\(x :* s) → freshenRef ρ x :* s) $ list sσ₁' in
+      let sσ₁'' :: (TermVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ x :* s) $ list sσ₁' in
       ((x₁ :* τ₁') :⊸: (sσ₁'' :* τ₂') :* n'')
-    (x₁ :* τ₁) :⊸⋆: (PEnv (pσ₁ ∷ 𝕏 ⇰ Pr p RNF) :* τ₂) →
+    (x₁ :* τ₁) :⊸⋆: (PEnv (pσ₁ ∷ TermVar ⇰ Pr p RNF) :* τ₂) →
       let (τ₁' :* n') = freshen ρ τ₁ n in
       let (τ₂' :* n'') = freshen ρ τ₂ n' in
       let pσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) pσ₁) in
@@ -301,10 +304,20 @@ freshen ρ τ''' n = let nplusone = n + one in
     CxtT xs → (CxtT xs :* n)
     BoxedT sσ₁ τ₁ → undefined
 
-freshenRef ∷ (𝕏 ⇰ 𝕏) → 𝕏 → 𝕏
-freshenRef ρ x = case ρ ⋕? x of
-  None → x
-  Some x' → x'
+freshenRef ∷ (𝕏 ⇰ 𝕏) → TermVar → TermVar
+freshenRef ρ tv = case tv of
+  TLVar tlx → case ρ ⋕? tlx of
+    None → TLVar tlx
+    Some x' → TLVar x'
+  PLVar plx → PLVar plx
+
+getTLVar ∷ TermVar → 𝕏
+getTLVar (TLVar x) = x
+getTLVar _ = error "expected TLVar"
+
+getVar ∷ TermVar → 𝕏
+getVar (TLVar x) = x
+getVar (PLVar x) = x
 
 freshenMExp ∷ (𝕏 ⇰ 𝕏) → MExp RNF → ℕ → (MExp RNF ∧ ℕ)
 freshenMExp ρ meInit n = case meInit of
@@ -345,7 +358,7 @@ alphaEquiv xxs τ₁' τ₂' =
     (τ₁₁ :&: τ₁₂,τ₂₁ :&: τ₂₂) → (alphaEquiv xxs τ₁₁ τ₂₁) ⩓ (alphaEquiv xxs τ₁₂ τ₂₂)
     ((x₁ :* τ₁₁) :⊸: (sσ₁ :* τ₁₂),(x₂ :* τ₂₁) :⊸: (sσ₂ :* τ₂₂)) →
       ((mapp (\r → substAlphaRNF (list xxs) r) sσ₁) ≡ sσ₂) ⩓ (alphaEquiv xxs τ₁₁ τ₂₁) ⩓ (alphaEquiv xxs τ₂₁ τ₂₂)
-    ((x₁ :* τ₁₁) :⊸⋆: (PEnv (pσ₁ ∷ 𝕏 ⇰ Pr p RNF) :* τ₁₂),(x₂ :* τ₂₁) :⊸⋆: (PEnv (pσ₂ ∷ 𝕏 ⇰ Pr p' RNF) :* τ₂₂)) →
+    ((x₁ :* τ₁₁) :⊸⋆: (PEnv (pσ₁ ∷ TermVar ⇰ Pr p RNF) :* τ₁₂),(x₂ :* τ₂₁) :⊸⋆: (PEnv (pσ₂ ∷ TermVar ⇰ Pr p' RNF) :* τ₂₂)) →
       case eqPRIV (priv @ p) (priv @ p') of
         None → False
         Some Refl →
@@ -356,6 +369,7 @@ alphaEquiv xxs τ₁' τ₂' =
     (CxtT xs₁,CxtT xs₂) → xs₁ ≡ xs₂
     (BoxedT sσ₁ τ₁,BoxedT sσ₂ τ₂) → undefined
     _ → False
+
 
 alphaEquivMExp ∷ (𝕏 ⇰ 𝕏) → MExp RNF → MExp RNF → 𝔹
 alphaEquivMExp xxs me₁' me₂' = case (me₁',me₂') of
@@ -391,13 +405,10 @@ data TLExp r =
   | TLExp r :⊕♭: TLExp r
   | TLExp r :⊗♭: TLExp r
   | TLExp r :&♭: TLExp r
-  | (𝕏 ∧ TLExp r) :⊸♭: ((𝕏 ⇰ Sens r) ∧ TLExp r)
+  | (𝕏 ∧ TLExp r) :⊸♭: ((TermVar ⇰ Sens r) ∧ TLExp r)
   | (𝕏 ∧ TLExp r) :⊸⋆♭: (PEnv r ∧ TLExp r)
   | ForallTE 𝕏 Kind (TLExp r)
   | CxtTE (𝑃 𝕏)
-  -- | (𝐿 (𝕏 ∧ Kind) ∧ TLExp r) :⊸♭: (Sens r ∧ TLExp r)
-  -- -- ∀α:κ,…,α:κ. (x:τ,…,x:τ) → {x⋅p,…,x⋅p} τ
-  -- | (𝐿 (𝕏 ∧ Kind) ∧ 𝐿 (𝕏 ∧ TLExp r)) :⊸⋆♭: (PEnv r ∧ TLExp r)
   | BoxedTE (𝕏 ⇰ Sens r) (TLExp r)
   -- RExp Stuff
   | NatTE ℕ
@@ -581,7 +592,7 @@ data SExp (p ∷ PRIV) where
   --                ^^^^^
   --                TAppSE
   TAppSE ∷ SExpSource p → TypeSource RExp → SExp p
-  CxtSE ∷ 𝐿 𝕏 → SExp p
+  -- CxtSE ∷ 𝐿 𝕏 → SExp p
   InlSE ∷ TypeSource RExp → SExpSource p → SExp p
   InrSE ∷ TypeSource RExp → SExpSource p → SExp p
   CaseSE ∷ SExpSource p → 𝕏 → SExpSource p → 𝕏 → SExpSource p → SExp p

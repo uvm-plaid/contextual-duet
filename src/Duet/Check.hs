@@ -351,14 +351,16 @@ checkType τA = case τA of
     checkType τ₁
     mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
       eachWith sσ $ \ (x' :* s) → do
-        void $ checkTermVar x'
+        -- TODO
+        -- void $ checkTermVar x'
         checkSens $ map extract s
       checkType τ₂
-  (x :* τ₁) :⊸⋆: (PEnv (pσ ∷ 𝕏 ⇰ Pr p' RExp) :* τ₂) → do
+  (x :* τ₁) :⊸⋆: (PEnv (pσ ∷ TermVar ⇰ Pr p' RExp) :* τ₂) → do
     checkType τ₁
     mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
       eachWith pσ $ \ (x' :* p) → do
-        void $ checkTermVar x'
+        -- TODO
+        -- void $ checkTermVar x'
         checkPriv $ map extract p
       checkType τ₂
   VarT x → void $ inferKindVar x
@@ -380,6 +382,34 @@ freshenPM τ = do
   let τ' :* n' = freshen dø τ n
   put n'
   return τ'
+
+fixTVs ∷ ∀ p a. (PRIV_C p) ⇒ (TermVar ⇰ a) → SM p (TermVar ⇰ a)
+fixTVs tvs = do
+  δ ← askL contextKindL
+  return $ assoc $ map (\(tv :* a) → (fixTV δ tv :* a)) $ list tvs
+
+fixTV ∷ (𝕏 ⇰ a) → TermVar → TermVar
+fixTV δ tv = case tv of
+  PLVar x → case δ ⋕? x of
+    None → PLVar x
+    Some x' → TLVar x
+  -- should not happen
+  TLVar x → error "fixTVs error"
+
+
+-- TODO: kind-checking
+-- fix termvars
+-- freshening
+
+inferType ∷ ∀ p. (PRIV_C p) ⇒ Type RNF → SM p (Type RNF)
+inferType τinit = case τinit of
+  (x :* τ') :⊸: (σ :* τ'') → do
+    σ' ← fixTVs σ
+    return $ (x :* τ') :⊸: (σ' :* τ'')
+  (x :* τ') :⊸⋆: (PEnv σ :* τ'') → do
+    σ' ← fixTVs σ
+    return $ (x :* τ') :⊸⋆: (PEnv σ' :* τ'')
+  _ → error "inferType missing/unexpected case"
 
 inferSens ∷ ∀ p. (PRIV_C p) ⇒ SExpSource p → SM p (Type RNF)
 inferSens eA = case extract eA of
@@ -532,156 +562,6 @@ inferSens eA = case extract eA of
       (ℝT,ℝT) → return ℝT
       (𝔻T ℝT,𝔻T ℝT) → return $ 𝔻T ℝT
       _ → error $ "Minus error: " ⧺ (pprender $ (τ₁ :* τ₂)) -- TypeError
-  MCreateSE ℓ e₁ e₂ x₁ x₂ e₃ → do
-    τ₁ ← inferSens e₁
-    τ₂ ← inferSens e₂
-    case (τ₁,τ₂) of
-      (ℕˢT ηₘ,ℕˢT ηₙ) → do
-        σ₃ :* τ₃ ← hijack $ mapEnvL contextTypeL (\ γ → dict [x₁ ↦ 𝕀T ηₘ,x₂ ↦ 𝕀T ηₙ] ⩌ γ) $ inferSens e₃
-        let σ₃' = without (pow [x₁,x₂]) σ₃
-        tell $ ι (ηₘ × ηₙ) ⨵ σ₃'
-        return $ 𝕄T ℓ UClip (RexpRT ηₘ) (RexpME ηₙ τ₃)
-      _ → undefined -- TypeError
-  MIndexSE e₁ e₂ e₃ → do
-    τ₁ ← inferSens e₁
-    τ₂ ← inferSens e₂
-    τ₃ ← inferSens e₃
-    case (τ₁,τ₂,τ₃) of
-      (𝕄T _ℓ _c (RexpRT ηₘ) (RexpME r τ),𝕀T ηₘ',𝕀T ηₙ') | (ηₘ' ≤ ηₘ) ⩓ (ηₙ' ≤ r) → return τ
-      -- dataframe etc.
-      -- TODO
-      -- (𝕄T _ℓ _c (RexpRT _ηₘ) (ConsME τ m), _ηₘ', ℕˢT (dblRNF ηₙ')) → return $ getConsMAt (ConsME τ m) ηₙ'
-      (𝕄T _ℓ _c StarRT (RexpME r τ),𝕀T _ηₘ',𝕀T ηₙ') | (ηₙ' ≤ r) → return τ
-      -- TODO
-      -- (𝕄T _ℓ _c StarRT (ConsME τ m), _ηₘ',ℕˢT (dblRNF ηₙ')) → return $ getConsMAt (ConsME τ m) ηₙ'
-      -- had error: duet: ⟨⟨𝕄 [L∞ U|1,n] ℝ,ℕ⟩,ℕ⟩
-      _ → error $ "Index error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃)) -- TypeError
-  MUpdateSE e₁ e₂ e₃ e₄ → do
-    τ₁ ← inferSens e₁
-    τ₂ ← inferSens e₂
-    τ₃ ← inferSens e₃
-    τ₄ ← inferSens e₄
-    case (τ₁,τ₂,τ₃,τ₄) of
-      -- TODO: why does this check fail for FW?
-      (𝕄T ℓ c ηₘ (RexpME r τ),𝕀T _ηₘ',𝕀T ηₙ',τ') | {-(ηₘ' ≤ ηₘ) ⩓ -}(ηₙ' ≤ r) ⩓ (τ ≡ τ') →
-                                          return $ 𝕄T ℓ c ηₘ (RexpME r τ)
-      _ → error $ "Update error: " ⧺ (pprender $ (τ₁ :* τ₂ :* τ₃ :* τ₄)) -- TypeError
-  MRowsSE e → do
-    σ :* τ ← hijack $ inferSens e
-    case τ of
-      𝕄T _ℓ _c (RexpRT ηₘ) _ηₙ → return $ ℕˢT ηₘ
-      𝕄T _ℓ _c StarRT _ηₙ → do
-        tell σ
-        return $ ℕT
-      _ → undefined -- TypeSource Error
-  MColsSE e → do
-    _ :* τ ← hijack $ inferSens e
-    case τ of
-      𝕄T _ℓ _c _ηₘ (RexpME r _τ') → return $ ℕˢT r
-      _ → undefined -- TypeSource Error
-  MClipSE ℓ e → do
-    τ ← inferSens e
-    case τ of
-      𝕄T ℓ' _c ηₘ (RexpME r τ') | τ' ≡ (𝔻T ℝT) → return $ 𝕄T ℓ' (NormClip ℓ) ηₘ (RexpME r τ')
-      𝕄T ℓ' _c ηₘ (RexpME r τ') | τ' ≡ (ℝT) → return $ 𝕄T ℓ' (NormClip ℓ) ηₘ (RexpME r (𝔻T ℝT))
-      _ → undefined -- TypeSource Error
-  MConvertSE e → do
-    τ ← inferSens e
-    case τ of
-      𝕄T _ℓ (NormClip ℓ) ηₘ (RexpME r τ') | τ' ≡ 𝔻T ℝT → return $ 𝕄T ℓ UClip ηₘ (RexpME r ℝT)
-      --QUESTION: is this ok? - CA
-      -- 𝕄T ℓ _c ηₘ (RexpME r τ') | τ' ≡ 𝔻T ℝT → return $ 𝕄T ℓ UClip ηₘ (RexpME r ℝT)
-      _ → error $ "MConvert error: " ⧺ (pprender τ)
-  MLipGradSE _g e₁ e₂ e₃ → do
-    σ₁ :* τ₁ ← hijack $ inferSens e₁
-    tell $ top ⨵ σ₁
-    σ₂ :* τ₂ ← hijack $ inferSens e₂
-    σ₃ :* τ₃ ← hijack $ inferSens e₃
-    case (τ₁,τ₂,τ₃) of
-      -- _ → error "TODO"
-      (𝕄T _ℓ₁ _c₁ ( RexpRT rₘ₁ ) (RexpME r₁ τ₁'),𝕄T _ℓ₂ (NormClip ℓ) ( RexpRT rₘ₂ ) (RexpME r₂ τ₂'),𝕄T _ℓ₃ _c₃ ( RexpRT rₘ₃ ) (RexpME r₃ τ₃'))
-        | meets
-          [ τ₁' ≡ ℝT
-          , τ₂' ≡ 𝔻T ℝT
-          , τ₃' ≡ 𝔻T ℝT
-          , rₘ₁ ≡ one
-          , r₃ ≡ one
-          , r₁ ≡ r₂
-          , rₘ₂ ≡ rₘ₃
-          ]
-        → do tell $ ι (ι 1 / rₘ₂) ⨵ (σ₂ ⧺ σ₃)
-             return $ 𝕄T ℓ UClip (RexpRT one) (RexpME r₁ ℝT)
-      _ → error $ "Lipschitz grad error: " ⧺ (pprender (τ₁ :* τ₂ :* τ₃))
-  MUnbGradSE _g e₁ e₂ e₃ → do
-    σ₁ :* τ₁ ← hijack $ inferSens e₁
-    tell $ top ⨵ σ₁
-    σ₂ :* τ₂ ← hijack $ inferSens e₂
-    σ₃ :* τ₃ ← hijack $ inferSens e₃
-    case (τ₁,τ₂,τ₃) of
-      -- _ → error "TODO"
-      (𝕄T _ℓ₁ _c₁ ( RexpRT rₘ₁ ) (RexpME r₁ τ₁'),𝕄T _ℓ₂ _c₂ ( RexpRT rₘ₂ ) (RexpME r₂ τ₂'),𝕄T _ℓ₃ _c₃ ( RexpRT rₘ₃ ) (RexpME r₃ τ₃'))
-        | meets
-          [ τ₁' ≡ ℝT
-          , τ₂' ≡ 𝔻T ℝT
-          , τ₃' ≡ 𝔻T ℝT
-          , rₘ₁ ≡ one
-          , r₃ ≡ one
-          , r₁ ≡ r₂
-          , rₘ₂ ≡ rₘ₃
-          ]
-        → do tell $ ι (ι 1 / rₘ₂) ⨵ (σ₂ ⧺ σ₃)
-             return $ 𝕄T LInf UClip (RexpRT one) (RexpME r₁ $ 𝔻T ℝT)
-      _ → undefined -- TypeSource Error
-  MMapSE e₁ x e₂ → do
-    σ₁ :* τ₁ ← hijack $ inferSens e₁
-    case τ₁ of
-      𝕄T ℓ _c (RexpRT ηₘ) (RexpME r τ₁') → do
-        σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁') ⩌ γ) $ inferSens e₂
-        let (ς :* σ₂') = ifNone (zero :* σ₂) $ dview x σ₂
-        tell $ ς ⨵ σ₁
-        tell $ ι (ηₘ × r) ⨵ σ₂'
-        return $ 𝕄T ℓ UClip (RexpRT ηₘ) (RexpME r τ₂)
-      _  → undefined -- TypeSource Error
-  MTimesSE e₁ e₂ → do
-    τ₁ ← inferSens e₁
-    τ₂ ← inferSens e₂
-    case (τ₁,τ₂) of
-      (𝕄T ℓ c (RexpRT η₁) (RexpME r₁ τ₁'),𝕄T _ _ (RexpRT η₂) (RexpME r₂ τ₂'))
-        | (τ₁' ≡ τ₂') ⩓ (r₁ ≡ η₂) → do
-          return $ 𝕄T ℓ c (RexpRT η₁) (RexpME r₂ τ₁')
-      _  → error $ "matrix multiplication error"
-  MTransposeSE e₁ → do
-    σ₁ :* τ₁ ← hijack $ inferSens e₁
-    case τ₁ of
-      𝕄T ℓ _c (RexpRT η₁) (RexpME r₁ τ₁') → do
-        tell $ ι η₁ ⨵ σ₁
-        return $ 𝕄T ℓ UClip (RexpRT r₁) (RexpME η₁ τ₁')
-      𝕄T L1 _c (RexpRT η₁) (RexpME r₁ τ₁') → do
-        tell $ σ₁
-        return $ 𝕄T L1 UClip (RexpRT r₁) (RexpME η₁ τ₁')
-      _  → error $ "matrix transpose error"
-  MMap2SE e₁ e₂ x₁ x₂ e₃ → do
-    σ₁ :* τ₁ ← hijack $ inferSens e₁
-    σ₂ :* τ₂ ← hijack $ inferSens e₂
-    case (τ₁,τ₂) of
-      (𝕄T ℓ₁ _c₁ (RexpRT r₁) (RexpME r₂ τ₁'),𝕄T ℓ₂ _c₂ (RexpRT r₁') (RexpME r₂' τ₂'))
-        | meets
-          [ ℓ₁ ≡ ℓ₂
-          , r₁ ≡ r₁'
-          , r₂ ≡ r₂'
-          , τ₁' ≡ τ₂'
-          ]
-        → do σ₃ :* τ₃ ←
-               hijack $
-               mapEnvL contextTypeL (\ γ → dict [x₁ ↦ τ₁',x₂ ↦ τ₂'] ⩌ γ) $
-               inferSens e₃
-             let (ς₁ :* σ₃') = ifNone (zero :* σ₃) $ dview x₁ σ₃
-                 (ς₂ :* σ₃'') = ifNone (zero :* σ₃') $ dview x₂ σ₃'
-             tell $ ς₁ ⨵ σ₁
-             tell $ ς₂ ⨵ σ₂
-             tell $ ι (r₁ × r₂) ⨵ σ₃''
-             return $ 𝕄T ℓ₁ UClip (RexpRT r₁) (RexpME r₂ τ₃)
-      _ → error $ "Map2 error: " ⧺ (pprender $ (τ₁ :* τ₂))
   VarSE x → do
     γ ← askL contextTypeL
     case γ ⋕? x of
@@ -702,20 +582,19 @@ inferSens eA = case extract eA of
         tell $ ς ⨵ σ₁
         tell σ₂'
         return τ₂
-  CxtSE xs → do
-    return $ CxtT $ pow xs
+  -- CxtSE xs → do
+  --   return $ CxtT $ pow xs
   TAbsSE x κ e → do
     mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
       τ ← inferSens e
-      traceM "1"
+      -- traceM "1"
       τ'''' ← freshenSM $ ForallT x κ τ
-      traceM "2"
+      -- traceM "2"
       return τ''''
   TAppSE e τ' → do
     τ ← inferSens e
     case τ of
       ForallT x κ τ → do
-        -- TODO: check that τ' is of kind κ
         let τ'' = case κ of
               ℕK → case extract τ' of
                 ℕˢT r → substTypeR x (normalizeRNF r) τ
@@ -728,10 +607,10 @@ inferSens eA = case extract eA of
               CxtK → case extract τ' of
                 CxtT xs → substTypeCxt x (list $ iter $ xs) τ
               TypeK → checkOption $ checkTypeLang $ substTL x (typeToTLExp $ map normalizeRNF $ extract τ') (typeToTLExp τ)
-        traceM "3"
+        -- traceM "3"
         traceM $ pprender $ pretty τ''
         τ'''' ← freshenSM τ''
-        traceM "4"
+        -- traceM "4"
         return τ''''
       _ → error $ "expected ForallT, got: " ⧺ pprender τ
   SFunSE x τ e → do
@@ -741,14 +620,13 @@ inferSens eA = case extract eA of
       let σ' = case σ ⋕? x of
                  None → (x ↦ bot) ⩌ σ
                  Some _ → σ
+      let σ'' = assoc $ map (\(x' :* s) → (PLVar x' :* s)) $ list σ'
       do
-        -- TODO: do we want `tell σ'` here?
           tell $ snd $ ifNone (zero :* σ') $ dview x σ'
-          return $ (x :* τ') :⊸: (σ' :* τ'')
+          return $ (x :* τ') :⊸: (σ'' :* τ'')
   AppSE e₁ xsO e₂ → do
     τ₁ ← inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
-    -- τₓₛ ← inferSens eₓₛ
     allInScope ← map keys $ askL contextTypeL
     let xs = elim𝑂 allInScope pow xsO
     case xs ⊆ allInScope of
@@ -756,9 +634,9 @@ inferSens eA = case extract eA of
       False → error $ "provided variables to application which are not in scope: " ⧺ show𝕊 (xs ∖ allInScope)
     case (τ₁) of
       (x :* τ₁₁) :⊸: (sσ :* τ₁₂) | τ₁₁ ≡ τ₂ → do
-        tell $ (sσ ⋕! x) ⨵ (restrict xs σ₂)
+        tell $ (sσ ⋕! (PLVar x)) ⨵ (restrict xs σ₂)
         tell $ top ⨵ (without xs σ₂)
-        tell $ without (single x) sσ
+        tell $ without (single x) $ assoc $ map (\(t :* s) → (getVar t :* s)) $ list sσ
         return τ₁₂
       (x :* τ₁₁) :⊸: (sσ :* τ₁₂) → error $ concat
             [ "AppSE error 1 (argument type mismatch): "
@@ -777,7 +655,8 @@ inferSens eA = case extract eA of
     checkType $ extract τ
     let τ' = map normalizeRNF $ extract τ
     σ :* τ'' ← smFromPM $ hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferPriv e
-    return $ (x :* τ') :⊸⋆: (PEnv σ :* τ'')
+    let σ' = assoc $ map (\(t :* p) → (PLVar t:* p)) $ list σ
+    return $ (x :* τ') :⊸⋆: (PEnv σ' :* τ'')
   SetSE es → do
     -- homogeneity check
     l ← mapM (hijack ∘ inferSens) es
@@ -801,6 +680,19 @@ inferSens eA = case extract eA of
     case (τ₁,τ₂) of
       (τ₁', SetT τ₂') | τ₁' ≡ τ₂' → return 𝔹T
       _ → error $ "MemberSE error: " ⧺ (pprender (τ₁, τ₂))
+  MRowsSE e → do
+    σ :* τ ← hijack $ inferSens e
+    case τ of
+      𝕄T _ℓ _c (RexpRT ηₘ) _ηₙ → return $ ℕˢT ηₘ
+      𝕄T _ℓ _c StarRT _ηₙ → do
+        tell σ
+        return $ ℕT
+      _ → undefined -- TypeSource Error
+  MColsSE e → do
+    _ :* τ ← hijack $ inferSens e
+    case τ of
+      𝕄T _ℓ _c _ηₘ (RexpME r _τ') → return $ ℕˢT r
+      _ → undefined -- TypeSource Error
   TupSE e₁ e₂ → do
     τ₁ ← inferSens e₁
     τ₂ ← inferSens e₂
@@ -878,141 +770,6 @@ inferSens eA = case extract eA of
             , "\n"
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             ]
-  MZipSE e₁ e₂ → do
-    τ₁ ← inferSens e₁
-    τ₂ ← inferSens e₂
-    case (τ₁, τ₂) of
-      (𝕄T ℓ₁ c₁ r₁ s₁, 𝕄T ℓ₂ c₂ r₂ s₂) | r₁ ≡ r₂ → do
-        let m₁ = 𝕄T ℓ₁ c₁ (RexpRT one) s₁
-            m₂ = 𝕄T ℓ₂ c₂ (RexpRT one) s₂
-        return $ 𝕄T LInf UClip r₁ $ ConsME (m₁ :⊗: m₂) EmptyME
-      _ → error $ concat
-            [ "Zip error: "
-            , (pprender $ (τ₁ :* τ₂))
-            , "\n"
-            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-            ]
-  Chunks2SE e₁ e₂ e₃ → do
-    τ₁ ← inferSens e₁
-    τ₂ ← inferSens e₂
-    τ₃ ← inferSens e₃
-    case (τ₁, τ₂, τ₃) of
-      (ℕˢT ηb, 𝕄T ℓ₁ c₁ r₁₁ s₁, 𝕄T ℓ₂ c₂ r₁₂ s₂) | r₁₁ ≡ r₁₂ → do
-        let mt₁ = 𝕄T ℓ₁ c₁ (RexpRT ηb) s₁
-            mt₂ = 𝕄T ℓ₂ c₂ (RexpRT ηb) s₂
-            s   = ConsME (mt₁ :⊗: mt₂) EmptyME
-        return $ 𝕄T LInf UClip (RexpRT ηb) s -- TODO: ηb is wrong here, but doesn't affect sens.
-      _ → error $ concat
-            [ "Chunks error: "
-            , (pprender $ (τ₁ :* τ₂ :* τ₃))
-            , "\n"
-            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-            ]
-  ChunksSE e₁ e₂ → do
-    τ₁ ← inferSens e₁
-    τ₂ ← inferSens e₂
-    case (τ₁, τ₂) of
-      (ℕˢT ηb, 𝕄T ℓ₁ c₁ r₁₁ s₁) → do
-        let mt₁ = 𝕄T ℓ₁ c₁ (RexpRT ηb) s₁
-            s   = ConsME (mt₁) EmptyME
-        return $ 𝕄T LInf UClip (RexpRT ηb) s -- TODO: ηb is wrong here, but doesn't affect sens.
-      _ → error $ concat
-            [ "Chunks error: "
-            , (pprender $ (τ₁ :* τ₂))
-            , "\n"
-            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-            ]
-  MFilterSE e₁ x e₂ → do
-    σ₁ :* τ₁ ← hijack $ inferSens e₁
-    case τ₁ of
-      𝕄T ℓ c r s → do
-        let m = 𝕄T ℓ c (RexpRT one) s
-        σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ m) ⩌ γ) $ inferSens e₂
-        let (ς :* σ₂') = ifNone (zero :* σ₂) $ dview x σ₂
-        tell $ ς ⨵ σ₁
-        tell $ map (Sens ∘ (×) top ∘ truncateRNF ∘ unSens) σ₂'
-        case τ₂ of
-          𝔹T → return $ 𝕄T ℓ c StarRT s
-          _  → error $ "MFilter error: " ⧺ (pprender (τ₁, τ₂))
-      _ → error $ concat
-            [ "MFilter error: "
-            , (pprender $ (τ₁))
-            , "\n"
-            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-            ]
-  MMapColSE e₁ x e₂ → do
-    σ₁ :* τ₁ ← hijack $ inferSens e₁
-    case τ₁ of
-      𝕄T ℓ c (RexpRT ηₘ) (RexpME r τ₁') → do
-        let m = 𝕄T ℓ c (RexpRT ηₘ) (RexpME one τ₁')
-        σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ m) ⩌ γ) $ inferSens e₂
-        let (ς :* σ₂') = ifNone (zero :* σ₂) $ dview x σ₂
-        tell $ (ι r × ς) ⨵ σ₁
-        tell $ ι (ηₘ × r) ⨵ σ₂'
-        case τ₂ of
-          𝕄T ℓ₂ c₂ (RexpRT ηₘ₂) (RexpME one τ₂') →
-            return $ 𝕄T ℓ₂ c₂ (RexpRT ηₘ₂) (RexpME r τ₂')
-          _ → return $ 𝕄T LInf UClip (RexpRT one) (RexpME r τ₂)
-      _  → undefined -- TypeSource Error
-  MMapCol2SE e₁ e₂ x₁ x₂ e₃ → do
-    σ₁ :* τ₁ ← hijack $ inferSens e₁
-    σ₂ :* τ₂ ← hijack $ inferSens e₂
-    case (τ₁, τ₂) of
-      (𝕄T ℓ₁ c₁ (RexpRT ηₘ₁) (RexpME r τ₁'), 𝕄T ℓ₂ c₂ (RexpRT ηₘ₂) (RexpME r₂ τ₂'))
-       | (r ≡ r₂) → do
-        let m₁ = 𝕄T ℓ₁ c₁ (RexpRT ηₘ₁) (RexpME one τ₁')
-        let m₂ = 𝕄T ℓ₁ c₁ (RexpRT ηₘ₂) (RexpME one τ₂')
-        σ₃ :* τ₃ ← hijack $ mapEnvL contextTypeL (\ γ → dict [x₁ ↦ m₁,x₂ ↦ m₂] ⩌ γ) $ inferSens e₃
-        let (ς₁ :* σ₃')  = ifNone (zero :* σ₃)  $ dview x₁ σ₃
-        let (ς₂ :* σ₃'') = ifNone (zero :* σ₃') $ dview x₂ σ₃'
-        case ℓ₁ of
-          LInf → tell $ ς₁ ⨵ σ₁
-          _ → tell $ (ι r × ς₁) ⨵ σ₁
-        case ℓ₂ of
-          LInf → tell $ ς₂ ⨵ σ₂
-          _ → tell $ (ι r × ς₂) ⨵ σ₂
-        tell $ (ι r × ς₂) ⨵ σ₂
-        tell $ ι r ⨵ σ₃''
-        case τ₃ of
-          𝕄T ℓ₃ c₃ (RexpRT ηₘ₃) (RexpME one τ₃') →
-            return $ 𝕄T ℓ₃ c₃ (RexpRT ηₘ₃) (RexpME r τ₃')
-          _ → return $ 𝕄T LInf UClip (RexpRT one) (RexpME r τ₃)
-      _  → undefined -- TypeSource Error
-  MFoldSE e₁ e₂ x₁ x₂ e₃ → do
-    σ₁ :* τ₁ ← hijack $ inferSens e₁
-    σ₂ :* τ₂ ← hijack $ inferSens e₂
-    case τ₂ of
-      𝕄T ℓ c (RexpRT r₁) s → do
-        let τᵢ = 𝕄T ℓ c (RexpRT one) s
-        σ₃ :* τ₃ ← hijack $ mapEnvL contextTypeL (\ γ → dict [x₁ ↦ τ₁,x₂ ↦ τᵢ] ⩌ γ) $
-                     inferSens e₃
-        let (_ :* σ₃')  = ifNone (zero :* σ₃)  $ dview x₁ σ₃
-            (ς₂ :* σ₃'') = ifNone (zero :* σ₃') $ dview x₂ σ₃'
-        tell $ map (Sens ∘ (×) top ∘ truncateRNF ∘  unSens) σ₁
-        tell $ ς₂ ⨵ σ₂
-        tell $ ι r₁ ⨵ σ₃''
-        return τ₃
-      _ → error $ concat
-            [ "MFold error: "
-            , (pprender $ (τ₁ :* τ₂))
-            , "\n"
-            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-            ]
-  MMapRowSE e₁ x e₂ → do
-    σ₁ :* τ₁ ← hijack $ inferSens e₁
-    case τ₁ of
-      𝕄T ℓ c (RexpRT ηₘ) (RexpME r τ₁') → do
-        let m = 𝕄T ℓ c (RexpRT one) (RexpME r τ₁')
-        σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ m) ⩌ γ) $ inferSens e₂
-        let (ς :* σ₂') = ifNone (zero :* σ₂) $ dview x σ₂
-        tell $ ς ⨵ σ₁
-        tell $ ι r ⨵ σ₂'
-        case τ₂ of
-          𝕄T ℓ₂ c₂ (RexpRT ηₘ₂) (RexpME ηₙ₂ τ₂') | (ηₘ₂ ≡ one) ⩓ (ηₙ₂ ≡ r) →
-            return $ 𝕄T ℓ₂ c₂ (RexpRT ηₘ) (RexpME r τ₂')
-          _ → return $ 𝕄T LInf UClip (RexpRT ηₘ) (RexpME one τ₂)
-      _  → undefined -- TypeSource Error
-
   _ → error $ concat
         [ "inferSens unknown expression type: "
         , "\n"
@@ -1064,19 +821,19 @@ inferPriv eA = case extract eA of
       True → skip
       False → error $ "provided variables to application which are not in scope: " ⧺ show𝕊 (xs ∖ allInScope)
     case τ₁ of
-      (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ 𝕏 ⇰ Pr p' RNF) :* τ₁₂) | (τ₁₁ ≡ τ₂) ⩓ (joins (values σ₂) ⊑ one) →
+      (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ TermVar ⇰ Pr p' RNF) :* τ₁₂) | (τ₁₁ ≡ τ₂) ⩓ (joins (values σ₂) ⊑ one) →
         case eqPRIV (priv @ p) (priv @ p') of
           None → error "not same priv mode"
           Some Refl → do
-            let (pₓ :* σ'') = ifNone (makePr zero :* σ') $ dview x σ'
+            let (pₓ :* σ'') = ifNone (makePr zero :* σ') $ dview (PLVar x) σ'
             -- TODO: change iteratePr to something functionally the same but less hacky
             let σ₂' = mapOn (restrict xs σ₂) $ (\ i → iteratePr i pₓ) ∘ truncateRNF ∘ unSens
             let σinf = mapOn (without xs σ₂) $ (\ i → iteratePr i $ makePr top) ∘ truncateRNF ∘ unSens
             tell $ σ₂'
             tell $ σinf
-            tell $ σ''
+            tell $ assoc $ map (\(t :* p)→(getVar t :* p)) $ list σ''
             return τ₁₂
-      (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ 𝕏 ⇰ Pr p' RNF) :* τ₁₂) → error $ concat
+      (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ TermVar ⇰ Pr p' RNF) :* τ₁₂) → error $ concat
             [ "AppPE error 1 (argument type/sensitivity mismatch): "
             , "expected: " ⧺ pprender τ₁₁
             , "\n"
@@ -1200,14 +957,6 @@ substMExpR x r' = \case
   AppendME me₁ me₂ → AppendME (substMExpR x r' me₁) (substMExpR x r' me₂)
   RexpME r τ → RexpME (substRNF x  r' r) (substTypeR x r' τ)
 
-substMExpCxt ∷ 𝕏 → 𝐿 𝕏 → MExp RNF → MExp RNF
-substMExpCxt x xs = \case
-  EmptyME → EmptyME
-  VarME x' → VarME x'
-  ConsME τ me → ConsME (substTypeCxt x xs τ) (substMExpCxt x xs me)
-  AppendME me₁ me₂ → AppendME (substMExpCxt x xs me₁) (substMExpCxt x xs me₂)
-  RexpME r τ → RexpME r (substTypeCxt x xs τ)
-
 substPrivR ∷ 𝕏 → RNF → Pr p RNF → Pr p RNF
 substPrivR x' r' p' = case p' of
   EpsPriv r → EpsPriv $ substRNF x' r' r
@@ -1216,7 +965,15 @@ substPrivR x' r' p' = case p' of
   ZCPriv r → ZCPriv $ substRNF x' r' r
   TCPriv r₁ r₂ → TCPriv (substRNF x' r' r₁) (substRNF x' r' r₂)
 
-substTypeCxt ∷ 𝕏 → 𝐿 𝕏 → Type RNF → Type RNF
+substMExpCxt ∷ 𝕏 → 𝐿 TermVar → MExp RNF → MExp RNF
+substMExpCxt x xs = \case
+  EmptyME → EmptyME
+  VarME x' → VarME x'
+  ConsME τ me → ConsME (substTypeCxt x xs τ) (substMExpCxt x xs me)
+  AppendME me₁ me₂ → AppendME (substMExpCxt x xs me₁) (substMExpCxt x xs me₂)
+  RexpME r τ → RexpME r (substTypeCxt x xs τ)
+
+substTypeCxt ∷ 𝕏 → 𝐿 TermVar → Type RNF → Type RNF
 substTypeCxt x' xs τ' = case τ' of
   VarT x → VarT x
   ℕˢT r → ℕˢT r
@@ -1236,12 +993,12 @@ substTypeCxt x' xs τ' = case τ' of
   (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → (x :* substTypeCxt x' xs τ₁) :⊸⋆: (PEnv (spliceCxt x' xs pσ) :* substTypeCxt x' xs τ₂)
   ForallT x κ τ → ForallT x κ $ substTypeCxt x' xs τ
 
-spliceCxt ∷ 𝕏 → 𝐿 𝕏 → 𝕏 ⇰ a → 𝕏 ⇰ a
-spliceCxt x' xs σ = case σ ⋕? x' of
+spliceCxt ∷ 𝕏 → 𝐿 TermVar → TermVar ⇰ a → TermVar ⇰ a
+spliceCxt x' xs σ = case σ ⋕? (TLVar x') of
   None → σ
-  Some a → without (single x') (spliceCxt' xs a σ)
+  Some a → without (single (TLVar x')) (spliceCxt' xs a σ)
 
-spliceCxt' ∷ 𝐿 𝕏 → a → 𝕏 ⇰ a → 𝕏 ⇰ a
+spliceCxt' ∷ 𝐿 TermVar → a → TermVar ⇰ a → TermVar ⇰ a
 spliceCxt' Nil _a σ = σ
 spliceCxt' (x:&xs) a σ = spliceCxt' xs a $ (x ↦ a) ⩌ σ
 

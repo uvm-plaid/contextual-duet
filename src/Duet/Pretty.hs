@@ -41,9 +41,11 @@ instance Pretty Kind where
     ℝK → ppKeyPun "ℝ⁺"
     TypeK → ppKeyPun "☆"
     CxtK → ppKeyPun "cxt"
-    -- SensK → ppKeyPun "sens"
-    -- PrivK _ → ppKeyPun "priv"
 
+instance Pretty TermVar where
+  pretty = \case
+    PLVar x → pretty x
+    TLVar x → pretty x
 
 instance Pretty Norm where
   pretty = \case
