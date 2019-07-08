@@ -44,8 +44,8 @@ instance Pretty Kind where
 
 instance Pretty TermVar where
   pretty = \case
-    PLVar x → pretty x
-    TLVar x → pretty x
+    PLVar x → concat[ppKeyPun "𝕏ₚₗ",ppPun "[",pretty x,ppPun "]"]
+    TLVar x → concat[ppKeyPun "𝕏ₜₗ",ppPun "[",pretty x,ppPun "]"]
 
 instance Pretty Norm where
   pretty = \case

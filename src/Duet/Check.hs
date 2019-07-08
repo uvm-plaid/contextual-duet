@@ -386,6 +386,9 @@ freshenPM τ = do
 fixTVs ∷ ∀ p a. (PRIV_C p) ⇒ (TermVar ⇰ a) → SM p (TermVar ⇰ a)
 fixTVs tvs = do
   δ ← askL contextKindL
+  traceM "fixTVs"
+  traceM "3"
+  traceM $ pprender δ
   return $ assoc $ map (\(tv :* a) → (fixTV δ tv :* a)) $ list tvs
 
 fixTV ∷ (𝕏 ⇰ a) → TermVar → TermVar
@@ -398,18 +401,83 @@ fixTV δ tv = case tv of
 
 
 -- TODO: kind-checking
--- fix termvars
 -- freshening
 
+instance FunctorM ((⇰) 𝕏) where mapM = mapMDict
+
+mapMDict ∷ (Monad m, Ord k) ⇒ (a → m b) → k ⇰ a → m (k ⇰ b)
+mapMDict f kvs = do
+  lst ← mapM (mapM f) $ list kvs
+  return $ assoc lst
+
+inferPrimitives ∷ ∀ p . (PRIV_C p) ⇒ (𝕏 ⇰ Type RNF) → SM p (𝕏 ⇰ Type RNF)
+inferPrimitives prims = do
+  mapM inferType prims
+
 inferType ∷ ∀ p. (PRIV_C p) ⇒ Type RNF → SM p (Type RNF)
-inferType τinit = case τinit of
-  (x :* τ') :⊸: (σ :* τ'') → do
-    σ' ← fixTVs σ
-    return $ (x :* τ') :⊸: (σ' :* τ'')
-  (x :* τ') :⊸⋆: (PEnv σ :* τ'') → do
-    σ' ← fixTVs σ
-    return $ (x :* τ') :⊸⋆: (PEnv σ' :* τ'')
-  _ → error "inferType missing/unexpected case"
+inferType τinit = do
+  case τinit of
+    VarT x → return $ VarT x
+    ℕˢT r → return $ ℕˢT r
+    ℝˢT r → return $ ℝˢT r
+    ℕT → return $ ℕT
+    ℝT → return $ ℝT
+    𝕀T r → return $ 𝕀T r
+    𝔹T → return $ 𝔹T
+    𝕊T → return $ 𝕊T
+    SetT τ → do
+      τ₁ ← inferType τ
+      return $ SetT τ₁
+    𝕄T l c rows cols → do
+      cols' ← inferMExp cols
+      return $ 𝕄T l c rows cols'
+    𝔻T τ → do
+      τ₁ ← inferType τ
+      return $ 𝔻T τ
+    τ₁ :⊕: τ₂ → do
+      τ₁' ← inferType τ₁
+      τ₂' ← inferType τ₂
+      return $ τ₁' :⊕: τ₂'
+    τ₁ :⊗: τ₂ →  do
+      τ₁' ← inferType τ₁
+      τ₂' ← inferType τ₂
+      return $ τ₁' :⊗: τ₂'
+    τ₁ :&: τ₂ →  do
+      τ₁' ← inferType τ₁
+      τ₂' ← inferType τ₂
+      return $ τ₁' :&: τ₂'
+    (x :* τ₁) :⊸: (σ :* τ₂) → do
+      τ₁' ← inferType τ₁
+      τ₂' ← inferType τ₂
+      σ' ← fixTVs σ
+      return $ (x :* τ₁') :⊸: (σ' :* τ₂')
+    (x :* τ₁) :⊸⋆: (PEnv σ :* τ₂) → do
+      τ₁' ← inferType τ₁
+      τ₂' ← inferType τ₂
+      σ' ← fixTVs σ
+      return $ (x :* τ₁') :⊸⋆: (PEnv σ' :* τ₂')
+    ForallT x κ τ → do
+      mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
+        τ' ← inferType τ
+        return $ ForallT x κ τ'
+    CxtT xs → return $ CxtT xs
+    _ → error "inferType missing/unexpected case"
+
+inferMExp ∷ ∀ p. (PRIV_C p) ⇒ MExp RNF → SM p (MExp RNF)
+inferMExp me = case me of
+  EmptyME → return EmptyME
+  VarME x → return $ VarME x
+  ConsME τ me → do
+    τ' ← inferType τ
+    me' ← inferMExp me
+    return $ ConsME τ' me'
+  AppendME me₁ me₂ → do
+    me₁' ← inferMExp me₁
+    me₂' ← inferMExp me₂
+    return $ AppendME me₁' me₂'
+  RexpME r τ → do
+    τ' ← inferType τ
+    return $ RexpME r τ'
 
 inferSens ∷ ∀ p. (PRIV_C p) ⇒ SExpSource p → SM p (Type RNF)
 inferSens eA = case extract eA of
@@ -582,14 +650,10 @@ inferSens eA = case extract eA of
         tell $ ς ⨵ σ₁
         tell σ₂'
         return τ₂
-  -- CxtSE xs → do
-  --   return $ CxtT $ pow xs
   TAbsSE x κ e → do
     mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
       τ ← inferSens e
-      -- traceM "1"
       τ'''' ← freshenSM $ ForallT x κ τ
-      -- traceM "2"
       return τ''''
   TAppSE e τ' → do
     τ ← inferSens e
@@ -608,7 +672,7 @@ inferSens eA = case extract eA of
                 CxtT xs → substTypeCxt x (list $ iter $ xs) τ
               TypeK → checkOption $ checkTypeLang $ substTL x (typeToTLExp $ map normalizeRNF $ extract τ') (typeToTLExp τ)
         -- traceM "3"
-        traceM $ pprender $ pretty τ''
+        -- traceM $ pprender $ pretty τ''
         τ'''' ← freshenSM τ''
         -- traceM "4"
         return τ''''

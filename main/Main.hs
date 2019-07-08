@@ -8,6 +8,13 @@ initEnv = dict
   -- var "sign" ↦ ((Nil :* ℝT) :⊸: (one :* ℝT))
   ]
 
+-- get type from SM
+
+getTypeFromSM ∷ (TypeError ∨ ((ℕ ∧ (𝕏 ⇰ Sens RNF)) ∧ (𝕏 ⇰ Type RNF))) → 𝕏 ⇰ Type RNF
+getTypeFromSM = \case
+  Inl _ → error "getTypeFromSM"
+  Inr (_ :* a) → a
+
 parseMode ∷ 𝕊 → Ex_C PRIV_C PRIV_W
 parseMode s = case list $ splitOn𝕊 "." s of
   _ :& "eps" :& "duet" :& Nil → Ex_C EPS_W
@@ -110,7 +117,10 @@ main = do
         e :* tParse ← timeIO $ parseIO (pSkip tokSkip $ pFinal $ parSExp mode) $ stream ts
         do out $ "(" ⧺ show𝕊 (secondsTimeD tParse) ⧺ "s)" ; flushOut
         do pprint $ ppHeader "TYPE CHECKING" ; flushOut
-        r :* tCheck ← time (\ () → runSM dø initEnv₁ dø 0 (inferSens e)) ()
+        -- do pprint $ pprender initEnv₁
+        initEnv₂ :* tCheck' ← time (\ () → runSM dø initEnv₁ dø 0 (inferPrimitives @ 'ED initEnv₁)) ()
+        -- do pprint $ pprender initEnv₂
+        r :* tCheck ← time (\ () → runSM dø (getTypeFromSM initEnv₂) dø 0 (inferSens e)) ()
         do out $ "(" ⧺ show𝕊 (secondsTimeD tCheck) ⧺ "s)" ; flushOut
         _ ← shell $ "echo " ⧺ show𝕊 (secondsTimeD tCheck) ⧺ " >> typecheck-times"
         do pprint $ ppHeader "DONE" ; flushOut
