@@ -314,6 +314,7 @@ inferKind = \case
     κ₂ ← inferKind $ extract e₂
     frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
 
+-- kind checking
 checkType ∷ ∀ p. (PRIV_C p) ⇒ Type RExp → SM p ()
 checkType τA = case τA of
   ℕˢT η → checkKind ℕK $ extract η
@@ -372,23 +373,20 @@ checkType τA = case τA of
 freshenSM ∷ Type RNF → SM p (Type RNF)
 freshenSM τ = do
   n ← get
-  let τ' :* n' = freshen dø τ n
+  let τ' :* n' = freshen dø dø τ n
   put n'
   return τ'
 
 freshenPM ∷ Type RNF → PM p (Type RNF)
 freshenPM τ = do
   n ← get
-  let τ' :* n' = freshen dø τ n
+  let τ' :* n' = freshen dø dø τ n
   put n'
   return τ'
 
 fixTVs ∷ ∀ p a. (PRIV_C p) ⇒ (TermVar ⇰ a) → SM p (TermVar ⇰ a)
 fixTVs tvs = do
   δ ← askL contextKindL
-  traceM "fixTVs"
-  traceM "3"
-  traceM $ pprender δ
   return $ assoc $ map (\(tv :* a) → (fixTV δ tv :* a)) $ list tvs
 
 fixTV ∷ (𝕏 ⇰ a) → TermVar → TermVar
@@ -400,9 +398,6 @@ fixTV δ tv = case tv of
   TLVar x → error "fixTVs error"
 
 
--- TODO: kind-checking
--- freshening
-
 instance FunctorM ((⇰) 𝕏) where mapM = mapMDict
 
 mapMDict ∷ (Monad m, Ord k) ⇒ (a → m b) → k ⇰ a → m (k ⇰ b)
@@ -410,6 +405,7 @@ mapMDict f kvs = do
   lst ← mapM (mapM f) $ list kvs
   return $ assoc lst
 
+-- TODO: kind-checking
 inferPrimitives ∷ ∀ p . (PRIV_C p) ⇒ (𝕏 ⇰ Type RNF) → SM p (𝕏 ⇰ Type RNF)
 inferPrimitives prims = do
   mapM inferType prims
@@ -447,19 +443,24 @@ inferType τinit = do
       τ₂' ← inferType τ₂
       return $ τ₁' :&: τ₂'
     (x :* τ₁) :⊸: (σ :* τ₂) → do
-      τ₁' ← inferType τ₁
-      τ₂' ← inferType τ₂
-      σ' ← fixTVs σ
-      return $ (x :* τ₁') :⊸: (σ' :* τ₂')
+      mapEnvL contextTypeL ( \ γ → (x ↦ τ₁) ⩌ γ) $ do
+        varLevelCheck
+        τ₁' ← inferType τ₁
+        τ₂' ← inferType τ₂
+        σ' ← fixTVs σ
+        return $ (x :* τ₁') :⊸: (σ' :* τ₂')
     (x :* τ₁) :⊸⋆: (PEnv σ :* τ₂) → do
-      τ₁' ← inferType τ₁
-      τ₂' ← inferType τ₂
-      σ' ← fixTVs σ
-      return $ (x :* τ₁') :⊸⋆: (PEnv σ' :* τ₂')
+      mapEnvL contextTypeL ( \ γ → (x ↦ τ₁) ⩌ γ) $ do
+        varLevelCheck
+        τ₁' ← inferType τ₁
+        τ₂' ← inferType τ₂
+        σ' ← fixTVs σ
+        return $ (x :* τ₁') :⊸⋆: (PEnv σ' :* τ₂')
     ForallT x κ τ → do
       mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
+        varLevelCheck
         τ' ← inferType τ
-        return $ ForallT x κ τ'
+        freshenSM $ ForallT x κ τ'
     CxtT xs → return $ CxtT xs
     _ → error "inferType missing/unexpected case"
 
@@ -478,6 +479,17 @@ inferMExp me = case me of
   RexpME r τ → do
     τ' ← inferType τ
     return $ RexpME r τ'
+
+varLevelCheck ∷ ∀ p. (PRIV_C p) ⇒ SM p ()
+varLevelCheck = do
+  γ ← askL contextTypeL
+  δ ← askL contextKindL
+  return ()
+  -- let overlap = list $ (pow $ (map 𝕩name) $ list $ keys γ) ∩ (pow $ (map 𝕩name) $ list $ keys δ)
+  -- case overlap of
+  --   Nil → do
+  --     return ()
+  --   xs → error $ "variables bound at the type and program level" ⧺ pprender xs
 
 inferSens ∷ ∀ p. (PRIV_C p) ⇒ SExpSource p → SM p (Type RNF)
 inferSens eA = case extract eA of
@@ -652,6 +664,7 @@ inferSens eA = case extract eA of
         return τ₂
   TAbsSE x κ e → do
     mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
+      varLevelCheck
       τ ← inferSens e
       τ'''' ← freshenSM $ ForallT x κ τ
       return τ''''
@@ -671,23 +684,20 @@ inferSens eA = case extract eA of
               CxtK → case extract τ' of
                 CxtT xs → substTypeCxt x (list $ iter $ xs) τ
               TypeK → checkOption $ checkTypeLang $ substTL x (typeToTLExp $ map normalizeRNF $ extract τ') (typeToTLExp τ)
-        -- traceM "3"
-        -- traceM $ pprender $ pretty τ''
-        τ'''' ← freshenSM τ''
-        -- traceM "4"
-        return τ''''
+        freshenSM τ''
       _ → error $ "expected ForallT, got: " ⧺ pprender τ
   SFunSE x τ e → do
       checkType $ extract τ
       let τ' = map normalizeRNF $ extract τ
       σ :* τ'' ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferSens e
+      varLevelCheck
       let σ' = case σ ⋕? x of
                  None → (x ↦ bot) ⩌ σ
                  Some _ → σ
       let σ'' = assoc $ map (\(x' :* s) → (PLVar x' :* s)) $ list σ'
       do
           tell $ snd $ ifNone (zero :* σ') $ dview x σ'
-          return $ (x :* τ') :⊸: (σ'' :* τ'')
+          freshenSM $ (x :* τ') :⊸: (σ'' :* τ'')
   AppSE e₁ xsO e₂ → do
     τ₁ ← inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
@@ -697,11 +707,11 @@ inferSens eA = case extract eA of
       True → skip
       False → error $ "provided variables to application which are not in scope: " ⧺ show𝕊 (xs ∖ allInScope)
     case (τ₁) of
-      (x :* τ₁₁) :⊸: (sσ :* τ₁₂) | τ₁₁ ≡ τ₂ → do
+      (x :* τ₁₁) :⊸: (sσ :* τ₁₂) | alphaEquiv dø dø τ₁₁ τ₂ → do
         tell $ (sσ ⋕! (PLVar x)) ⨵ (restrict xs σ₂)
         tell $ top ⨵ (without xs σ₂)
         tell $ without (single x) $ assoc $ map (\(t :* s) → (getVar t :* s)) $ list sσ
-        return τ₁₂
+        freshenSM τ₁₂
       (x :* τ₁₁) :⊸: (sσ :* τ₁₂) → error $ concat
             [ "AppSE error 1 (argument type mismatch): "
             , "expected: " ⧺ pprender τ₁₁
@@ -719,8 +729,9 @@ inferSens eA = case extract eA of
     checkType $ extract τ
     let τ' = map normalizeRNF $ extract τ
     σ :* τ'' ← smFromPM $ hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferPriv e
+    varLevelCheck
     let σ' = assoc $ map (\(t :* p) → (PLVar t:* p)) $ list σ
-    return $ (x :* τ') :⊸⋆: (PEnv σ' :* τ'')
+    freshenSM $ (x :* τ') :⊸⋆: (PEnv σ' :* τ'')
   SetSE es → do
     -- homogeneity check
     l ← mapM (hijack ∘ inferSens) es
@@ -896,7 +907,7 @@ inferPriv eA = case extract eA of
             tell $ σ₂'
             tell $ σinf
             tell $ assoc $ map (\(t :* p)→(getVar t :* p)) $ list σ''
-            return τ₁₂
+            freshenPM τ₁₂
       (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ TermVar ⇰ Pr p' RNF) :* τ₁₂) → error $ concat
             [ "AppPE error 1 (argument type/sensitivity mismatch): "
             , "expected: " ⧺ pprender τ₁₁

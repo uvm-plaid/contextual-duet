@@ -118,6 +118,7 @@ main = do
         do out $ "(" ⧺ show𝕊 (secondsTimeD tParse) ⧺ "s)" ; flushOut
         do pprint $ ppHeader "TYPE CHECKING" ; flushOut
         -- do pprint $ pprender initEnv₁
+        -- TODO: universal mode 
         initEnv₂ :* tCheck' ← time (\ () → runSM dø initEnv₁ dø 0 (inferPrimitives @ 'ED initEnv₁)) ()
         -- do pprint $ pprender initEnv₂
         r :* tCheck ← time (\ () → runSM dø (getTypeFromSM initEnv₂) dø 0 (inferSens e)) ()

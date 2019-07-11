@@ -252,10 +252,10 @@ data Type r =
   -- - contextual/lazy function, pair, and sum connectives
   deriving (Eq,Ord,Show)
 
-freshen ∷ (𝕏 ⇰ 𝕏) → Type RNF → ℕ → (Type RNF ∧ ℕ)
-freshen ρ τ''' n = let nplusone = n + one in
+freshen ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → Type RNF → ℕ → (Type RNF ∧ ℕ)
+freshen ρ β τ''' n = let nplusone = n + one in
   case τ''' of
-    VarT x → (VarT $ getTLVar $ freshenRef ρ (TLVar x)) :* n
+    VarT x → (VarT $ getTLVar $ freshenRef ρ β (TLVar x)) :* n
     ℕˢT r → (ℕˢT (substAlphaRNF (list ρ) r)) :* n
     ℝˢT r → (ℝˢT (substAlphaRNF (list ρ) r)) :* n
     ℕT → (ℕT :* n)
@@ -263,53 +263,60 @@ freshen ρ τ''' n = let nplusone = n + one in
     𝕀T r → (𝕀T (substAlphaRNF (list ρ) r)) :* n
     𝔹T → (𝔹T :* n)
     𝕊T → (𝕊T :* n)
-    SetT τ → let (τ' :* n') = freshen ρ τ n
+    SetT τ → let (τ' :* n') = freshen ρ β τ n
       in (SetT τ') :* n'
     𝕄T l c rows cols →
       let rows' = case rows of
                     StarRT → StarRT
                     RexpRT r → RexpRT (substAlphaRNF (list ρ) r)
-      in let (cols' :* n') = (freshenMExp ρ cols n)
+      in let (cols' :* n') = (freshenMExp ρ β cols n)
       in (𝕄T l c rows' cols') :* n'
-    𝔻T τ → let (τ' :* n') = freshen ρ τ n
+    𝔻T τ → let (τ' :* n') = freshen ρ β τ n
       in (𝔻T τ') :* n'
     τ₁ :⊕: τ₂ →
-      let (τ₁' :* n') = freshen ρ τ₁ n in
-      let (τ₂' :* n'') = freshen ρ τ₂ n' in
+      let (τ₁' :* n') = freshen ρ β τ₁ n in
+      let (τ₂' :* n'') = freshen ρ β τ₂ n' in
       (τ₁' :⊕: τ₂') :* n''
     τ₁ :⊗: τ₂ →
-      let (τ₁' :* n') = freshen ρ τ₁ n in
-      let (τ₂' :* n'') = freshen ρ τ₂ n' in
+      let (τ₁' :* n') = freshen ρ β τ₁ n in
+      let (τ₂' :* n'') = freshen ρ β τ₂ n' in
       (τ₁' :⊗: τ₂') :* n''
     τ₁ :&: τ₂ →
-      let (τ₁' :* n') = freshen ρ τ₁ n in
-      let (τ₂' :* n'') = freshen ρ τ₂ n' in
+      let (τ₁' :* n') = freshen ρ β τ₁ n in
+      let (τ₂' :* n'') = freshen ρ β τ₂ n' in
       (τ₁' :&: τ₂') :* n''
     (x₁ :* τ₁) :⊸: (sσ₁ :* τ₂) →
-      let (τ₁' :* n') = freshen ρ τ₁ n in
-      let (τ₂' :* n'') = freshen ρ τ₂ n' in
+      let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some n} in
+      let (τ₁' :* n') = freshen ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₁ nplusone in
+      let (τ₂' :* n'') = freshen ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₂ n' in
       let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁) in
-      let sσ₁'' :: (TermVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ x :* s) $ list sσ₁' in
-      ((x₁ :* τ₁') :⊸: (sσ₁'' :* τ₂') :* n'')
+      let sσ₁'' ∷ (TermVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ ((x₁↦ x₁ⁿ) ⩌ β) x :* s) $ list sσ₁' in
+      ((x₁ⁿ :* τ₁') :⊸: (sσ₁'' :* τ₂') :* n'')
     (x₁ :* τ₁) :⊸⋆: (PEnv (pσ₁ ∷ TermVar ⇰ Pr p RNF) :* τ₂) →
-      let (τ₁' :* n') = freshen ρ τ₁ n in
-      let (τ₂' :* n'') = freshen ρ τ₂ n' in
+      let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some n} in
+      let (τ₁' :* n') = freshen ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₁ nplusone in
+      let (τ₂' :* n'') = freshen ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₂ n' in
       let pσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) pσ₁) in
-      let pσ₁'' = assoc $ map (\(x :* p) → freshenRef ρ x :* p) $ list pσ₁' in
-      ((x₁ :* τ₁') :⊸⋆: (PEnv pσ₁'' :* τ₂') :* n'')
+      let pσ₁'' = assoc $ map (\(x :* p) → freshenRef ρ ((x₁↦ x₁ⁿ) ⩌ β) x :* p) $ list pσ₁' in
+      ((x₁ⁿ :* τ₁') :⊸⋆: (PEnv pσ₁'' :* τ₂') :* n'')
     ForallT x κ τ →
       let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some n} in
-      let (τ' :* n') = freshen ((x↦ xⁿ) ⩌ ρ) τ nplusone in
+      let (τ' :* n') = freshen ((x↦ xⁿ) ⩌ ρ) β τ nplusone in
       (ForallT xⁿ κ τ' ) :* n'
-    CxtT xs → (CxtT xs :* n)
+    CxtT xs → do
+      let xs' = pow $ map (\x → freshenRef ρ β x) $ list xs
+      -- (CxtT xs' :* n)
+      error "reached"
     BoxedT sσ₁ τ₁ → undefined
 
-freshenRef ∷ (𝕏 ⇰ 𝕏) → TermVar → TermVar
-freshenRef ρ tv = case tv of
+freshenRef ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → TermVar → TermVar
+freshenRef ρ β tv = case tv of
   TLVar tlx → case ρ ⋕? tlx of
     None → TLVar tlx
     Some x' → TLVar x'
-  PLVar plx → PLVar plx
+  PLVar plx → case β ⋕? plx of
+    None → PLVar plx
+    Some x' → PLVar x'
 
 getTLVar ∷ TermVar → 𝕏
 getTLVar (TLVar x) = x
@@ -319,75 +326,84 @@ getVar ∷ TermVar → 𝕏
 getVar (TLVar x) = x
 getVar (PLVar x) = x
 
-freshenMExp ∷ (𝕏 ⇰ 𝕏) → MExp RNF → ℕ → (MExp RNF ∧ ℕ)
-freshenMExp ρ meInit n = case meInit of
+freshenMExp ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → MExp RNF → ℕ → (MExp RNF ∧ ℕ)
+freshenMExp ρ β meInit n = case meInit of
   EmptyME → EmptyME :* n
   VarME x → (VarME x) :* n
   ConsME τ me →
-    let (τ' :* n') =  (freshen ρ τ n) in
-    let (me' :* n'') = (freshenMExp ρ me n')
+    let (τ' :* n') =  (freshen ρ β τ n) in
+    let (me' :* n'') = (freshenMExp ρ β me n')
     in (ConsME τ' me') :* n''
   AppendME me₁ me₂ →
-    let (me₁' :* n') = (freshenMExp ρ me₁ n) in
-    let (me₂' :* n'') = (freshenMExp ρ me₂ n')
+    let (me₁' :* n') = (freshenMExp ρ β me₁ n) in
+    let (me₂' :* n'') = (freshenMExp ρ β me₂ n')
     in (AppendME me₁' me₂') :* n''
   RexpME r τ →
-    let (τ' :* n') =  (freshen ρ τ n) in
+    let (τ' :* n') =  (freshen ρ β τ n) in
     (RexpME (substAlphaRNF (list ρ) r) τ') :* n'
 
-alphaEquiv ∷ (𝕏 ⇰ 𝕏) → Type RNF → Type RNF → 𝔹
-alphaEquiv xxs τ₁' τ₂' =
+alphaEquiv ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → Type RNF → Type RNF → 𝔹
+alphaEquiv ρ β τ₁' τ₂' =
   case (τ₁',τ₂') of
-    (VarT x₁,VarT x₂) → case xxs ⋕? x₁ of
+    (VarT x₁,VarT x₂) → case ρ ⋕? x₁ of
       Some x₁' → x₁' ≡ x₂
       None → x₁ ≡ x₂
-    (ℕˢT r₁,ℕˢT r₂) → (substAlphaRNF (list xxs) r₁) ≡ r₂
-    (ℝˢT r₁,ℝˢT r₂) → (substAlphaRNF (list xxs) r₁) ≡ r₂
+    (ℕˢT r₁,ℕˢT r₂) → (substAlphaRNF (list ρ) r₁) ≡ r₂
+    (ℝˢT r₁,ℝˢT r₂) → (substAlphaRNF (list ρ) r₁) ≡ r₂
     (ℕT,ℕT) → True
     (ℝT,ℝT) → True
-    (𝕀T r₁,𝕀T r₂) → (substAlphaRNF (list xxs) r₁) ≡ r₂
+    (𝕀T r₁,𝕀T r₂) → (substAlphaRNF (list ρ) r₁) ≡ r₂
     (𝔹T,𝔹T) → True
     (𝕊T,𝕊T) → True
-    (SetT τ₁,SetT τ₂) → alphaEquiv xxs τ₁ τ₂
+    (SetT τ₁,SetT τ₂) → alphaEquiv ρ β τ₁ τ₂
     (𝕄T l₁ c₁ rows₁ cols₁,𝕄T l₂ c₂ rows₂ cols₂) → case (l₁≡l₂,c₁≡c₂) of
-      (True,True) → (alphaEquivRows xxs rows₁ rows₂) ⩓ (alphaEquivMExp xxs cols₁ cols₂)
+      (True,True) → (alphaEquivRows ρ rows₁ rows₂) ⩓ (alphaEquivMExp ρ β cols₁ cols₂)
       _ → False
-    (𝔻T τ₁,𝔻T τ₂) → alphaEquiv xxs τ₁ τ₂
-    (τ₁₁ :⊕: τ₁₂,τ₂₁ :⊕: τ₂₂) → (alphaEquiv xxs τ₁₁ τ₂₁) ⩓ (alphaEquiv xxs τ₁₂ τ₂₂)
-    (τ₁₁ :⊗: τ₁₂,τ₂₁ :⊗: τ₂₂) → (alphaEquiv xxs τ₁₁ τ₂₁) ⩓ (alphaEquiv xxs τ₁₂ τ₂₂)
-    (τ₁₁ :&: τ₁₂,τ₂₁ :&: τ₂₂) → (alphaEquiv xxs τ₁₁ τ₂₁) ⩓ (alphaEquiv xxs τ₁₂ τ₂₂)
-    ((x₁ :* τ₁₁) :⊸: (sσ₁ :* τ₁₂),(x₂ :* τ₂₁) :⊸: (sσ₂ :* τ₂₂)) →
-      ((mapp (\r → substAlphaRNF (list xxs) r) sσ₁) ≡ sσ₂) ⩓ (alphaEquiv xxs τ₁₁ τ₂₁) ⩓ (alphaEquiv xxs τ₂₁ τ₂₂)
+    (𝔻T τ₁,𝔻T τ₂) → alphaEquiv ρ β τ₁ τ₂
+    (τ₁₁ :⊕: τ₁₂,τ₂₁ :⊕: τ₂₂) → (alphaEquiv ρ β τ₁₁ τ₂₁) ⩓ (alphaEquiv ρ β τ₁₂ τ₂₂)
+    (τ₁₁ :⊗: τ₁₂,τ₂₁ :⊗: τ₂₂) → (alphaEquiv ρ β τ₁₁ τ₂₁) ⩓ (alphaEquiv ρ β τ₁₂ τ₂₂)
+    (τ₁₁ :&: τ₁₂,τ₂₁ :&: τ₂₂) → (alphaEquiv ρ β τ₁₁ τ₂₁) ⩓ (alphaEquiv ρ β τ₁₂ τ₂₂)
+    ((x₁ :* τ₁₁) :⊸: (sσ₁ :* τ₁₂),(x₂ :* τ₂₁) :⊸: (sσ₂ :* τ₂₂)) → do
+      let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁)
+      let sσ₁'' ∷ (TermVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ ((x₁↦ x₂) ⩌ β) x :* s) $ list sσ₁'
+      let c₁ = (alphaEquiv ρ ((x₁ ↦ x₂) ⩌ β) τ₁₁ τ₂₁)
+      let c₂ = (alphaEquiv ρ ((x₁ ↦ x₂) ⩌ β) τ₁₂ τ₂₂)
+      let c₃ = (sσ₁'' ≡ sσ₂)
+      c₁ ⩓ c₂ ⩓ c₃
     ((x₁ :* τ₁₁) :⊸⋆: (PEnv (pσ₁ ∷ TermVar ⇰ Pr p RNF) :* τ₁₂),(x₂ :* τ₂₁) :⊸⋆: (PEnv (pσ₂ ∷ TermVar ⇰ Pr p' RNF) :* τ₂₂)) →
       case eqPRIV (priv @ p) (priv @ p') of
         None → False
         Some Refl →
-          ((mapp (\r → substAlphaRNF (list xxs) r) pσ₁) ≡ pσ₂) ⩓ (alphaEquiv xxs τ₁₁ τ₂₁) ⩓ (alphaEquiv xxs τ₂₁ τ₂₂)
+          let pσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) pσ₁) in
+          let pσ₁'' ∷ (TermVar ⇰ _) = assoc $ map (\(x :* p) → freshenRef ρ ((x₁↦ x₂) ⩌ β) x :* p) $ list pσ₁' in
+          let c₁ = (alphaEquiv ρ ((x₁ ↦ x₂) ⩌ β) τ₁₁ τ₂₁) in
+          let c₂ = (alphaEquiv ρ ((x₁ ↦ x₂) ⩌ β) τ₁₂ τ₂₂) in
+          let c₃ = (pσ₁'' ≡ pσ₂) in
+          c₁ ⩓ c₂ ⩓ c₃
     (ForallT x₁ κ₁ τ₁,ForallT x₂ κ₂ τ₂) → case (κ₁ ≡ κ₂) of
-      True → alphaEquiv ((x₁↦x₂) ⩌ xxs) τ₁ τ₂
+      True → alphaEquiv ((x₁↦x₂) ⩌ ρ) β τ₁ τ₂
       False → False
     (CxtT xs₁,CxtT xs₂) → xs₁ ≡ xs₂
     (BoxedT sσ₁ τ₁,BoxedT sσ₂ τ₂) → undefined
     _ → False
 
-
-alphaEquivMExp ∷ (𝕏 ⇰ 𝕏) → MExp RNF → MExp RNF → 𝔹
-alphaEquivMExp xxs me₁' me₂' = case (me₁',me₂') of
+alphaEquivMExp ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → MExp RNF → MExp RNF → 𝔹
+alphaEquivMExp ρ β me₁' me₂' = case (me₁',me₂') of
   (EmptyME,EmptyME) → True
   (VarME x₁,VarME x₂) → x₁ ≡ x₂
-  (ConsME τ₁ me₁,ConsME τ₂ me₂) → (alphaEquiv xxs τ₁ τ₂) ⩓ (alphaEquivMExp xxs me₁ me₂)
-  (AppendME me₁₁ me₁₂,AppendME me₂₁ me₂₂) → (alphaEquivMExp xxs me₁₁ me₂₁) ⩓ (alphaEquivMExp xxs me₁₂ me₂₂)
-  (RexpME r₁ τ₁,RexpME r₂ τ₂) → ((substAlphaRNF (list xxs) r₁) ≡ r₂) ⩓ (alphaEquiv xxs τ₁ τ₂)
+  (ConsME τ₁ me₁,ConsME τ₂ me₂) → (alphaEquiv ρ β τ₁ τ₂) ⩓ (alphaEquivMExp ρ β me₁ me₂)
+  (AppendME me₁₁ me₁₂,AppendME me₂₁ me₂₂) → (alphaEquivMExp ρ β me₁₁ me₂₁) ⩓ (alphaEquivMExp ρ β me₁₂ me₂₂)
+  (RexpME r₁ τ₁,RexpME r₂ τ₂) → ((substAlphaRNF (list ρ) r₁) ≡ r₂) ⩓ (alphaEquiv ρ β τ₁ τ₂)
 
 alphaEquivRows ∷ (𝕏 ⇰ 𝕏) → RowsT RNF → RowsT RNF → 𝔹
-alphaEquivRows xxs rows₁ rows₂ = case (rows₁,rows₂) of
+alphaEquivRows ρ rows₁ rows₂ = case (rows₁,rows₂) of
   (StarRT, StarRT) → True
-  (RexpRT r₁, RexpRT r₂) → (substAlphaRNF (list xxs) r₁) ≡ r₂
+  (RexpRT r₁, RexpRT r₂) → (substAlphaRNF (list ρ) r₁) ≡ r₂
   _ → False
 
 substAlphaRNF ∷ 𝐿 (𝕏 ∧ 𝕏) → RNF → RNF
 substAlphaRNF Nil r = r
-substAlphaRNF ((x₁:*x₂):&xxs) r = substAlphaRNF xxs $ substRNF x₁ (varRNF x₂) r
+substAlphaRNF ((x₁:*x₂):&ρ) r = substAlphaRNF ρ $ substRNF x₁ (varRNF x₂) r
 
 data TLExp r =
     VarTE 𝕏
