@@ -141,12 +141,12 @@ parPEnv mode = tries
         x ← parVar
         parLit "⋅"
         pr ← parPriv mode
-        return (PLVar x :* pr)
+        return (TMVar x :* pr)
       parLit "]"
       return $ PEnv $ assoc xprs
   ]
 
-parSEnv ∷ Parser Token (TermVar ⇰ Sens RExp)
+parSEnv ∷ Parser Token (ProgramVar ⇰ Sens RExp)
 parSEnv = tries
   [ do
       parLit "["
@@ -154,7 +154,7 @@ parSEnv = tries
         x ← parVar
         parLit "⋅"
         sens ← parSens
-        return (PLVar x :* sens)
+        return (TMVar x :* sens)
       parLit "]"
       return $ assoc xsens
   ]
@@ -172,14 +172,14 @@ parPrimitives mode = tries
   ]
 
 
-parTermVar ∷ Parser Token (TermVar)
-parTermVar = tries
+parProgramVar ∷ Parser Token (ProgramVar)
+parProgramVar = tries
   [ do
       parLit "["
       x ← parVar
       parLit "]"
       return $ TLVar x
-  , do x ← parVar; return $ PLVar x
+  , do x ← parVar; return $ TMVar x
   ]
 
 parRowsT ∷ Parser Token (RowsT RExp)
@@ -473,7 +473,7 @@ parType mode = mixfixParser $ concat
         ForallT x κ $ foldr e (\ (x' :* κ') e' → ForallT x' κ' e') xκs
   , mix $ MixTerminal $ do
       parLit "<"
-      xs ← pManySepBy (parLit ",") parTermVar
+      xs ← pManySepBy (parLit ",") parProgramVar
       parLit ">"
       return $ CxtT $ pow xs
   , mix $ MixPrefix 3 $ do
@@ -518,169 +518,8 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
   , mixF $ MixFTerminal $ do
       parLit "false"
       return $ FalseSE
-  , mixF $ MixFPrefix 10 $ const DynSE ^$ parLit "dyn"
   , mixF $ MixFTerminal $ ℕSE ^$ parNat
   , mixF $ MixFTerminal $ ℝSE ^$ parDbl
-  , mixF $ MixFPrefix 10 $ const RealSE ^$ parLit "real"
-  , mixF $ MixFInfixL 3 $ const MaxSE ^$ parLit "⊔"
-  , mixF $ MixFInfixL 4 $ const MinSE ^$ parLit "⊓"
-  , mixF $ MixFInfixL 5 $ const PlusSE ^$ parLit "+"
-  , mixF $ MixFInfixL 6 $ const TimesSE ^$ parLit "⋅"
-  , mixF $ MixFInfixL 6 $ const MTimesSE ^$ parLit "×"
-  , mixF $ MixFInfixL 7 $ const DivSE ^$ parLit "/"
-  , mixF $ MixFPrefix 8 $ const RootSE ^$ parLit "√"
-  , mixF $ MixFPrefix 8 $ const LogSE ^$ parLit "㏒"
-  , mixF $ MixFInfixL 7 $ const ModSE ^$ parLit "%"
-  , mixF $ MixFInfixL 5 $ const MinusSE ^$ parLit "-"
-  , mixF $ MixFInfixL 2 $ const MinusSE ^$ parLit "≟"
-  , mixF $ MixFInfixL 2 $ const EqualsSE ^$ parLit "≡"
-  , mixF $ MixFInfixL 2 $ const MemberSE ^$ parLit "∈"
-  , mixF $ MixFInfixL 1 $ const AndSE ^$ parLit "∧"
-  , mixF $ MixFInfixL 1 $ const OrSE ^$ parLit "∨"
-  , mixF $ MixFPostfix 10 $ do
-      parLit "⧼"
-      a ← parName
-      parLit "⧽"
-      return $ RecordColSE a
-  , mixF $ MixFTerminal $ do
-      parLit "mfilter"
-      e₁ ← parSExp p
-      parLit "{"
-      x ← parVar
-      parLit "⇒"
-      e₂ ← parSExp p
-      parLit "}"
-      return $ MFilterSE e₁ x e₂
-  , mixF $ MixFTerminal $ do
-      parLit "mapDF"
-      e₁ ← parSExp p
-      parLit "{"
-      x ← parVar
-      parLit "⇒"
-      e₂ ← parSExp p
-      parLit "}"
-      return $ DFMapSE e₁ x e₂
-  , mixF $ MixFTerminal $ do
-      parLit "join₁"
-      parLit "["
-      e₁ ← parSExp p
-      parLit ","
-      e₂ ← parSExp p
-      parLit ","
-      e₃ ← parSExp p
-      parLit ","
-      e₄ ← parSExp p
-      parLit "]"
-      return $ JoinSE e₁ e₂ e₃ e₄
-  , mixF $ MixFPrefix 10 $ do
-      parLit "addColDF"
-      parLit "⧼"
-      x ← parName
-      parLit "⧽"
-      return $ DFAddColSE x
-  , mixF $ MixFTerminal $ do
-      parLit "partitionDF"
-      parLit "["
-      e₁ ← parSExp p
-      parLit ","
-      a ← parName
-      parLit ","
-      e₂ ← parSExp p
-      parLit "]"
-      return $ DFPartitionSE e₁ a e₂
-  , mixF $ MixFTerminal $ do
-      parLit "joinDF₁"
-      parLit "⧼"
-      x ← parName
-      parLit "⧽"
-      parLit "["
-      e₁ ← parSExp p
-      parLit ","
-      e₂ ← parSExp p
-      parLit "]"
-      return $ DFJoin1SE x e₁ e₂
-  -- , mixF $ MixFTerminal $ do
-  --   parLit "CSVtoMatrix"
-  --   parLit "("
-  --   f ← parName
-  --   parLit ","
-  --   τ ← parTypeSource p
-  --   parLit ")"
-  --   return $ CSVtoMatrixSE f τ
-  , mixF $ MixFPostfix 10 $ do
-      parLit "#"
-      parLit "["
-      e₂ ← parSExp p
-      parLit ","
-      e₃ ← parSExp p
-      e₄O ← pOptional $ do
-        parLit "↦"
-        parSExp p
-      parLit "]"
-      return $ case e₄O of
-        None → \ e₁ → MIndexSE e₁ e₂ e₃
-        Some e₄ → \ e₁ → MUpdateSE e₁ e₂ e₃ e₄
-  , mixF $ MixFPrefix 10 $ const MRowsSE ^$ parLit "rows"
-  , mixF $ MixFPrefix 10 $ const MColsSE ^$ parLit "cols"
-  , mixF $ MixFPrefix 10 $ const MTransposeSE ^$ parLit "tr"
-  , mixF $ MixFPrefix 10 $ const IdxSE ^$ parLit "idx"
-  , mixF $ MixFPrefix 10 $ const DiscFSE ^$ parLit "discf"
-  , mixF $ MixFTerminal $ do
-      parLit "U∇"
-      parLit "["
-      g ← parGrad
-      parLit "|"
-      e₁ ← parSExp p
-      parLit ";"
-      e₂ ← parSExp p
-      parLit ","
-      e₃ ← parSExp p
-      parLit "]"
-      return $ MUnbGradSE g e₁ e₂ e₃
-  , mixF $ MixFTerminal $ do
-      parLit "mmap-col"
-      e₁ ← parSExp p
-      parLit "{"
-      x ← parVar
-      parLit "⇒"
-      e₂ ← parSExp p
-      parLit "}"
-      return $ MMapColSE e₁ x e₂
-  , mixF $ MixFTerminal $ do
-      parLit "mmap-col"
-      e₁ ← parSExp p
-      parLit ","
-      e₂ ← parSExp p
-      parLit "{"
-      x₁ ← parVar
-      parLit ","
-      x₂ ← parVar
-      parLit "⇒"
-      e₃ ← parSExp p
-      parLit "}"
-      return $ MMapCol2SE e₁ e₂ x₁ x₂ e₃
-  , mixF $ MixFTerminal $ do
-      parLit "mmap-row"
-      e₁ ← parSExp p
-      parLit "{"
-      x ← parVar
-      parLit "⇒"
-      e₂ ← parSExp p
-      parLit "}"
-      return $ MMapRowSE e₁ x e₂
-  , mixF $ MixFTerminal $ do
-      parLit "mfold-row"
-      e₁ ← parSExp p
-      parLit ","
-      e₂ ← parSExp p
-      parLit "{"
-      x₁ ← parVar
-      parLit ","
-      x₂ ← parVar
-      parLit "⇒"
-      e₃ ← parSExp p
-      parLit "}"
-      return $ MFoldSE e₁ e₂ x₁ x₂ e₃
   , mixF $ MixFTerminal $ VarSE ^$ parVar
   , mixF $ MixFPrefix 1 $ do
       parLit "let"
@@ -690,21 +529,12 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
              e₁ ← parSExp p
              parLit "in"
              return $ \ e₂ → LetSE x e₁ e₂
-        , do parLit "⟨"
-             x ← parVar
-             parLit ","
-             y ← parVar
-             parLit "⟩"
-             parLit "="
-             e₁ ← parSExp p
-             parLit "in"
-             return $ \ e₂ → UntupSE x y e₁ e₂
         ]
   , mixF $ MixFInfixL 10 $ do
       parSpace
       xsO ← pOptional $ do
         parLit "<"
-        xs ← pManySepBy (parLit ",") $ parVar
+        xs ← pManySepBy (parLit ",") $ parProgramVar
         parLit ">"
         return xs
       return $ \ e₁ e₂ → AppSE e₁ xsO e₂
@@ -758,74 +588,6 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       parLit "@"
       τ ← parTypeSource p
       return $ \ e → TAppSE e τ
-  , mixF $ MixFTerminal $ do
-      parLit "℘"
-      parLit "{"
-      ses ← pManySepBy (parLit ",") $ parSExp p
-      parLit "}"
-      return $ SetSE ses
-  -- , mixF $ MixFTerminal $ do
-  --     parLit "<"
-  --     xs ← pManySepBy (parLit ",") $ parVar
-  --     parLit ">"
-  --     return $ CxtSE xs
-  , mixF $ MixFTerminal $ do
-      parLit "unionAll"
-      e ← parSExp p
-      return $ UnionAllSE e
-  , mixF $ MixFTerminal $ do
-       parLit "⟨"
-       e₁ ← parSExp p
-       parLit ","
-       e₂ ← parSExp p
-       parLit "⟩"
-       return $ TupSE e₁ e₂
-  , mixF $ MixFTerminal $ do
-       parLit "loop"
-       e₂ ← parSExp p
-       parLit "on"
-       e₃ ← parSExp p
-       parLit "{"
-       x₁ ← parVar
-       parLit ","
-       x₂ ← parVar
-       parLit "⇒"
-       e₄ ← parSExp p
-       parLit "}"
-       return $ LoopSE e₂ e₃ x₁ x₂ e₄
-  , mixF $ MixFTerminal $ do
-       parLit "chunks"
-       parLit "["
-       e₁ ← parSExp p
-       parLit ","
-       e₂ ← parSExp p
-       parLit "]"
-       return $ ChunksSE e₁ e₂
-  , mixF $ MixFTerminal $ do
-       parLit "chunks"
-       parLit "["
-       e₁ ← parSExp p
-       parLit ","
-       e₂ ← parSExp p
-       parLit ","
-       e₃ ← parSExp p
-       parLit "]"
-       return $ Chunks2SE e₁ e₂ e₃
-  , mixF $ MixFTerminal $ do
-       parLit "zip"
-       parLit "["
-       e₁ ← parSExp p
-       parLit ","
-       e₂ ← parSExp p
-       parLit "]"
-       return $ MZipSE e₁ e₂
-  , mixF $ MixFPrefix 10 $ const BoxSE ^$ parLit "box"
-  , mixF $ MixFPrefix 10 $ const UnboxSE ^$ parLit "unbox"
-  , mixF $ MixFPrefix 10 $ const ClipSE ^$ parLit "clip"
-  , mixF $ MixFPrefix 10 $ const ConvSE ^$ parLit "conv"
-  , mixF $ MixFPrefix 10 $ const MConvertSE ^$ parLit "mconv"
-  , mixF $ MixFPrefix 10 $ const DiscSE ^$ parLit "disc"
-  , mixF $ MixFPrefix 10 $ const CountSE ^$ parLit "count"
   ]
 
 parPExp ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (PExpSource p)
@@ -846,17 +608,6 @@ parPExp p = pWithContext "pexp" $ tries
        parLit ";"
        e₂ ← parPExp p
        return $ BindPE x e₁ e₂
-  , do parLit "if"
-       e₁ ← parSExp p
-       parLit "then"
-       parLit "{"
-       e₂ ← parPExp p
-       parLit "}"
-       parLit "else"
-       parLit "{"
-       e₃ ← parPExp p
-       parLit "}"
-       return $ IfPE e₁ e₂ e₃
   , do e ← parSExp p
        case extract e of
          -- QUESTION: should AppPE have a SExp or PExp as its first argument?
@@ -869,34 +620,3 @@ tokSkip = \case
   TokenSpace → True
   TokenComment → True
   _ → False
-
-  -- [ mix $ MixTerminal $ do
-  --     void $ pSatisfies "lparen" $ shape eTLParenL
-  --     x ← parseExp
-  --     void $ pSatisfies "rparen" $ shape eTRParenL
-  --     return x
-  -- , mix $ MixTerminal  $ EAtom ∘ ASymbol ^$ pShaped "symbol" $ view eTSymbolL
-  -- , mix $ MixTerminal  $ EAtom ∘ ANatural ^$ pShaped "natural" $ view eTNaturalL
-  -- , mix $ MixInfixR  5 $ const ESum ^$ surroundWhitespace $ pShaped "plus" $ view eTPlusL
-  -- , mix $ MixInfixR  6 $ const EProduct ^$ surroundWhitespace $ pShaped "times" $ view eTTimesL
-  -- , mix $ MixInfixL  7 $ const EExpo ^$ surroundWhitespace $ pShaped "power" $ view eTPowerL
-  -- , mix $ MixPostfix 7 $ const EFact ^$ preWhitespace $ pShaped "fact" $ view eTFactL
-  -- , mix $ MixPrefix  8 $ const ENegate ^$ postWhitespace $ pShaped "neg" $ view eTNegativeL
-  -- , mix $ MixInfix   5 $ const EEquality ^$ surroundWhitespace $ pShaped "equal" $ view eTEqualL
-  -- ]
-  -- where
-  --   surroundWhitespace ∷ Parser ExpToken a → Parser ExpToken a
-  --   surroundWhitespace xM = do
-  --     void $ pOptional $ pSatisfies "whitespace" $ shape eTWhitespaceL
-  --     x ← xM
-  --     void $ pOptional $ pSatisfies "whitespace" $ shape eTWhitespaceL
-  --     return x
-  --   preWhitespace ∷ Parser ExpToken a → Parser ExpToken a
-  --   preWhitespace xM = do
-  --     void $ pOptional $ pSatisfies "whitespace" $ shape eTWhitespaceL
-  --     xM
-  --   postWhitespace ∷ Parser ExpToken a → Parser ExpToken a
-  --   postWhitespace xM = do
-  --     x ← xM
-  --     void $ pOptional $ pSatisfies "whitespace" $ shape eTWhitespaceL
-  --     return x

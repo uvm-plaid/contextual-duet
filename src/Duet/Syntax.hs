@@ -8,7 +8,7 @@ import Duet.RNF2
 data Norm = L1 | L2 | LInf
   deriving (Eq,Ord,Show)
 
-data TermVar = TLVar 𝕏 | PLVar 𝕏
+data ProgramVar = TLVar 𝕏 | TMVar 𝕏
   deriving (Eq,Ord,Show)
 
 data Clip = NormClip Norm | UClip
@@ -148,16 +148,16 @@ instance Functor (Pr p) where
   map f (TCPriv ρ ω) = TCPriv (f ρ) (f ω)
 
 data PEnv r where
-  PEnv ∷ ∀ (p ∷ PRIV) r. (PRIV_C p) ⇒ TermVar ⇰ Pr p r → PEnv r
+  PEnv ∷ ∀ (p ∷ PRIV) r. (PRIV_C p) ⇒ ProgramVar ⇰ Pr p r → PEnv r
 
 instance (Eq r) ⇒ Eq (PEnv r) where
   (==) ∷ PEnv r → PEnv r → 𝔹
-  PEnv (xps₁ ∷ TermVar ⇰ Pr p₁ r) == PEnv (xps₂ ∷ TermVar ⇰ Pr p₂ r) = case eqPRIV (priv @ p₁) (priv @ p₂) of
+  PEnv (xps₁ ∷ ProgramVar ⇰ Pr p₁ r) == PEnv (xps₂ ∷ ProgramVar ⇰ Pr p₂ r) = case eqPRIV (priv @ p₁) (priv @ p₂) of
     Some Refl → xps₁ ≡ xps₂
     None → False
 instance (Ord r) ⇒ Ord (PEnv r) where
   compare ∷ PEnv r → PEnv r → Ordering
-  compare (PEnv (xps₁ ∷ TermVar ⇰ Pr p₁ r)) (PEnv (xps₂ ∷ TermVar ⇰ Pr p₂ r)) = case eqPRIV (priv @ p₁) (priv @ p₂) of
+  compare (PEnv (xps₁ ∷ ProgramVar ⇰ Pr p₁ r)) (PEnv (xps₂ ∷ ProgramVar ⇰ Pr p₂ r)) = case eqPRIV (priv @ p₁) (priv @ p₂) of
     Some Refl → compare xps₁ xps₂
     None → compare (stripPRIV (priv @ p₁)) (stripPRIV (priv @ p₂))
 deriving instance (Show r) ⇒ Show (PEnv r)
@@ -243,17 +243,18 @@ data Type r =
   | Type r :⊕: Type r
   | Type r :⊗: Type r
   | Type r :&: Type r
-  | (𝕏 ∧ Type r) :⊸: ((TermVar ⇰ Sens r) ∧ Type r)
+  | (𝕏 ∧ Type r) :⊸: ((ProgramVar ⇰ Sens r) ∧ Type r)
   | (𝕏 ∧ Type r) :⊸⋆: (PEnv r ∧ Type r)
   | ForallT 𝕏 Kind (Type r)
-  | CxtT (𝑃 TermVar)
+  | CxtT (𝑃 ProgramVar)
   | BoxedT (𝕏 ⇰ Sens r) (Type r)
   -- eventually we want:
   -- - contextual/lazy function, pair, and sum connectives
   deriving (Eq,Ord,Show)
 
-freshen ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → Type RNF → ℕ → (Type RNF ∧ ℕ)
-freshen ρ β τ''' n = let nplusone = n + one in
+
+freshenType ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → Type RNF → ℕ → (Type RNF ∧ ℕ)
+freshenType ρ β τ''' n = let nplusone = n + one in
   case τ''' of
     VarT x → (VarT $ getTLVar $ freshenRef ρ β (TLVar x)) :* n
     ℕˢT r → (ℕˢT (substAlphaRNF (list ρ) r)) :* n
@@ -263,7 +264,7 @@ freshen ρ β τ''' n = let nplusone = n + one in
     𝕀T r → (𝕀T (substAlphaRNF (list ρ) r)) :* n
     𝔹T → (𝔹T :* n)
     𝕊T → (𝕊T :* n)
-    SetT τ → let (τ' :* n') = freshen ρ β τ n
+    SetT τ → let (τ' :* n') = freshenType ρ β τ n
       in (SetT τ') :* n'
     𝕄T l c rows cols →
       let rows' = case rows of
@@ -271,67 +272,66 @@ freshen ρ β τ''' n = let nplusone = n + one in
                     RexpRT r → RexpRT (substAlphaRNF (list ρ) r)
       in let (cols' :* n') = (freshenMExp ρ β cols n)
       in (𝕄T l c rows' cols') :* n'
-    𝔻T τ → let (τ' :* n') = freshen ρ β τ n
+    𝔻T τ → let (τ' :* n') = freshenType ρ β τ n
       in (𝔻T τ') :* n'
     τ₁ :⊕: τ₂ →
-      let (τ₁' :* n') = freshen ρ β τ₁ n in
-      let (τ₂' :* n'') = freshen ρ β τ₂ n' in
+      let (τ₁' :* n') = freshenType ρ β τ₁ n in
+      let (τ₂' :* n'') = freshenType ρ β τ₂ n' in
       (τ₁' :⊕: τ₂') :* n''
     τ₁ :⊗: τ₂ →
-      let (τ₁' :* n') = freshen ρ β τ₁ n in
-      let (τ₂' :* n'') = freshen ρ β τ₂ n' in
+      let (τ₁' :* n') = freshenType ρ β τ₁ n in
+      let (τ₂' :* n'') = freshenType ρ β τ₂ n' in
       (τ₁' :⊗: τ₂') :* n''
     τ₁ :&: τ₂ →
-      let (τ₁' :* n') = freshen ρ β τ₁ n in
-      let (τ₂' :* n'') = freshen ρ β τ₂ n' in
+      let (τ₁' :* n') = freshenType ρ β τ₁ n in
+      let (τ₂' :* n'') = freshenType ρ β τ₂ n' in
       (τ₁' :&: τ₂') :* n''
     (x₁ :* τ₁) :⊸: (sσ₁ :* τ₂) →
       let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some n} in
-      let (τ₁' :* n') = freshen ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₁ nplusone in
-      let (τ₂' :* n'') = freshen ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₂ n' in
+      let (τ₁' :* n') = freshenType ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₁ nplusone in
+      let (τ₂' :* n'') = freshenType ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₂ n' in
       let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁) in
-      let sσ₁'' ∷ (TermVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ ((x₁↦ x₁ⁿ) ⩌ β) x :* s) $ list sσ₁' in
+      let sσ₁'' ∷ (ProgramVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ ((x₁↦ x₁ⁿ) ⩌ β) x :* s) $ list sσ₁' in
       ((x₁ⁿ :* τ₁') :⊸: (sσ₁'' :* τ₂') :* n'')
-    (x₁ :* τ₁) :⊸⋆: (PEnv (pσ₁ ∷ TermVar ⇰ Pr p RNF) :* τ₂) →
+    (x₁ :* τ₁) :⊸⋆: (PEnv (pσ₁ ∷ ProgramVar ⇰ Pr p RNF) :* τ₂) →
       let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some n} in
-      let (τ₁' :* n') = freshen ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₁ nplusone in
-      let (τ₂' :* n'') = freshen ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₂ n' in
+      let (τ₁' :* n') = freshenType ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₁ nplusone in
+      let (τ₂' :* n'') = freshenType ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₂ n' in
       let pσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) pσ₁) in
       let pσ₁'' = assoc $ map (\(x :* p) → freshenRef ρ ((x₁↦ x₁ⁿ) ⩌ β) x :* p) $ list pσ₁' in
       ((x₁ⁿ :* τ₁') :⊸⋆: (PEnv pσ₁'' :* τ₂') :* n'')
     ForallT x κ τ →
       let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some n} in
-      let (τ' :* n') = freshen ((x↦ xⁿ) ⩌ ρ) β τ nplusone in
+      let (τ' :* n') = freshenType ((x↦ xⁿ) ⩌ ρ) β τ nplusone in
       (ForallT xⁿ κ τ' ) :* n'
     CxtT xs → do
       let xs' = pow $ map (\x → freshenRef ρ β x) $ list xs
-      -- (CxtT xs' :* n)
-      error "reached"
+      (CxtT xs' :* n)
     BoxedT sσ₁ τ₁ → undefined
 
-freshenRef ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → TermVar → TermVar
+freshenRef ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → ProgramVar → ProgramVar
 freshenRef ρ β tv = case tv of
   TLVar tlx → case ρ ⋕? tlx of
     None → TLVar tlx
     Some x' → TLVar x'
-  PLVar plx → case β ⋕? plx of
-    None → PLVar plx
-    Some x' → PLVar x'
+  TMVar plx → case β ⋕? plx of
+    None → TMVar plx
+    Some x' → TMVar x'
 
-getTLVar ∷ TermVar → 𝕏
+getTLVar ∷ ProgramVar → 𝕏
 getTLVar (TLVar x) = x
 getTLVar _ = error "expected TLVar"
 
-getVar ∷ TermVar → 𝕏
+getVar ∷ ProgramVar → 𝕏
 getVar (TLVar x) = x
-getVar (PLVar x) = x
+getVar (TMVar x) = x
 
 freshenMExp ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → MExp RNF → ℕ → (MExp RNF ∧ ℕ)
 freshenMExp ρ β meInit n = case meInit of
   EmptyME → EmptyME :* n
   VarME x → (VarME x) :* n
   ConsME τ me →
-    let (τ' :* n') =  (freshen ρ β τ n) in
+    let (τ' :* n') =  (freshenType ρ β τ n) in
     let (me' :* n'') = (freshenMExp ρ β me n')
     in (ConsME τ' me') :* n''
   AppendME me₁ me₂ →
@@ -339,7 +339,7 @@ freshenMExp ρ β meInit n = case meInit of
     let (me₂' :* n'') = (freshenMExp ρ β me₂ n')
     in (AppendME me₁' me₂') :* n''
   RexpME r τ →
-    let (τ' :* n') =  (freshen ρ β τ n) in
+    let (τ' :* n') =  (freshenType ρ β τ n) in
     (RexpME (substAlphaRNF (list ρ) r) τ') :* n'
 
 alphaEquiv ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → Type RNF → Type RNF → 𝔹
@@ -365,17 +365,17 @@ alphaEquiv ρ β τ₁' τ₂' =
     (τ₁₁ :&: τ₁₂,τ₂₁ :&: τ₂₂) → (alphaEquiv ρ β τ₁₁ τ₂₁) ⩓ (alphaEquiv ρ β τ₁₂ τ₂₂)
     ((x₁ :* τ₁₁) :⊸: (sσ₁ :* τ₁₂),(x₂ :* τ₂₁) :⊸: (sσ₂ :* τ₂₂)) → do
       let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁)
-      let sσ₁'' ∷ (TermVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ ((x₁↦ x₂) ⩌ β) x :* s) $ list sσ₁'
+      let sσ₁'' ∷ (ProgramVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ ((x₁↦ x₂) ⩌ β) x :* s) $ list sσ₁'
       let c₁ = (alphaEquiv ρ ((x₁ ↦ x₂) ⩌ β) τ₁₁ τ₂₁)
       let c₂ = (alphaEquiv ρ ((x₁ ↦ x₂) ⩌ β) τ₁₂ τ₂₂)
       let c₃ = (sσ₁'' ≡ sσ₂)
       c₁ ⩓ c₂ ⩓ c₃
-    ((x₁ :* τ₁₁) :⊸⋆: (PEnv (pσ₁ ∷ TermVar ⇰ Pr p RNF) :* τ₁₂),(x₂ :* τ₂₁) :⊸⋆: (PEnv (pσ₂ ∷ TermVar ⇰ Pr p' RNF) :* τ₂₂)) →
+    ((x₁ :* τ₁₁) :⊸⋆: (PEnv (pσ₁ ∷ ProgramVar ⇰ Pr p RNF) :* τ₁₂),(x₂ :* τ₂₁) :⊸⋆: (PEnv (pσ₂ ∷ ProgramVar ⇰ Pr p' RNF) :* τ₂₂)) →
       case eqPRIV (priv @ p) (priv @ p') of
         None → False
         Some Refl →
           let pσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) pσ₁) in
-          let pσ₁'' ∷ (TermVar ⇰ _) = assoc $ map (\(x :* p) → freshenRef ρ ((x₁↦ x₂) ⩌ β) x :* p) $ list pσ₁' in
+          let pσ₁'' ∷ (ProgramVar ⇰ _) = assoc $ map (\(x :* p) → freshenRef ρ ((x₁↦ x₂) ⩌ β) x :* p) $ list pσ₁' in
           let c₁ = (alphaEquiv ρ ((x₁ ↦ x₂) ⩌ β) τ₁₁ τ₂₁) in
           let c₂ = (alphaEquiv ρ ((x₁ ↦ x₂) ⩌ β) τ₁₂ τ₂₂) in
           let c₃ = (pσ₁'' ≡ pσ₂) in
@@ -421,7 +421,7 @@ data TLExp r =
   | TLExp r :⊕♭: TLExp r
   | TLExp r :⊗♭: TLExp r
   | TLExp r :&♭: TLExp r
-  | (𝕏 ∧ TLExp r) :⊸♭: ((TermVar ⇰ Sens r) ∧ TLExp r)
+  | (𝕏 ∧ TLExp r) :⊸♭: ((ProgramVar ⇰ Sens r) ∧ TLExp r)
   | (𝕏 ∧ TLExp r) :⊸⋆♭: (PEnv r ∧ TLExp r)
   | ForallTE 𝕏 Kind (TLExp r)
   | CxtTE (𝑃 𝕏)
@@ -520,116 +520,30 @@ makePrettySum ''Grad
 type SExpSource (p ∷ PRIV) = Annotated FullContext (SExp p)
 -- this is using GADT syntax and extension
 data SExp (p ∷ PRIV) where
-  -- numeric operations
   ℕˢSE ∷ ℕ → SExp p
   ℝˢSE ∷ 𝔻 → SExp p
-  DynSE ∷ SExpSource p → SExp p
   ℕSE ∷ ℕ → SExp p
   ℝSE ∷ 𝔻 → SExp p
-  RealSE ∷ SExpSource p → SExp p
-  MaxSE ∷ SExpSource p → SExpSource p → SExp p
-  MinSE ∷ SExpSource p → SExpSource p → SExp p
-  PlusSE ∷ SExpSource p → SExpSource p → SExp p
-  TimesSE ∷ SExpSource p → SExpSource p → SExp p
-  MTimesSE ∷ SExpSource p → SExpSource p → SExp p
-  DivSE ∷ SExpSource p → SExpSource p → SExp p
-  RootSE ∷ SExpSource p → SExp p
-  -- do we need efn and pow?? -DCD
-  LogSE ∷ SExpSource p → SExp p
-  ModSE ∷ SExpSource p → SExpSource p → SExp p
-  MinusSE ∷ SExpSource p → SExpSource p → SExp p
-  EqualsSE ∷ SExpSource p → SExpSource p → SExp p
   TrueSE ∷ SExp p
   FalseSE ∷ SExp p
-  AndSE ∷ SExpSource p → SExpSource p → SExp p
-  OrSE ∷ SExpSource p → SExpSource p → SExp p
-  -- dataframe operations
-  RecordColSE ∷ 𝕊 → SExpSource p → SExp p
-  DFPartitionSE ∷ SExpSource p → 𝕊 → SExpSource p → SExp p
-  DFMapSE ∷ SExpSource p → 𝕏  → SExpSource p → SExp p
-  DFAddColSE ∷ 𝕊 → SExpSource p → SExp p
-  DFJoin1SE ∷ 𝕊 → SExpSource p → SExpSource p → SExp p
-  -- matrix operations
-  MCreateSE ∷ Norm  → SExpSource p → SExpSource p → 𝕏 → 𝕏 → SExpSource p → SExp p
-  MIndexSE ∷ SExpSource p → SExpSource p → SExpSource p → SExp p
-  MUpdateSE ∷ SExpSource p → SExpSource p → SExpSource p → SExpSource p → SExp p
-  MFilterSE ∷ SExpSource p → 𝕏 → SExpSource p → SExp p
-  MZipSE ∷ SExpSource p → SExpSource p → SExp p
-  MRowsSE ∷ SExpSource p → SExp p
-  MColsSE ∷ SExpSource p → SExp p
-  MTransposeSE ∷ SExpSource p → SExp p
-  IdxSE ∷ SExpSource p → SExp p
-  MClipSE ∷ Norm → SExpSource p → SExp p
-  MConvertSE ∷ SExpSource p → SExp p
-  MLipGradSE ∷ Grad → SExpSource p → SExpSource p → SExpSource p → SExp p
-  MUnbGradSE ∷ Grad → SExpSource p → SExpSource p → SExpSource p → SExp p
-  -- | MUnbGradSE (SExpSource p) (SExpSource p) (SExpSource p)
-  MMapSE ∷ SExpSource p → 𝕏  → SExpSource p → SExp p
-  MMapColSE ∷ SExpSource p → 𝕏  → SExpSource p → SExp p
-  MMapCol2SE ∷ SExpSource p → SExpSource p → 𝕏  → 𝕏 → SExpSource p → SExp p
-  MMapRowSE ∷ SExpSource p → 𝕏  → SExpSource p → SExp p
-  MMap2SE ∷ SExpSource p → SExpSource p → 𝕏 → 𝕏 → SExpSource p → SExp p
-  MFoldSE ∷ SExpSource p → SExpSource p → 𝕏 → 𝕏 → SExpSource p → SExp p
-  JoinSE ∷ SExpSource p → SExpSource p → SExpSource p → SExpSource p → SExp p
-  -- CSVtoMatrixSE :: 𝐿 (𝐿 𝕊) → TypeSource RExp → SExp p
-  BMapSE ∷ SExpSource p → 𝕏  → SExpSource p → SExp p
-  BMap2SE ∷ SExpSource p → SExpSource p → 𝕏 → 𝕏 → SExpSource p → SExp p
-  -- | MMapRowSE (SExpSource p) 𝕏 (SExpSource p)
-  -- | MMapRow2SE (SExpSource p) 𝕏 (SExpSource p)
-  -- | MFoldRowSE (SExpSource p) (SExpSource p) 𝕏 𝕏 (SExpSource p)
-  -- connectives
-  -- | SLoopSE (SExpSource p) (SExpSource p) 𝕏 (SExpSource p)
-  LoopSE ∷ SExpSource p → SExpSource p → 𝕏 → 𝕏 → SExpSource p → SExp p
   VarSE ∷ 𝕏 → SExp p
   LetSE ∷ 𝕏  → SExpSource p → SExpSource p → SExp p
   SFunSE ∷ 𝕏  → TypeSource RExp → SExpSource p → SExp p
-  AppSE ∷ SExpSource p → 𝑂 (𝐿 𝕏) → SExpSource p → SExp p
+  AppSE ∷ SExpSource p → 𝑂 (𝐿 ProgramVar) → SExpSource p → SExp p
   PFunSE ∷ 𝕏 → TypeSource RExp → PExpSource p → SExp p
-  -- Δ⨃{α:κ} , Γ ⊢ e : τ
-  -- ---------------------
-  -- Δ , Γ ⊢ Λ (α:κ). e : ∀ α:κ. τ
-  -- ^   ^
-  -- |   term variables
-  -- type variables
   TAbsSE ∷ 𝕏 → Kind → SExpSource p → SExp p
-  -- Δ ⊢ τ′ : κ
-  -- Δ , Γ ⊢ e : ∀ α:κ. τ
-  -- -----------------------
-  -- Δ , Γ ⊢ e[τ′] : [τ′/α]τ
-  --
-  -- before we wrote: sλ α:κ .    x:ℝ[α] ⇒ e
-  -- now we write:    Λ  α:κ ⇒ sλ x:ℝ[α] ⇒ e
-  --
-  -- the before type was: ∀ α:κ . (x:ℝ[α]) ⊸[ x⋅s ] τ
-  -- now the type is:     ∀ α:κ . (x:ℝ[α]) ⊸[ Σ ] τ
-  --
-  -- before we had: f@[ τ ] x
-  -- now we have:   (f@τ) x
-  --                ^^^^^
-  --                TAppSE
   TAppSE ∷ SExpSource p → TypeSource RExp → SExp p
-  -- CxtSE ∷ 𝐿 𝕏 → SExp p
-  InlSE ∷ TypeSource RExp → SExpSource p → SExp p
-  InrSE ∷ TypeSource RExp → SExpSource p → SExp p
-  CaseSE ∷ SExpSource p → 𝕏 → SExpSource p → 𝕏 → SExpSource p → SExp p
-  TupSE ∷ SExpSource p → SExpSource p → SExp p
-  UntupSE ∷ 𝕏 → 𝕏 → SExpSource p → SExpSource p → SExp p
-  SetSE ∷ 𝐿 (SExpSource p) → SExp p
-  UnionAllSE ∷ SExpSource p → SExp p
-  MemberSE ∷ SExpSource p → SExpSource p → SExp p
-  PairSE ∷ SExpSource p → SExpSource p → SExp p
-  FstSE ∷ SExpSource p → SExp p
-  SndSE ∷ SExpSource p → SExp p
-  BoxSE ∷ SExpSource p → SExp p
-  UnboxSE ∷ SExpSource p → SExp p
-  ClipSE ∷ SExpSource p → SExp p
-  ConvSE ∷ SExpSource p → SExp p
-  DiscFSE ∷ SExpSource p → SExp p
-  DiscSE ∷ SExpSource p → SExp p
-  CountSE ∷ SExpSource p → SExp p
-  ChunksSE ∷ SExpSource p → SExpSource p → SExp p
-  Chunks2SE ∷ SExpSource p → SExpSource p → SExpSource p → SExp p
   deriving (Eq,Ord,Show)
+
+type PExpSource (p ∷ PRIV) = Annotated FullContext (PExp p)
+data PExp (p ∷ PRIV) where
+  ReturnPE ∷ SExpSource p → PExp p
+  BindPE ∷ 𝕏 → PExpSource p → PExpSource p → PExp p
+  AppPE ∷ SExpSource p → 𝑂 (𝐿 ProgramVar) → SExpSource p → PExp p
+
+deriving instance Eq (PExp p)
+deriving instance Ord (PExp p)
+deriving instance Show (PExp p)
 
 data GaussParams (p ∷ PRIV) where
   EDGaussParams ∷ SExpSource 'ED → SExpSource 'ED → GaussParams 'ED
@@ -659,57 +573,6 @@ deriving instance Eq (SVTParams p)
 deriving instance Ord (SVTParams p)
 deriving instance Show (SVTParams p)
 
-
--- let f =
---       pλ a b ⇒
---        return a + b
-
--- sλ a ⇒
---  pλ b ⇒
---   return a + b
-
--- ((f x) y)
-
-
--- AppSE (AppSE f x) y
--- ⇒
--- AppPE (AppSE f x) y
-
-
-
-
-type PExpSource (p ∷ PRIV) = Annotated FullContext (PExp p)
-data PExp (p ∷ PRIV) where
-  ReturnPE ∷ SExpSource p → PExp p
-  BindPE ∷ 𝕏 → PExpSource p → PExpSource p → PExp p
-  AppPE ∷ SExpSource p → 𝑂 (𝐿 𝕏) → SExpSource p → PExp p
-  EDLoopPE ∷ SExpSource 'ED → SExpSource 'ED → SExpSource 'ED → 𝐿 𝕏 → 𝕏 → 𝕏 → PExpSource 'ED → PExp 'ED
-  LoopPE ∷ SExpSource p → SExpSource p → 𝐿 𝕏 → 𝕏 → 𝕏 → PExpSource p → PExp p
-  GaussPE ∷ SExpSource p → GaussParams p → 𝐿 𝕏 → SExpSource p → PExp p
-  IfPE ∷ (SExpSource p) → (PExpSource p) → (PExpSource p) → PExp p
-  ParallelPE ∷ SExpSource p → SExpSource p → 𝕏 → SExpSource p → 𝕏 → 𝕏 → PExpSource p → PExp p
-  MMapPE ∷ SExpSource p → 𝕏 → PExpSource p → PExp p
-  PMapColPE ∷ SExpSource p → 𝕏 → PExpSource p → PExp p
-  PFldRowsPE ∷ SExpSource p → SExpSource p → SExpSource p → PExp p
-  PFldRows2PE ∷ SExpSource p → SExpSource p → SExpSource p → SExpSource p → SExpSource p → PExp p
-  MGaussPE ∷ SExpSource p → GaussParams p → 𝐿 𝕏 → SExpSource p → PExp p
-  BGaussPE ∷ SExpSource p → GaussParams p → 𝐿 𝕏 → SExpSource p → PExp p
-  LaplacePE ∷ SExpSource p → LaplaceParams p → 𝐿 𝕏 → SExpSource p → PExp p
-  MLaplacePE ∷ SExpSource p → LaplaceParams p → 𝐿 𝕏 → SExpSource p → PExp p
-  ExponentialPE ∷ SExpSource p → ExponentialParams p → SExpSource p → 𝐿 𝕏 → 𝕏  → SExpSource p → PExp p
-  SVTPE ∷ SVTParams p → SExpSource p → SExpSource p → 𝐿 𝕏 → SExpSource p → PExp p
-  RRespPE ∷ SExpSource p → SExpSource p → 𝐿 𝕏 → SExpSource p → PExp p
-  EDSamplePE ∷ SExpSource 'ED → SExpSource 'ED → SExpSource 'ED → 𝕏 → 𝕏 → PExpSource 'ED → PExp 'ED
-  RenyiSamplePE ∷ SExpSource 'RENYI → SExpSource 'RENYI → SExpSource 'RENYI → 𝕏 → 𝕏 → PExpSource 'RENYI → PExp 'RENYI
-  TCSamplePE ∷ SExpSource 'TC → SExpSource 'TC → SExpSource 'TC → 𝕏 → 𝕏 → PExpSource 'TC → PExp 'TC
-  RandNatPE ∷ SExpSource p → SExpSource p → PExp p
-  ConvertZCEDPE ∷ SExpSource 'ED → PExpSource 'ZC → PExp 'ED
-  ConvertEPSZCPE ∷ PExpSource 'EPS → PExp 'ZC
-  ConvertRENYIEDPE ∷ SExpSource 'ED → PExpSource 'RENYI → PExp 'ED
-
-deriving instance Eq (PExp p)
-deriving instance Ord (PExp p)
-deriving instance Show (PExp p)
 
 instance Pretty (SExp p) where pretty _ = ppLit "SEXP"
 instance Pretty (PExp p) where pretty _ = ppLit "PEXP"

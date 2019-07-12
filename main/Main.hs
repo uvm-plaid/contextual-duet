@@ -10,7 +10,7 @@ initEnv = dict
 
 -- get type from SM
 
-getTypeFromSM ∷ (TypeError ∨ ((ℕ ∧ (𝕏 ⇰ Sens RNF)) ∧ (𝕏 ⇰ Type RNF))) → 𝕏 ⇰ Type RNF
+getTypeFromSM ∷ (TypeError ∨ ((ℕ ∧ (ProgramVar ⇰ Sens RNF)) ∧ (𝕏 ⇰ Type RNF))) → 𝕏 ⇰ Type RNF
 getTypeFromSM = \case
   Inl _ → error "getTypeFromSM"
   Inr (_ :* a) → a
@@ -24,49 +24,49 @@ parseMode s = case list $ splitOn𝕊 "." s of
   _ :& "zcdp" :& "duet" :& Nil → Ex_C ZC_W
   _ → error "BAD FILE NAME"
 
-parseMatrix𝔻  ∷ 𝕊 → ExMatrix 𝔻
-parseMatrix𝔻 s = unID $ do
-  traceM "PARSING MATRIX…"
-  let dss ∷ 𝐼 (𝐼 𝔻)
-      dss = map (map read𝕊 ∘ iter ∘ splitOn𝕊 ",") $ filter (\x → not (isEmpty𝕊 x)) $ splitOn𝕊 "\n" s
-      dss' ∷ 𝐿 (𝐿 𝔻)
-      dss' = list $ map list dss
-  xu dss' $ \ m → do
-    traceM "DONE"
-    return $ ExMatrix $ xvirt m
-
--- TODO: detect line endings or make an arg
-buildArgs ∷ (Pretty r) ⇒ 𝐿 (Type r) → 𝐿 𝕊 → IO (𝐿 Val)
-buildArgs Nil Nil = return Nil
-buildArgs (τ:&τs) (a:&as) = case τ of
-  -- TODO: currently the assumption is to read in RealVs
-  (𝕄T _ _ _ (RexpME r τ)) → do
-    s ← read a
-    case parseMatrix𝔻 s of
-      ExMatrix m →  do
-        let m' = MatrixV $ ExMatrix $ map RealV m
-        r ← buildArgs τs as
-        return $ m' :& r
-  (𝕄T _ _ _ (ConsME τ m)) → do
-    csvs ← read a
-    let csvss = map (splitOn𝕊 ",") $ filter (\x → not (isEmpty𝕊 x)) $ splitOn𝕊 "\n" csvs
-    let csvm = csvToDF (list $ map list csvss) (schemaToTypes (ConsME τ m))
-    r ← buildArgs τs as
-    return $ csvm :& r
-  ℕT → do
-    r ← buildArgs τs as
-    return $ NatV (read𝕊 a) :& r
-  ℕˢT _ → do
-    r ← buildArgs τs as
-    return $ NatV (read𝕊 a) :& r
-  ℝT → do
-    r ← buildArgs τs as
-    return $ RealV (read𝕊 a) :& r
-  ℝˢT _ → do
-    r ← buildArgs τs as
-    return $ RealV (read𝕊 a) :& r
-  _ → error $ "unexpected arg type in main: " ⧺ (pprender τ)
-buildArgs _ _ = error "number of args provided does not match function signature"
+-- parseMatrix𝔻  ∷ 𝕊 → ExMatrix 𝔻
+-- parseMatrix𝔻 s = unID $ do
+--   traceM "PARSING MATRIX…"
+--   let dss ∷ 𝐼 (𝐼 𝔻)
+--       dss = map (map read𝕊 ∘ iter ∘ splitOn𝕊 ",") $ filter (\x → not (isEmpty𝕊 x)) $ splitOn𝕊 "\n" s
+--       dss' ∷ 𝐿 (𝐿 𝔻)
+--       dss' = list $ map list dss
+--   xu dss' $ \ m → do
+--     traceM "DONE"
+--     return $ ExMatrix $ xvirt m
+--
+-- -- TODO: detect line endings or make an arg
+-- buildArgs ∷ (Pretty r) ⇒ 𝐿 (Type r) → 𝐿 𝕊 → IO (𝐿 Val)
+-- buildArgs Nil Nil = return Nil
+-- buildArgs (τ:&τs) (a:&as) = case τ of
+--   -- TODO: currently the assumption is to read in RealVs
+--   (𝕄T _ _ _ (RexpME r τ)) → do
+--     s ← read a
+--     case parseMatrix𝔻 s of
+--       ExMatrix m →  do
+--         let m' = MatrixV $ ExMatrix $ map RealV m
+--         r ← buildArgs τs as
+--         return $ m' :& r
+--   (𝕄T _ _ _ (ConsME τ m)) → do
+--     csvs ← read a
+--     let csvss = map (splitOn𝕊 ",") $ filter (\x → not (isEmpty𝕊 x)) $ splitOn𝕊 "\n" csvs
+--     let csvm = csvToDF (list $ map list csvss) (schemaToTypes (ConsME τ m))
+--     r ← buildArgs τs as
+--     return $ csvm :& r
+--   ℕT → do
+--     r ← buildArgs τs as
+--     return $ NatV (read𝕊 a) :& r
+--   ℕˢT _ → do
+--     r ← buildArgs τs as
+--     return $ NatV (read𝕊 a) :& r
+--   ℝT → do
+--     r ← buildArgs τs as
+--     return $ RealV (read𝕊 a) :& r
+--   ℝˢT _ → do
+--     r ← buildArgs τs as
+--     return $ RealV (read𝕊 a) :& r
+--   _ → error $ "unexpected arg type in main: " ⧺ (pprender τ)
+-- buildArgs _ _ = error "number of args provided does not match function signature"
 
 drop :: ℕ -> IO (𝐼 𝕊) -> IO (𝐼 𝕊)
 drop x as = do
@@ -117,32 +117,32 @@ main = do
         e :* tParse ← timeIO $ parseIO (pSkip tokSkip $ pFinal $ parSExp mode) $ stream ts
         do out $ "(" ⧺ show𝕊 (secondsTimeD tParse) ⧺ "s)" ; flushOut
         do pprint $ ppHeader "TYPE CHECKING" ; flushOut
-        -- do pprint $ pprender initEnv₁
-        -- TODO: universal mode 
+        -- TODO: universal mode
         initEnv₂ :* tCheck' ← time (\ () → runSM dø initEnv₁ dø 0 (inferPrimitives @ 'ED initEnv₁)) ()
-        -- do pprint $ pprender initEnv₂
+        -- e₁ :* tCheck'' ← time (\ () → runSM dø (getTypeFromSM initEnv₂) dø 0 (freshenTerm e)) ()
+
         r :* tCheck ← time (\ () → runSM dø (getTypeFromSM initEnv₂) dø 0 (inferSens e)) ()
         do out $ "(" ⧺ show𝕊 (secondsTimeD tCheck) ⧺ "s)" ; flushOut
         _ ← shell $ "echo " ⧺ show𝕊 (secondsTimeD tCheck) ⧺ " >> typecheck-times"
         do pprint $ ppHeader "DONE" ; flushOut
         do pprint r ; flushOut
-    "lr-accuracy":xsfn:ysfn:mdfn:[] → do
-      do pprint $ ppHeader "ACCURACY TEST" ; flushOut
-      sxs ← read xsfn
-      sys ← read ysfn
-      smd ← read mdfn
-      case (parseMatrix𝔻 sxs,parseMatrix𝔻 sys,parseMatrix𝔻 smd) of
-        (ExMatrix mxs,ExMatrix mys,ExMatrix mmd) → do
-          let xs ∷ ExMatrix 𝔻
-              xs = ExMatrix mxs
-              ys ∷ DuetVector 𝔻
-              ys = list mys
-              md ∷ DuetVector 𝔻
-              md = list mmd
-              (r :* w) = accuracy xs ys md
-          write "out/acc.csv" (intercalate "," (map show𝕊 (list [r,w])))
-          pprint (r,w)
-          pprint $ concat [ pretty (100.0 × dbl r / dbl (r+w)) , ppText "%" ]
+    -- "lr-accuracy":xsfn:ysfn:mdfn:[] → do
+    --   do pprint $ ppHeader "ACCURACY TEST" ; flushOut
+    --   sxs ← read xsfn
+    --   sys ← read ysfn
+    --   smd ← read mdfn
+    --   case (parseMatrix𝔻 sxs,parseMatrix𝔻 sys,parseMatrix𝔻 smd) of
+    --     (ExMatrix mxs,ExMatrix mys,ExMatrix mmd) → do
+    --       let xs ∷ ExMatrix 𝔻
+    --           xs = ExMatrix mxs
+    --           ys ∷ DuetVector 𝔻
+    --           ys = list mys
+    --           md ∷ DuetVector 𝔻
+    --           md = list mmd
+    --           (r :* w) = accuracy xs ys md
+    --       write "out/acc.csv" (intercalate "," (map show𝕊 (list [r,w])))
+    --       pprint (r,w)
+    --       pprint $ concat [ pretty (100.0 × dbl r / dbl (r+w)) , ppText "%" ]
     "run":fn:_ → do
       undefined
       -- make this spit out concrete privacy costs based on the input

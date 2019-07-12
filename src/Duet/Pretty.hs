@@ -42,9 +42,9 @@ instance Pretty Kind where
     TypeK → ppKeyPun "☆"
     CxtK → ppKeyPun "cxt"
 
-instance Pretty TermVar where
+instance Pretty ProgramVar where
   pretty = \case
-    PLVar x → concat[ppKeyPun "𝕏ₚₗ",ppPun "[",pretty x,ppPun "]"]
+    TMVar x → concat[ppKeyPun "𝕏ₚₗ",ppPun "[",pretty x,ppPun "]"]
     TLVar x → concat[ppKeyPun "𝕏ₜₗ",ppPun "[",pretty x,ppPun "]"]
 
 instance Pretty Norm where
