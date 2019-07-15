@@ -309,6 +309,11 @@ freshenType ρ β τ''' n = let nplusone = n + one in
       (CxtT xs' :* n)
     BoxedT sσ₁ τ₁ → undefined
 
+freshenTMV ∷ (𝕏 ⇰ 𝕏) → 𝕏 → 𝕏
+freshenTMV β x = case β ⋕? x of
+  None → x
+  Some x' → x'
+
 freshenRef ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → ProgramVar → ProgramVar
 freshenRef ρ β tv = case tv of
   TLVar tlx → case ρ ⋕? tlx of
@@ -572,7 +577,6 @@ data SVTParams (p ∷ PRIV) where
 deriving instance Eq (SVTParams p)
 deriving instance Ord (SVTParams p)
 deriving instance Show (SVTParams p)
-
 
 instance Pretty (SExp p) where pretty _ = ppLit "SEXP"
 instance Pretty (PExp p) where pretty _ = ppLit "PEXP"

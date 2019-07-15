@@ -566,34 +566,6 @@ inferSens eA = case extract eA of
         , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
         ]
 
-isRealMExp ∷ MExp RNF → PM p 𝔹
-isRealMExp me = case me of
-  EmptyME → do
-    return False
-  VarME x → do
-    ᴍ ← askL contextMExpL
-    case ᴍ ⋕? x of
-      None → error $ "isRealMExp: " ⧺ fromString (show x) -- TypeSource Error
-      Some m → do
-        isRealMExp $ m
-  ConsME τ me₁ → do
-    let b = isRealType τ
-    a ← isRealMExp $ me₁
-    return $ a ⩓ b
-  AppendME me₁ me₂ → do
-    a ← isRealMExp $ me₁
-    b ← isRealMExp $ me₂
-    return $ a ⩓ b
-  RexpME _r τ → return $ isRealType τ
-
-isRealType :: (Type r) → 𝔹
-isRealType (ℝˢT _r) = True
-isRealType (ℝT) = True
-isRealType _ = False
-
-matchArgPrivs ∷ 𝐿 (𝕏 ⇰ Sens RNF) → 𝐿 (Pr p RNF) → 𝐿 (𝕏 ⇰ Pr p RNF)
-matchArgPrivs xss xps = list $ zipWith (↦) (fold Nil (⧺) (map (list ∘ uniques ∘ keys) xss)) xps
-
 inferPriv ∷ ∀ p. (PRIV_C p) ⇒ PExpSource p → PM p (Type RNF)
 inferPriv eA = case extract eA of
   ReturnPE e → pmFromSM $ inferSens e
@@ -810,8 +782,8 @@ substTypeR x' r' τ' = case τ' of
   ForallT x κ τ → ForallT x κ $ substTypeR x' r' τ
   _ → error $ "error in substTypeR: " ⧺ pprender τ'
 
-freshenTerm ∷ ∀ p. (PRIV_C p) ⇒ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → SExpSource p → ℕ → SM p (SExpSource p ∧ ℕ)
-freshenTerm ρ β eA nInit = do
+freshenSTerm ∷ ∀ p. (PRIV_C p) ⇒ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → SExpSource p → ℕ → SM p (SExpSource p ∧ ℕ)
+freshenSTerm ρ β eA nInit = do
   let np1 = nInit + one
   let ecxt = annotatedTag eA
   let (z :* nFinal) = case extract eA of
@@ -819,14 +791,56 @@ freshenTerm ρ β eA nInit = do
         ℝˢSE d → (ℝˢSE d :* nInit)
         ℕSE n → (ℕSE n :* nInit)
         ℝSE d → (ℝSE d :* nInit)
-        -- TODO
-        VarSE x → (VarSE x :* nInit)
-        LetSE x e₁ e₂ → (LetSE x e₁ e₂ :* nInit)
-        TAbsSE x κ e → (TAbsSE x κ e :* nInit)
-        TAppSE e τ' → (TAppSE e τ' :* nInit)
-        SFunSE x τ e → (SFunSE x τ e :* nInit)
-        AppSE e₁ xsO e₂ → (AppSE e₁ xsO e₂ :* nInit)
-        PFunSE x τ e → (PFunSE x τ e :* nInit)
+        VarSE x → (VarSE (freshenTMV β x) :* nInit)
+        LetSE x e₁ e₂ → do
+          let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
+          e₁' :* n' ← freshenSTerm ρ β e₁ np1
+          e₂' :* n'' ← freshenSTerm ρ ((x↦ xⁿ) ⩌ β) e₁ n'
+          (LetSE xⁿ e₁' e₂' :* n'')
+        TAbsSE x κ e → do
+          let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
+          e' :* n' ← freshenSTerm ((x↦ xⁿ) ⩌ ρ) β e np1
+          (TAbsSE xⁿ κ e' :* n')
+        TAppSE e τ → do
+          e' :* n' ← freshenSTerm ρ β e nInit
+          τ' :* n'' ← freshenType ρ β τ n'
+          (TAppSE e' τ' :* n'')
+        SFunSE x τ e → do
+          let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
+          τ' :* n' ← freshenType ρ β τ np1
+          e' :* n'' ← freshenSTerm ρ ((x↦ xⁿ) ⩌ β) e n'
+          (SFunSE xⁿ τ' e' :* n'')
+        AppSE e₁ xsO e₂ → do
+          e₁' :* n' ← freshenSTerm ρ β e₁ nInit
+          let xsO' = map (\x → freshenRef ρ β x) xsO
+          e₂' :* n'' ← freshenSTerm ρ β e₁ n'
+          (AppSE e₁' xsO' e₂' :* n'')
+        PFunSE x τ e → do
+          let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
+          τ' :* n' ← freshenType ρ β τ np1
+          e' :* n'' ← freshenPTerm ρ ((x↦ xⁿ) ⩌ β) e n'
+          (PFunSE xⁿ τ' e' :* n'')
+  return $ (Annotated ecxt $ z) :* nFinal
+
+
+freshenPTerm ∷ ∀ p. (PRIV_C p) ⇒ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → PExpSource p → ℕ → SM p (SExpSource p ∧ ℕ)
+freshenPTerm ρ β eA nInit = do
+  let np1 = nInit + one
+  let ecxt = annotatedTag eA
+  let (z :* nFinal) = case extract eA of
+        ReturnPE e → do
+          e' :* n' ← freshenSTerm ρ β e nInit
+          (ReturnPE e' :* n')
+        BindPE x e₁ e₂ → do
+          let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
+          e₁' :* n' ← freshenPTerm ρ β e₁ np1
+          e₂' :* n'' ← freshenPTerm ρ ((x↦ xⁿ) ⩌ β) e₁ n'
+          (BindPE xⁿ e₁' e₂' :* n'')
+        AppPE e₁ xsO e₂ → do
+          e₁' :* n' ← freshenSTerm ρ β e₁ nInit
+          let xsO' = map (\x → freshenRef ρ β x) xsO
+          e₂' :* n'' ← freshenSTerm ρ β e₁ n'
+          (AppPE e₁' xsO' e₂' :* n'')
   return $ (Annotated ecxt $ z) :* nFinal
 
 getTMVs ∷ 𝐿 ProgramVar → 𝐿 ProgramVar → 𝐿 ProgramVar
@@ -849,3 +863,32 @@ joinConsMs :: (MExp r) → (MExp r) → (MExp r)
 joinConsMs (ConsME τ me₁) me₂ = (ConsME τ (joinConsMs me₁ me₂))
 joinConsMs EmptyME me = me
 joinConsMs _ _ = error "joinConsMs error: expected ConsME or EmptyME"
+
+
+isRealMExp ∷ MExp RNF → PM p 𝔹
+isRealMExp me = case me of
+  EmptyME → do
+    return False
+  VarME x → do
+    ᴍ ← askL contextMExpL
+    case ᴍ ⋕? x of
+      None → error $ "isRealMExp: " ⧺ fromString (show x) -- TypeSource Error
+      Some m → do
+        isRealMExp $ m
+  ConsME τ me₁ → do
+    let b = isRealType τ
+    a ← isRealMExp $ me₁
+    return $ a ⩓ b
+  AppendME me₁ me₂ → do
+    a ← isRealMExp $ me₁
+    b ← isRealMExp $ me₂
+    return $ a ⩓ b
+  RexpME _r τ → return $ isRealType τ
+
+isRealType :: (Type r) → 𝔹
+isRealType (ℝˢT _r) = True
+isRealType (ℝT) = True
+isRealType _ = False
+
+matchArgPrivs ∷ 𝐿 (𝕏 ⇰ Sens RNF) → 𝐿 (Pr p RNF) → 𝐿 (𝕏 ⇰ Pr p RNF)
+matchArgPrivs xss xps = list $ zipWith (↦) (fold Nil (⧺) (map (list ∘ uniques ∘ keys) xss)) xps

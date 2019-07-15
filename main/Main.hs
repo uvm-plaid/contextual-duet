@@ -8,11 +8,15 @@ initEnv = dict
   -- var "sign" ↦ ((Nil :* ℝT) :⊸: (one :* ℝT))
   ]
 
--- get type from SM
-
 getTypeFromSM ∷ (TypeError ∨ ((ℕ ∧ (ProgramVar ⇰ Sens RNF)) ∧ (𝕏 ⇰ Type RNF))) → 𝕏 ⇰ Type RNF
 getTypeFromSM = \case
   Inl _ → error "getTypeFromSM"
+  Inr (_ :* a) → a
+
+
+getSExpFromSM ∷ (TypeError ∨ ((ℕ ∧ (ProgramVar ⇰ Sens RNF)) ∧ (SExpSource a ∧ ℕ))) → SExpSource a ∧ ℕ
+getSExpFromSM = \case
+  Inl _ → error "getSExpFromSM"
   Inr (_ :* a) → a
 
 parseMode ∷ 𝕊 → Ex_C PRIV_C PRIV_W
@@ -119,9 +123,9 @@ main = do
         do pprint $ ppHeader "TYPE CHECKING" ; flushOut
         -- TODO: universal mode
         initEnv₂ :* tCheck' ← time (\ () → runSM dø initEnv₁ dø 0 (inferPrimitives @ 'ED initEnv₁)) ()
-        -- e₁ :* tCheck'' ← time (\ () → runSM dø (getTypeFromSM initEnv₂) dø 0 (freshenTerm e)) ()
-
-        r :* tCheck ← time (\ () → runSM dø (getTypeFromSM initEnv₂) dø 0 (inferSens e)) ()
+        e₁ :* tCheck'' ← time (\ () → runSM dø (getTypeFromSM initEnv₂) dø 0 (freshenSTerm dø dø e 0)) ()
+        let (e₁' :* n) = getSExpFromSM e₁
+        r :* tCheck ← time (\ () → runSM dø (getTypeFromSM initEnv₂) dø n (inferSens e₁')) ()
         do out $ "(" ⧺ show𝕊 (secondsTimeD tCheck) ⧺ "s)" ; flushOut
         _ ← shell $ "echo " ⧺ show𝕊 (secondsTimeD tCheck) ⧺ " >> typecheck-times"
         do pprint $ ppHeader "DONE" ; flushOut
