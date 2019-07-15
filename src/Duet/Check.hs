@@ -786,40 +786,40 @@ freshenSTerm ∷ ∀ p. (PRIV_C p) ⇒ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → S
 freshenSTerm ρ β eA nInit = do
   let np1 = nInit + one
   let ecxt = annotatedTag eA
-  let (z :* nFinal) = case extract eA of
-        ℕˢSE n → (ℕˢSE n :* nInit)
-        ℝˢSE d → (ℝˢSE d :* nInit)
-        ℕSE n → (ℕSE n :* nInit)
-        ℝSE d → (ℝSE d :* nInit)
-        VarSE x → (VarSE (freshenTMV β x) :* nInit)
+  (z :* nFinal) ← case extract eA of
+        ℕˢSE n → return (ℕˢSE n :* nInit)
+        ℝˢSE d → return (ℝˢSE d :* nInit)
+        ℕSE n → return (ℕSE n :* nInit)
+        ℝSE d → return (ℝSE d :* nInit)
+        VarSE x → return (VarSE (freshenTMV β x) :* nInit)
         LetSE x e₁ e₂ → do
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
           e₁' :* n' ← freshenSTerm ρ β e₁ np1
           e₂' :* n'' ← freshenSTerm ρ ((x↦ xⁿ) ⩌ β) e₁ n'
-          (LetSE xⁿ e₁' e₂' :* n'')
+          return (LetSE xⁿ e₁' e₂' :* n'')
         TAbsSE x κ e → do
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
           e' :* n' ← freshenSTerm ((x↦ xⁿ) ⩌ ρ) β e np1
-          (TAbsSE xⁿ κ e' :* n')
+          return (TAbsSE xⁿ κ e' :* n')
         TAppSE e τ → do
           e' :* n' ← freshenSTerm ρ β e nInit
           τ' :* n'' ← freshenType ρ β τ n'
-          (TAppSE e' τ' :* n'')
+          return (TAppSE e' τ' :* n'')
         SFunSE x τ e → do
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
           τ' :* n' ← freshenType ρ β τ np1
           e' :* n'' ← freshenSTerm ρ ((x↦ xⁿ) ⩌ β) e n'
-          (SFunSE xⁿ τ' e' :* n'')
+          return (SFunSE xⁿ τ' e' :* n'')
         AppSE e₁ xsO e₂ → do
           e₁' :* n' ← freshenSTerm ρ β e₁ nInit
           let xsO' = map (\x → freshenRef ρ β x) xsO
           e₂' :* n'' ← freshenSTerm ρ β e₁ n'
-          (AppSE e₁' xsO' e₂' :* n'')
+          return (AppSE e₁' xsO' e₂' :* n'')
         PFunSE x τ e → do
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
           τ' :* n' ← freshenType ρ β τ np1
           e' :* n'' ← freshenPTerm ρ ((x↦ xⁿ) ⩌ β) e n'
-          (PFunSE xⁿ τ' e' :* n'')
+          return (PFunSE xⁿ τ' e' :* n'')
   return $ (Annotated ecxt $ z) :* nFinal
 
 
