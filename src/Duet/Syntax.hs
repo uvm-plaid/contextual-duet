@@ -252,6 +252,10 @@ data Type r =
   -- - contextual/lazy function, pair, and sum connectives
   deriving (Eq,Ord,Show)
 
+class Substitution r where subst ∷ 𝕏 → r → r → r
+
+instance Substitution RNF where subst = substRNF
+instance Substitution RExp where subst = substRExp
 
 freshenType ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → Type RNF → ℕ → (Type RNF ∧ ℕ)
 freshenType ρ β τ''' n = let nplusone = n + one in
@@ -308,6 +312,14 @@ freshenType ρ β τ''' n = let nplusone = n + one in
       let xs' = pow $ map (\x → freshenRef ρ β x) $ list xs
       (CxtT xs' :* n)
     BoxedT sσ₁ τ₁ → undefined
+
+substAlphaRExp ∷ 𝐿 (𝕏 ∧ 𝕏) → RExp → RExp
+substAlphaRExp Nil r = r
+substAlphaRExp ((x₁:*x₂):&ρ) r = substAlphaRExp ρ $ substRExp x₁ (varRE x₂) r
+
+substAlphaRNF ∷ 𝐿 (𝕏 ∧ 𝕏) → RNF → RNF
+substAlphaRNF Nil r = r
+substAlphaRNF ((x₁:*x₂):&ρ) r = substAlphaRNF ρ $ substRNF x₁ (varRNF x₂) r
 
 freshenTMV ∷ (𝕏 ⇰ 𝕏) → 𝕏 → 𝕏
 freshenTMV β x = case β ⋕? x of
@@ -405,10 +417,6 @@ alphaEquivRows ρ rows₁ rows₂ = case (rows₁,rows₂) of
   (StarRT, StarRT) → True
   (RexpRT r₁, RexpRT r₂) → (substAlphaRNF (list ρ) r₁) ≡ r₂
   _ → False
-
-substAlphaRNF ∷ 𝐿 (𝕏 ∧ 𝕏) → RNF → RNF
-substAlphaRNF Nil r = r
-substAlphaRNF ((x₁:*x₂):&ρ) r = substAlphaRNF ρ $ substRNF x₁ (varRNF x₂) r
 
 data TLExp r =
     VarTE 𝕏
@@ -522,61 +530,61 @@ data Grad = LR
   deriving (Eq,Ord,Show)
 makePrettySum ''Grad
 
-type SExpSource (p ∷ PRIV) = Annotated FullContext (SExp p)
+type SExpSource (p ∷ PRIV) r = Annotated FullContext (SExp p r)
 -- this is using GADT syntax and extension
-data SExp (p ∷ PRIV) where
-  ℕˢSE ∷ ℕ → SExp p
-  ℝˢSE ∷ 𝔻 → SExp p
-  ℕSE ∷ ℕ → SExp p
-  ℝSE ∷ 𝔻 → SExp p
-  TrueSE ∷ SExp p
-  FalseSE ∷ SExp p
-  VarSE ∷ 𝕏 → SExp p
-  LetSE ∷ 𝕏  → SExpSource p → SExpSource p → SExp p
-  SFunSE ∷ 𝕏  → TypeSource RExp → SExpSource p → SExp p
-  AppSE ∷ SExpSource p → 𝑂 (𝐿 ProgramVar) → SExpSource p → SExp p
-  PFunSE ∷ 𝕏 → TypeSource RExp → PExpSource p → SExp p
-  TAbsSE ∷ 𝕏 → Kind → SExpSource p → SExp p
-  TAppSE ∷ SExpSource p → TypeSource RExp → SExp p
+data SExp (p ∷ PRIV) r where
+  ℕˢSE ∷ ℕ → SExp p r
+  ℝˢSE ∷ 𝔻 → SExp p r
+  ℕSE ∷ ℕ → SExp p r
+  ℝSE ∷ 𝔻 → SExp p r
+  TrueSE ∷ SExp p r
+  FalseSE ∷ SExp p r
+  VarSE ∷ 𝕏 → SExp p r
+  LetSE ∷ 𝕏  → SExpSource p r → SExpSource p r → SExp p r
+  SFunSE ∷ 𝕏  → TypeSource r → SExpSource p r → SExp p r
+  AppSE ∷ SExpSource p r → 𝑂 (𝐿 ProgramVar) → SExpSource p r → SExp p r
+  PFunSE ∷ 𝕏 → TypeSource r → PExpSource p r → SExp p r
+  TAbsSE ∷ 𝕏 → Kind → SExpSource p r → SExp p r
+  TAppSE ∷ SExpSource p r → TypeSource r → SExp p r
   deriving (Eq,Ord,Show)
 
-type PExpSource (p ∷ PRIV) = Annotated FullContext (PExp p)
-data PExp (p ∷ PRIV) where
-  ReturnPE ∷ SExpSource p → PExp p
-  BindPE ∷ 𝕏 → PExpSource p → PExpSource p → PExp p
-  AppPE ∷ SExpSource p → 𝑂 (𝐿 ProgramVar) → SExpSource p → PExp p
+type PExpSource (p ∷ PRIV) r = Annotated FullContext (PExp p r)
+data PExp (p ∷ PRIV) r where
+  ReturnPE ∷ SExpSource p r → PExp p r
+  BindPE ∷ 𝕏 → PExpSource p r → PExpSource p r → PExp p r
+  AppPE ∷ SExpSource p r → 𝑂 (𝐿 ProgramVar) → SExpSource p r → PExp p r
 
-deriving instance Eq (PExp p)
-deriving instance Ord (PExp p)
-deriving instance Show (PExp p)
+deriving instance (Eq r) ⇒ Eq (PExp p r)
+deriving instance (Ord r) ⇒ Ord (PExp p r)
+deriving instance (Show r) ⇒ Show (PExp p r)
 
-data GaussParams (p ∷ PRIV) where
-  EDGaussParams ∷ SExpSource 'ED → SExpSource 'ED → GaussParams 'ED
-  RenyiGaussParams ∷ SExpSource 'RENYI → SExpSource 'RENYI → GaussParams 'RENYI
-  TCGaussParams ∷ SExpSource 'TC → SExpSource 'TC → GaussParams 'TC
-  ZCGaussParams ∷ SExpSource 'ZC → GaussParams 'ZC
-deriving instance Eq (GaussParams p)
-deriving instance Ord (GaussParams p)
-deriving instance Show (GaussParams p)
+data GaussParams (p ∷ PRIV) r where
+  EDGaussParams ∷ SExpSource 'ED r → SExpSource 'ED r → GaussParams 'ED r
+  RenyiGaussParams ∷ SExpSource 'RENYI r → SExpSource 'RENYI r → GaussParams 'RENYI r
+  TCGaussParams ∷ SExpSource 'TC r → SExpSource 'TC r → GaussParams 'TC r
+  ZCGaussParams ∷ SExpSource 'ZC r → GaussParams 'ZC r
+deriving instance (Eq r) ⇒  Eq (GaussParams p r)
+deriving instance (Ord r) ⇒ Ord (GaussParams p r)
+deriving instance (Show r) ⇒ Show (GaussParams p r)
 
-data LaplaceParams (p ∷ PRIV) where
-  EpsLaplaceParams ∷ SExpSource 'EPS → LaplaceParams 'EPS
-deriving instance Eq (LaplaceParams p)
-deriving instance Ord (LaplaceParams p)
-deriving instance Show (LaplaceParams p)
+data LaplaceParams (p ∷ PRIV) r where
+  EpsLaplaceParams ∷ SExpSource 'EPS r → LaplaceParams 'EPS r
+deriving instance (Eq r) ⇒   Eq (LaplaceParams p r)
+deriving instance (Ord r) ⇒  Ord (LaplaceParams p r)
+deriving instance (Show r) ⇒ Show (LaplaceParams p r)
 
-data ExponentialParams (p ∷ PRIV) where
-  EDExponentialParams ∷ SExpSource 'ED → ExponentialParams 'ED
-deriving instance Eq (ExponentialParams p)
-deriving instance Ord (ExponentialParams p)
-deriving instance Show (ExponentialParams p)
+data ExponentialParams (p ∷ PRIV) r where
+  EDExponentialParams ∷ SExpSource 'ED r → ExponentialParams 'ED r
+deriving instance (Eq r) ⇒   Eq (ExponentialParams p r)
+deriving instance (Ord r) ⇒  Ord (ExponentialParams p r)
+deriving instance (Show r) ⇒ Show (ExponentialParams p r)
 
-data SVTParams (p ∷ PRIV) where
-  EPSSVTParams ∷ SExpSource 'EPS → SVTParams 'EPS
-  EDSVTParams ∷ SExpSource 'ED → SVTParams 'ED
-deriving instance Eq (SVTParams p)
-deriving instance Ord (SVTParams p)
-deriving instance Show (SVTParams p)
+data SVTParams (p ∷ PRIV) r where
+  EPSSVTParams ∷ SExpSource 'EPS r → SVTParams 'EPS r
+  EDSVTParams ∷ SExpSource 'ED r → SVTParams 'ED r
+deriving instance (Eq r) ⇒   Eq (SVTParams p r)
+deriving instance (Ord r) ⇒  Ord (SVTParams p r)
+deriving instance (Show r) ⇒ Show (SVTParams p r)
 
-instance Pretty (SExp p) where pretty _ = ppLit "SEXP"
-instance Pretty (PExp p) where pretty _ = ppLit "PEXP"
+instance Pretty (SExp p r) where pretty _ = ppLit "SEXP"
+instance Pretty (PExp p r) where pretty _ = ppLit "PEXP"

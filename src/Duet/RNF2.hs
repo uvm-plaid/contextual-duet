@@ -1101,6 +1101,26 @@ e1subst'' = substRNF (var "x") (varRNF (var "α")) e1
 e1subst' ∷ RNF
 e1subst' = substRNF (var "x") (substRNF (var "x") e1 e1) e1
 
+substRExp ∷ 𝕏 → RExp → RExp → RExp
+substRExp x rSub rTarget =
+  let rcxt = annotatedTag rTarget in
+  Annotated rcxt $ substRExPre x rSub (extract rTarget)
+
+substRExPre ∷ 𝕏 → RExp → RExpPre → RExpPre
+substRExPre x rSub rTarget = case rTarget of
+  VarRE x' → case x' ≡ x of
+    True → VarRE x
+    False → VarRE x'
+  ConstRE c → ConstRE c
+  MaxRE η₁ η₂ → MaxRE (substRExp x rSub η₁) (substRExp x rSub η₂)
+  MinRE η₁ η₂ → MinRE (substRExp x rSub η₁) (substRExp x rSub η₂)
+  PlusRE η₁ η₂ → PlusRE (substRExp x rSub η₁) (substRExp x rSub η₂)
+  TimesRE η₁ η₂ → TimesRE (substRExp x rSub η₁) (substRExp x rSub η₂)
+  DivRE η₁ η₂ → DivRE (substRExp x rSub η₁) (substRExp x rSub η₂)
+  PowRE c η → PowRE c $ substRExp x rSub η
+  EfnRE η → EfnRE $ substRExp x rSub η
+  LogRE η → LogRE $ substRExp x rSub η
+
 substRNF ∷ 𝕏 → RNF → RNF → RNF
 substRNF _ _ (ConstantRNF a) = ConstantRNF a
 substRNF x r' (SymRNF maxs) = substRNFMaxs x r' maxs

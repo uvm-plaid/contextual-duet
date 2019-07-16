@@ -803,7 +803,8 @@ freshenSTerm ρ β eA nInit = do
           return (TAbsSE xⁿ κ e' :* n')
         TAppSE e τ → do
           e' :* n' ← freshenSTerm ρ β e nInit
-          τ' :* n'' ← freshenType ρ β τ n'
+          let tcxt = annotatedTag τ
+          let τ' :* n'' = freshenType ρ β (extract τ) n'
           return (TAppSE e' τ' :* n'')
         SFunSE x τ e → do
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
@@ -863,7 +864,6 @@ joinConsMs :: (MExp r) → (MExp r) → (MExp r)
 joinConsMs (ConsME τ me₁) me₂ = (ConsME τ (joinConsMs me₁ me₂))
 joinConsMs EmptyME me = me
 joinConsMs _ _ = error "joinConsMs error: expected ConsME or EmptyME"
-
 
 isRealMExp ∷ MExp RNF → PM p 𝔹
 isRealMExp me = case me of
