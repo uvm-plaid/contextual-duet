@@ -252,11 +252,6 @@ data Type r =
   -- - contextual/lazy function, pair, and sum connectives
   deriving (Eq,Ord,Show)
 
-class Substitution r where subst ∷ 𝕏 → r → r → r
-
-instance Substitution RNF where subst = substRNF
-instance Substitution RExp where subst = substRExp
-
 freshenType ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → Type RNF → ℕ → (Type RNF ∧ ℕ)
 freshenType ρ β τ''' n = let nplusone = n + one in
   case τ''' of

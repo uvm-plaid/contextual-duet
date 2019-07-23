@@ -442,17 +442,17 @@ inferType τinit = do
         τ₁' ← inferType τ₁
         τ₂' ← inferType τ₂
         σ' ← fixTVs σ
-        return $ (x :* τ₁') :⊸: (σ' :* τ₂')
+        freshenSM $ (x :* τ₁') :⊸: (σ' :* τ₂')
     (x :* τ₁) :⊸⋆: (PEnv σ :* τ₂) → do
       mapEnvL contextTypeL ( \ γ → (x ↦ τ₁) ⩌ γ) $ do
         τ₁' ← inferType τ₁
         τ₂' ← inferType τ₂
         σ' ← fixTVs σ
-        return $ (x :* τ₁') :⊸⋆: (PEnv σ' :* τ₂')
+        freshenSM $ (x :* τ₁') :⊸⋆: (PEnv σ' :* τ₂')
     ForallT x κ τ → do
       mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
         τ' ← inferType τ
-        return $ ForallT x κ τ'
+        freshenSM $ ForallT x κ τ'
     CxtT xs → return $ CxtT xs
     _ → error "inferType missing/unexpected case"
 
