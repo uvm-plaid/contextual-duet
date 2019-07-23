@@ -548,11 +548,31 @@ data SExp (p ∷ PRIV) r where
   TAppSE ∷ SExpSource p r → TypeSource r → SExp p r
   deriving (Eq,Ord,Show)
 
+instance Functor (SExp p) where
+  map f (ℕˢSE n) = (ℕˢSE n)
+  map f (ℝˢSE d) = (ℝˢSE d)
+  map f (ℕSE n) = (ℕSE n)
+  map f (ℝSE d) = (ℝSE d)
+  map f (TrueSE) = (TrueSE)
+  map f (FalseSE) = (FalseSE)
+  map f (VarSE x) = (VarSE x)
+  map f (LetSE x e₁ e₂) = (LetSE x (mapp f e₁) (mapp f e₂))
+  map f (SFunSE x τ e) = (SFunSE x (mapp f τ) (mapp f e))
+  map f (AppSE e₁ xs e₂) = (AppSE (mapp f e₁) xs (mapp f e₂))
+  map f (PFunSE x τ e) = (PFunSE x (mapp f τ) (mapp f e))
+  map f (TAbsSE x κ e) = (TAbsSE x κ (mapp f e))
+  map f (TAppSE e τ) = (TAppSE (mapp f e) (mapp f τ))
+
 type PExpSource (p ∷ PRIV) r = Annotated FullContext (PExp p r)
 data PExp (p ∷ PRIV) r where
   ReturnPE ∷ SExpSource p r → PExp p r
   BindPE ∷ 𝕏 → PExpSource p r → PExpSource p r → PExp p r
   AppPE ∷ SExpSource p r → 𝑂 (𝐿 ProgramVar) → SExpSource p r → PExp p r
+
+instance Functor (PExp p) where
+  map f (ReturnPE e) = (ReturnPE (mapp f e))
+  map f (BindPE x e₁ e₂) = (BindPE x (mapp f e₁) (mapp f e₂))
+  map f (AppPE e₁ xs e₂) = (AppPE (mapp f e₁) xs (mapp f e₂))
 
 deriving instance (Eq r) ⇒ Eq (PExp p r)
 deriving instance (Ord r) ⇒ Ord (PExp p r)

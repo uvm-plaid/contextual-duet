@@ -253,111 +253,118 @@ checkPriv = \case
     checkKind ℝK r₂
 
 checkKind ∷ Kind → RExpPre → SM p ()
-checkKind κ r = do
-  κ' ← inferKind r
-  case κ' ⊑ κ of
-    True → return ()
-    False → error $ "kind error on : " ⧺ pprender r ⧺ ", expected: " ⧺ pprender κ' ⧺ " to be a subtype of " ⧺ pprender κ
+checkKind κ r = return ()
+-- checkKind κ r = do
+--   κ' ← inferKind r
+--   case κ' ⊑ κ of
+--     True → return ()
+--     False → error $ "kind error on : " ⧺ pprender r ⧺ ", expected: " ⧺ pprender κ' ⧺ " to be a subtype of " ⧺ pprender κ
 
 frKindEM ∷ KindE → SM p Kind
 frKindEM κ = case frKindE κ of
   None → error "kind error"
   Some κ → return κ
 
-inferKind ∷ RExpPre → SM p Kind
-inferKind = \case
-  VarRE x → inferKindVar x
-  ConstRE Top → return ℝK
-  ConstRE (AddTop r)
-    | dbl (truncate r) ≡ r → return ℕK
-    | otherwise            → return ℝK
-  MaxRE e₁ e₂ → do
-    κ₁ ← inferKind $ extract e₁
-    κ₂ ← inferKind $ extract e₂
-    frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
-  MinRE e₁ e₂ → do
-    κ₁ ← inferKind $ extract e₁
-    κ₂ ← inferKind $ extract e₂
-    frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
-  PlusRE e₁ e₂ → do
-    κ₁ ← inferKind $ extract e₁
-    κ₂ ← inferKind $ extract e₂
-    frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
-  TimesRE e₁ e₂ → do
-    κ₁ ← inferKind $ extract e₁
-    κ₂ ← inferKind $ extract e₂
-    frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
-  PowRE q e → do
-    κ ← inferKind $ extract e
-    return $ case ratDen q ≡ 1 of
-      True → κ
-      False → ℝK
-  EfnRE e → do
-    void $ inferKind $ extract e
-    return ℝK
-  LogRE e → do
-    void $ inferKind $ extract e
-    return ℝK
-  DivRE e₁ e₂ → do
-    κ₁ ← inferKind $ extract e₁
-    κ₂ ← inferKind $ extract e₂
-    frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
+-- inferKind ∷ RExpPre → SM p Kind
+-- inferKind _ = return ()
+
+-- inferKind ∷ RExpPre → SM p Kind
+-- inferKind = \case
+--   VarRE x → inferKindVar x
+--   ConstRE Top → return ℝK
+--   ConstRE (AddTop r)
+--     | dbl (truncate r) ≡ r → return ℕK
+--     | otherwise            → return ℝK
+--   MaxRE e₁ e₂ → do
+--     κ₁ ← inferKind $ extract e₁
+--     κ₂ ← inferKind $ extract e₂
+--     frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
+--   MinRE e₁ e₂ → do
+--     κ₁ ← inferKind $ extract e₁
+--     κ₂ ← inferKind $ extract e₂
+--     frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
+--   PlusRE e₁ e₂ → do
+--     κ₁ ← inferKind $ extract e₁
+--     κ₂ ← inferKind $ extract e₂
+--     frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
+--   TimesRE e₁ e₂ → do
+--     κ₁ ← inferKind $ extract e₁
+--     κ₂ ← inferKind $ extract e₂
+--     frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
+--   PowRE q e → do
+--     κ ← inferKind $ extract e
+--     return $ case ratDen q ≡ 1 of
+--       True → κ
+--       False → ℝK
+--   EfnRE e → do
+--     void $ inferKind $ extract e
+--     return ℝK
+--   LogRE e → do
+--     void $ inferKind $ extract e
+--     return ℝK
+--   DivRE e₁ e₂ → do
+--     κ₁ ← inferKind $ extract e₁
+--     κ₂ ← inferKind $ extract e₂
+--     frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
 
 -- kind checking
-checkType ∷ ∀ p. (PRIV_C p) ⇒ Type RExp → SM p ()
-checkType τA = case τA of
-  ℕˢT η → checkKind ℕK $ extract η
-  ℝˢT η → checkKind ℝK $ extract η
-  ℕT → skip
-  ℝT → skip
-  𝕀T η → checkKind ℕK $ extract η
-  𝔹T → skip
-  𝕊T → skip
-  SetT τ → checkType τ
-  𝕄T _ℓ _c rows me → do
-    case rows of
-      RexpRT r → do
-        checkKind ℕK $ extract r
-      StarRT → skip
-    case me of
-      EmptyME → skip
-      VarME x → checkSchemaVar x
-      ConsME (τ ∷ Type RExp) (me ∷ MExp RExp) → undefined
-      AppendME (me₁ ∷ MExp RExp) (me₂ ∷ MExp RExp) → undefined
-      RexpME r τ → do
-        checkKind ℕK $ extract r
-        checkType τ
-  𝔻T τ → checkType τ
-  τ₁ :⊕: τ₂ → do
-    checkType τ₁
-    checkType τ₂
-  τ₁ :⊗: τ₂ → do
-    checkType τ₁
-    checkType τ₂
-  τ₁ :&: τ₂ → do
-    checkType τ₁
-    checkType τ₂
-  (x :* τ₁) :⊸: (sσ :* τ₂) → do
-    checkType τ₁
-    mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
-      eachWith sσ $ \ (x' :* s) → do
-        -- TODO
-        -- void $ checkProgramVar x'
-        checkSens $ map extract s
-      checkType τ₂
-  (x :* τ₁) :⊸⋆: (PEnv (pσ ∷ ProgramVar ⇰ Pr p' RExp) :* τ₂) → do
-    checkType τ₁
-    mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
-      eachWith pσ $ \ (x' :* p) → do
-        -- TODO
-        -- void $ checkProgramVar x'
-        checkPriv $ map extract p
-      checkType τ₂
-  VarT x → void $ inferKindVar x
-  ForallT x κ τ → do
-    mapEnvL contextKindL ( \ γ → (x ↦ κ) ⩌ γ) $ do
-      checkType τ
-  _ → error $ "checkType error on " ⧺ pprender τA
+checkType ∷ ∀ p. (PRIV_C p) ⇒ Type RNF → SM p ()
+checkType _ = return ()
+
+-- checkType ∷ ∀ p. (PRIV_C p) ⇒ Type RNF → SM p ()
+-- checkType τA = case τA of
+--   ℕˢT η → checkKind ℕK $ extract η
+--   ℝˢT η → checkKind ℝK $ extract η
+--   ℕT → skip
+--   ℝT → skip
+--   𝕀T η → checkKind ℕK $ extract η
+--   𝔹T → skip
+--   𝕊T → skip
+--   SetT τ → checkType τ
+--   𝕄T _ℓ _c rows me → do
+--     case rows of
+--       RexpRT r → do
+--         checkKind ℕK $ extract r
+--       StarRT → skip
+--     case me of
+--       EmptyME → skip
+--       VarME x → checkSchemaVar x
+--       ConsME (τ ∷ Type RExp) (me ∷ MExp RExp) → undefined
+--       AppendME (me₁ ∷ MExp RExp) (me₂ ∷ MExp RExp) → undefined
+--       RexpME r τ → do
+--         checkKind ℕK $ extract r
+--         checkType τ
+--   𝔻T τ → checkType τ
+--   τ₁ :⊕: τ₂ → do
+--     checkType τ₁
+--     checkType τ₂
+--   τ₁ :⊗: τ₂ → do
+--     checkType τ₁
+--     checkType τ₂
+--   τ₁ :&: τ₂ → do
+--     checkType τ₁
+--     checkType τ₂
+--   (x :* τ₁) :⊸: (sσ :* τ₂) → do
+--     checkType τ₁
+--     mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
+--       eachWith sσ $ \ (x' :* s) → do
+--         -- TODO
+--         -- void $ checkProgramVar x'
+--         checkSens $ map extract s
+--       checkType τ₂
+--   (x :* τ₁) :⊸⋆: (PEnv (pσ ∷ ProgramVar ⇰ Pr p' RExp) :* τ₂) → do
+--     checkType τ₁
+--     mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
+--       eachWith pσ $ \ (x' :* p) → do
+--         -- TODO
+--         -- void $ checkProgramVar x'
+--         checkPriv $ map extract p
+--       checkType τ₂
+--   VarT x → void $ inferKindVar x
+--   ForallT x κ τ → do
+--     mapEnvL contextKindL ( \ γ → (x ↦ κ) ⩌ γ) $ do
+--       checkType τ
+--   _ → error $ "checkType error on " ⧺ pprender τA
 
 freshenSM ∷ Type RNF → SM p (Type RNF)
 freshenSM τ = do
@@ -445,7 +452,7 @@ inferType τinit = do
     ForallT x κ τ → do
       mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
         τ' ← inferType τ
-        freshenSM $ ForallT x κ τ'
+        return $ ForallT x κ τ'
     CxtT xs → return $ CxtT xs
     _ → error "inferType missing/unexpected case"
 
@@ -465,7 +472,7 @@ inferMExp me = case me of
     τ' ← inferType τ
     return $ RexpME r τ'
 
-inferSens ∷ ∀ p. (PRIV_C p) ⇒ SExpSource p → SM p (Type RNF)
+inferSens ∷ ∀ p. (PRIV_C p) ⇒ SExpSource p RNF → SM p (Type RNF)
 inferSens eA = case extract eA of
   ℕˢSE n → return $ ℕˢT $ ι n
   ℝˢSE d → return $ ℝˢT $ ι d
@@ -494,29 +501,28 @@ inferSens eA = case extract eA of
   TAbsSE x κ e → do
     mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
       τ ← inferSens e
-      τ'''' ← freshenSM $ ForallT x κ τ
-      return τ''''
+      return $ ForallT x κ τ
   TAppSE e τ' → do
     τ ← inferSens e
     case τ of
       ForallT x κ τ → do
         let τ'' = case κ of
               ℕK → case extract τ' of
-                ℕˢT r → substTypeR x (normalizeRNF r) τ
+                ℕˢT r → substTypeR x r τ
                 VarT x' → substTypeR x (varRNF x') τ
                 _ → error $ "in type-level application: expected static nat, got: " ⧺ pprender τ'
               ℝK → case extract τ' of
-                ℝˢT r → substTypeR x (normalizeRNF r) τ
+                ℝˢT r → substTypeR x r τ
                 VarT x' → substTypeR x (varRNF x') τ
                 _ → error $ "in type-level application: expected static real, got: " ⧺ pprender τ'
               CxtK → case extract τ' of
                 CxtT xs → substTypeCxt x (list $ iter $ xs) τ
-              TypeK → checkOption $ checkTypeLang $ substTL x (typeToTLExp $ map normalizeRNF $ extract τ') (typeToTLExp τ)
-        freshenSM τ''
+              TypeK → checkOption $ checkTypeLang $ substTL x (typeToTLExp $ extract τ') (typeToTLExp τ)
+        return τ''
       _ → error $ "expected ForallT, got: " ⧺ pprender τ
   SFunSE x τ e → do
       checkType $ extract τ
-      let τ' = map normalizeRNF $ extract τ
+      let τ' = extract τ
       σ :* τ'' ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferSens e
       let σ' = case σ ⋕? TMVar x of
                  None → (TMVar x ↦ bot) ⩌ σ
@@ -524,7 +530,7 @@ inferSens eA = case extract eA of
       let σ'' = assoc $ map (\(TMVar x' :* s) → (TMVar x' :* s)) $ list σ'
       do
           tell $ snd $ ifNone (zero :* σ') $ dview (TMVar x) σ'
-          freshenSM $ (x :* τ') :⊸: (σ'' :* τ'')
+          return $ (x :* τ') :⊸: (σ'' :* τ'')
   AppSE e₁ xsO e₂ → do
     τ₁ ← inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
@@ -541,13 +547,14 @@ inferSens eA = case extract eA of
         tell $ (sσ ⋕! (TMVar x)) ⨵ (restrict xs σ₂)
         tell $ top ⨵ (without xs σ₂)
         tell $ without (single $ TMVar x) sσ
-        freshenSM τ₁₂
+        return $ substGammaSens σ₂ x τ₁₂
       (x :* τ₁₁) :⊸: (sσ :* τ₁₂) → error $ concat
-            [ "AppSE error 1 (argument type mismatch): "
+            [ "AppSE error 1 (argument type mismatch): \n"
             , "expected: " ⧺ pprender τ₁₁
             , "\n"
             , "got: " ⧺ pprender τ₂
             , "\n"
+            , "in the function: " ⧺ (pprender ((x :* τ₁₁) :⊸: (sσ :* τ₁₂)))
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             ]
       _ →  error $ concat
@@ -557,16 +564,16 @@ inferSens eA = case extract eA of
             ]
   PFunSE x τ e → do
     checkType $ extract τ
-    let τ' = map normalizeRNF $ extract τ
+    let τ' = extract τ
     σ :* τ'' ← smFromPM $ hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferPriv e
-    freshenSM $ (x :* τ') :⊸⋆: (PEnv σ :* τ'')
+    return $ (x :* τ') :⊸⋆: (PEnv σ :* τ'')
   _ → error $ concat
         [ "inferSens unknown expression type: "
         , "\n"
         , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
         ]
 
-inferPriv ∷ ∀ p. (PRIV_C p) ⇒ PExpSource p → PM p (Type RNF)
+inferPriv ∷ ∀ p. (PRIV_C p) ⇒ PExpSource p RNF → PM p (Type RNF)
 inferPriv eA = case extract eA of
   ReturnPE e → pmFromSM $ inferSens e
   BindPE x e₁ e₂ → do
@@ -597,7 +604,7 @@ inferPriv eA = case extract eA of
             tell $ σ₂'
             tell $ σinf
             tell σ''
-            freshenPM τ₁₂
+            return $ substGammaPr σ₂ x τ₁₂
       (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ ProgramVar ⇰ Pr p' RNF) :* τ₁₂) → error $ concat
             [ "AppPE error 1 (argument type/sensitivity mismatch): "
             , "expected: " ⧺ pprender τ₁₁
@@ -782,67 +789,138 @@ substTypeR x' r' τ' = case τ' of
   ForallT x κ τ → ForallT x κ $ substTypeR x' r' τ
   _ → error $ "error in substTypeR: " ⧺ pprender τ'
 
-freshenSTerm ∷ ∀ p. (PRIV_C p) ⇒ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → SExpSource p → ℕ → SM p (SExpSource p ∧ ℕ)
+freshenSTerm ∷ ∀ p. (PRIV_C p) ⇒ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → SExpSource p RNF → ℕ → SExpSource p RNF ∧ ℕ
 freshenSTerm ρ β eA nInit = do
   let np1 = nInit + one
   let ecxt = annotatedTag eA
-  (z :* nFinal) ← case extract eA of
-        ℕˢSE n → return (ℕˢSE n :* nInit)
-        ℝˢSE d → return (ℝˢSE d :* nInit)
-        ℕSE n → return (ℕSE n :* nInit)
-        ℝSE d → return (ℝSE d :* nInit)
-        VarSE x → return (VarSE (freshenTMV β x) :* nInit)
+  let (z :* nFinal) = case extract eA of
+        ℕˢSE n → (ℕˢSE n :* nInit)
+        ℝˢSE d → (ℝˢSE d :* nInit)
+        ℕSE n → (ℕSE n :* nInit)
+        ℝSE d → (ℝSE d :* nInit)
+        VarSE x → (VarSE (freshenTMV β x) :* nInit)
         LetSE x e₁ e₂ → do
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
-          e₁' :* n' ← freshenSTerm ρ β e₁ np1
-          e₂' :* n'' ← freshenSTerm ρ ((x↦ xⁿ) ⩌ β) e₁ n'
-          return (LetSE xⁿ e₁' e₂' :* n'')
+          let e₁' :* n' = freshenSTerm ρ β e₁ np1
+          let e₂' :* n'' = freshenSTerm ρ ((x↦ xⁿ) ⩌ β) e₂ n'
+          (LetSE xⁿ e₁' e₂' :* n'')
         TAbsSE x κ e → do
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
-          e' :* n' ← freshenSTerm ((x↦ xⁿ) ⩌ ρ) β e np1
-          return (TAbsSE xⁿ κ e' :* n')
+          let e' :* n' = freshenSTerm ((x↦ xⁿ) ⩌ ρ) β e np1
+          (TAbsSE xⁿ κ e' :* n')
         TAppSE e τ → do
-          e' :* n' ← freshenSTerm ρ β e nInit
+          let e' :* n' = freshenSTerm ρ β e nInit
           let tcxt = annotatedTag τ
           let τ' :* n'' = freshenType ρ β (extract τ) n'
-          return (TAppSE e' τ' :* n'')
+          (TAppSE e' (Annotated tcxt τ') :* n'')
         SFunSE x τ e → do
+          let tcxt = annotatedTag τ
+          let τ' :* n' = freshenType ρ β (extract τ) np1
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
-          τ' :* n' ← freshenType ρ β τ np1
-          e' :* n'' ← freshenSTerm ρ ((x↦ xⁿ) ⩌ β) e n'
-          return (SFunSE xⁿ τ' e' :* n'')
+          let e' :* n'' = freshenSTerm ρ ((x↦ xⁿ) ⩌ β) e n'
+          (SFunSE xⁿ (Annotated tcxt τ') e' :* n'')
         AppSE e₁ xsO e₂ → do
-          e₁' :* n' ← freshenSTerm ρ β e₁ nInit
-          let xsO' = map (\x → freshenRef ρ β x) xsO
-          e₂' :* n'' ← freshenSTerm ρ β e₁ n'
-          return (AppSE e₁' xsO' e₂' :* n'')
+          let e₁' :* n' = freshenSTerm ρ β e₁ nInit
+          let xsO' = mapp (\x → freshenRef ρ β x) xsO
+          let e₂' :* n'' = freshenSTerm ρ β e₂ n'
+          (AppSE e₁' xsO' e₂' :* n'')
         PFunSE x τ e → do
+          let tcxt = annotatedTag τ
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
-          τ' :* n' ← freshenType ρ β τ np1
-          e' :* n'' ← freshenPTerm ρ ((x↦ xⁿ) ⩌ β) e n'
-          return (PFunSE xⁿ τ' e' :* n'')
-  return $ (Annotated ecxt $ z) :* nFinal
+          let τ' :* n' = freshenType ρ β (extract τ) np1
+          let e' :* n'' = freshenPTerm ρ ((x↦ xⁿ) ⩌ β) e n'
+          (PFunSE xⁿ (Annotated tcxt τ') e' :* n'')
+  (Annotated ecxt z) :* nFinal
 
-
-freshenPTerm ∷ ∀ p. (PRIV_C p) ⇒ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → PExpSource p → ℕ → SM p (SExpSource p ∧ ℕ)
+freshenPTerm ∷ ∀ p. (PRIV_C p) ⇒ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → PExpSource p RNF → ℕ → PExpSource p RNF ∧ ℕ
 freshenPTerm ρ β eA nInit = do
   let np1 = nInit + one
   let ecxt = annotatedTag eA
   let (z :* nFinal) = case extract eA of
         ReturnPE e → do
-          e' :* n' ← freshenSTerm ρ β e nInit
+          let e' :* n' = freshenSTerm ρ β e nInit
           (ReturnPE e' :* n')
         BindPE x e₁ e₂ → do
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
-          e₁' :* n' ← freshenPTerm ρ β e₁ np1
-          e₂' :* n'' ← freshenPTerm ρ ((x↦ xⁿ) ⩌ β) e₁ n'
+          let e₁' :* n' = freshenPTerm ρ β e₁ np1
+          let e₂' :* n'' = freshenPTerm ρ ((x↦ xⁿ) ⩌ β) e₂ n'
           (BindPE xⁿ e₁' e₂' :* n'')
         AppPE e₁ xsO e₂ → do
-          e₁' :* n' ← freshenSTerm ρ β e₁ nInit
-          let xsO' = map (\x → freshenRef ρ β x) xsO
-          e₂' :* n'' ← freshenSTerm ρ β e₁ n'
+          let e₁' :* n' = freshenSTerm ρ β e₁ nInit
+          let xsO' = mapp (\x → freshenRef ρ β x) xsO
+          let e₂' :* n'' = freshenSTerm ρ β e₂ n'
           (AppPE e₁' xsO' e₂' :* n'')
-  return $ (Annotated ecxt $ z) :* nFinal
+  (Annotated ecxt $ z) :* nFinal
+
+substGammaSens ∷ (ProgramVar ⇰ Sens RNF) → 𝕏 → Type RNF → Type RNF
+substGammaSens σ₉ x₉ τ₉ = case τ₉ of
+  VarT x → VarT x
+  ℕˢT r → ℕˢT r
+  ℝˢT r → ℝˢT r
+  ℕT → ℕT
+  ℝT → ℝT
+  𝕀T r → 𝕀T r
+  𝔹T → 𝔹T
+  𝕊T → 𝕊T
+  SetT τ → SetT $ substGammaSens σ₉ x₉ τ
+  𝕄T ℓ c rs me → 𝕄T ℓ c rs $ substGammaMexpSens σ₉ x₉ me
+  𝔻T τ → 𝔻T $ substGammaSens σ₉ x₉ τ
+  τ₁ :⊕: τ₂ → substGammaSens σ₉ x₉ τ₁ :⊕: substGammaSens σ₉ x₉ τ₂
+  τ₁ :⊗: τ₂ → substGammaSens σ₉ x₉ τ₁ :⊗: substGammaSens σ₉ x₉ τ₂
+  τ₁ :&: τ₂ → substGammaSens σ₉ x₉ τ₁ :&: substGammaSens σ₉ x₉ τ₂
+  (x :* τ₁) :⊸: (sσ :* τ₂) → do
+    (x :* substGammaSens σ₉ x₉ τ₁) :⊸: ((substGammaSensEnv σ₉ x₉ sσ) :* substGammaSens σ₉ x₉ τ₂)
+  (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → do
+    (x :* substGammaSens σ₉ x₉ τ₁) :⊸⋆: (PEnv (substGammaPrEnv σ₉ x₉ pσ) :* substGammaSens σ₉ x₉ τ₂)
+  ForallT x κ τ → ForallT x κ $ substGammaSens σ₉ x₉ τ
+
+substGammaPr ∷ (ProgramVar ⇰ Sens RNF) → 𝕏 → Type RNF → Type RNF
+substGammaPr σ₉ x₉ τ₉ = case τ₉ of
+  VarT x → VarT x
+  ℕˢT r → ℕˢT r
+  ℝˢT r → ℝˢT r
+  ℕT → ℕT
+  ℝT → ℝT
+  𝕀T r → 𝕀T r
+  𝔹T → 𝔹T
+  𝕊T → 𝕊T
+  SetT τ → SetT $ substGammaPr σ₉ x₉ τ
+  𝕄T ℓ c rs me → 𝕄T ℓ c rs $ substGammaMexpPr σ₉ x₉ me
+  𝔻T τ → 𝔻T $ substGammaPr σ₉ x₉ τ
+  τ₁ :⊕: τ₂ → substGammaPr σ₉ x₉ τ₁ :⊕: substGammaPr σ₉ x₉ τ₂
+  τ₁ :⊗: τ₂ → substGammaPr σ₉ x₉ τ₁ :⊗: substGammaPr σ₉ x₉ τ₂
+  τ₁ :&: τ₂ → substGammaPr σ₉ x₉ τ₁ :&: substGammaPr σ₉ x₉ τ₂
+  (x :* τ₁) :⊸: (sσ :* τ₂) → do
+    (x :* substGammaPr σ₉ x₉ τ₁) :⊸: (sσ :* substGammaPr σ₉ x₉ τ₂)
+  (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → do
+    (x :* substGammaPr σ₉ x₉ τ₁) :⊸⋆: (PEnv (substGammaPrEnv σ₉ x₉ pσ) :* substGammaPr σ₉ x₉ τ₂)
+  ForallT x κ τ → ForallT x κ $ substGammaPr σ₉ x₉ τ
+
+substGammaSensEnv ∷ (ProgramVar ⇰ Sens RNF) → 𝕏 → (ProgramVar ⇰ Sens RNF) → (ProgramVar ⇰ Sens RNF)
+substGammaSensEnv σ₉ x₉ ς = case ς ⋕? TMVar x₉ of
+  None → ς
+  Some η → without (single $ TMVar x₉) $ (η ⨵ σ₉) ⩌ ς
+
+substGammaPrEnv ∷ ∀ p. (PRIV_C p) ⇒ (ProgramVar ⇰ Sens RNF) → 𝕏 → (ProgramVar ⇰ Pr p RNF) → (ProgramVar ⇰ Pr p RNF)
+substGammaPrEnv σ₉ x₉ ς = case ς ⋕? TMVar x₉ of
+  None → ς
+  Some η → without (single $ TMVar x₉) $ (map (\x → iteratePr (unSens x) η) σ₉) ⩌ ς
+
+substGammaMexpSens ∷ (ProgramVar ⇰ Sens RNF) → 𝕏 → MExp RNF → MExp RNF
+substGammaMexpSens σ₉ x₉ me₉ = case me₉ of
+  EmptyME → EmptyME
+  VarME x' → VarME x'
+  ConsME τ me → ConsME (substGammaSens σ₉ x₉ τ) (substGammaMexpSens σ₉ x₉ me)
+  AppendME me₁ me₂ → AppendME (substGammaMexpSens σ₉ x₉ me₁) (substGammaMexpSens σ₉ x₉ me₂)
+  RexpME r τ → RexpME r (substGammaSens σ₉ x₉ τ)
+
+substGammaMexpPr ∷ (ProgramVar ⇰ Sens RNF) → 𝕏 → MExp RNF → MExp RNF
+substGammaMexpPr σ₉ x₉ me₉ = case me₉ of
+  EmptyME → EmptyME
+  VarME x' → VarME x'
+  ConsME τ me → ConsME (substGammaPr σ₉ x₉ τ) (substGammaMexpPr σ₉ x₉ me)
+  AppendME me₁ me₂ → AppendME (substGammaMexpPr σ₉ x₉ me₁) (substGammaMexpPr σ₉ x₉ me₂)
+  RexpME r τ → RexpME r (substGammaPr σ₉ x₉ τ)
 
 getTMVs ∷ 𝐿 ProgramVar → 𝐿 ProgramVar → 𝐿 ProgramVar
 getTMVs Nil acc = acc

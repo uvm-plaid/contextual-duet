@@ -14,7 +14,7 @@ getTypeFromSM = \case
   Inr (_ :* a) → a
 
 
-getSExpFromSM ∷ (TypeError ∨ ((ℕ ∧ (ProgramVar ⇰ Sens RNF)) ∧ (SExpSource a ∧ ℕ))) → SExpSource a ∧ ℕ
+getSExpFromSM ∷ (TypeError ∨ ((ℕ ∧ (ProgramVar ⇰ Sens RNF)) ∧ (SExpSource p r ∧ ℕ))) → SExpSource p r ∧ ℕ
 getSExpFromSM = \case
   Inl _ → error "getSExpFromSM"
   Inr (_ :* a) → a
@@ -123,8 +123,7 @@ main = do
         do pprint $ ppHeader "TYPE CHECKING" ; flushOut
         -- TODO: universal mode
         initEnv₂ :* tCheck' ← time (\ () → runSM dø initEnv₁ dø 0 (inferPrimitives @ 'ED initEnv₁)) ()
-        e₁ :* tCheck'' ← time (\ () → runSM dø (getTypeFromSM initEnv₂) dø 0 (freshenSTerm dø dø e 0)) ()
-        let (e₁' :* n) = getSExpFromSM e₁
+        let e₁' :* n = freshenSTerm dø dø (mapp normalizeRNF e) 0
         r :* tCheck ← time (\ () → runSM dø (getTypeFromSM initEnv₂) dø n (inferSens e₁')) ()
         do out $ "(" ⧺ show𝕊 (secondsTimeD tCheck) ⧺ "s)" ; flushOut
         _ ← shell $ "echo " ⧺ show𝕊 (secondsTimeD tCheck) ⧺ " >> typecheck-times"

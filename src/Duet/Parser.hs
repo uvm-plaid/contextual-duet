@@ -27,7 +27,7 @@ tokKeywords = list
   ,"chunks","mfold-row","mfilter","zip","AboveThreshold","mmap-col","mmap-row","pfld-rows","pmap-col"
   ,"matrix","idx","℘","𝐝","conv","disc","∈"
   ,"×","tr"
-  ,"rows","cols", "count","exponential","rand-resp","discf"
+  ,"count","exponential","rand-resp","discf"
   ,"sample","rand-nat"
   ,"L1","L2","L∞","U"
   ,"dyn","real"
@@ -493,7 +493,7 @@ parGrad = tries
   [ const LR ^$ parLit "LR"
   ]
 
-parSExp ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (SExpSource p)
+parSExp ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (SExpSource p RExp)
 parSExp p = mixfixParserWithContext "sexp" $ concat
   [ mixF $ MixFTerminal $ do
       parLit "("
@@ -590,7 +590,7 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       return $ \ e → TAppSE e τ
   ]
 
-parPExp ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (PExpSource p)
+parPExp ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (PExpSource p RExp)
 parPExp p = pWithContext "pexp" $ tries
   [ do parLit "let"
        x ← parVar
@@ -611,7 +611,8 @@ parPExp p = pWithContext "pexp" $ tries
   , do e ← parSExp p
        case extract e of
          -- QUESTION: should AppPE have a SExp or PExp as its first argument?
-         AppSE e₁ xs e₂ → return $ AppPE e₁ xs e₂
+         AppSE e₁ xs e₂ → do
+           return $ AppPE e₁ xs e₂
          _ → abort
   ]
 
