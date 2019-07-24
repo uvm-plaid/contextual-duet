@@ -21,16 +21,13 @@ let main =  ∀ m  : ℕ,
               m  : ℕ[m],
               n  : ℕ[n]
               ⇒
-  -- TODO: capture-avoiding substitution
   -- TODO: less than comparisons for sensitivities/privacies
-  -- TODO: If we leave off (1) (the last annotation of <xs,ys>) it should still
-  --       work, I think -DCD
   let colnum = (cols @ m @ n @ 𝔻 xs) in
   let m₀ = mcreate @ ℕ[1.0] @ ℕ[n] @ ℝ ℕ[1] colnum (sλ i : 𝕀[1.0] , j : 𝕀[n] ⇒ 0.0) in
-  aloop @ ε @ δ @ δ′ @ k @ n @ <xs,ys> @ <matsub,mgauss,ε,δ> @ <mLipGrad,mclip> <xs,ys> -- <-- (1)
+  aloop @ ε @ δ @ δ′ @ k @ n @ <xs,ys> @ <matsub,mgauss,ε,δ> @ <mLipGrad,mclip>
     (pλ θ : 𝕄 [L∞, U|1.0, n↦𝔻 ] ⇒
       g ← mgauss @ ε @ δ @ ℕ[1.0] @ n <xs,ys> ε <xs,ys> δ <xs,ys>
-            (mLipGrad @ m @ n @ ℝ⁺[1.0] @ ℝ⁺[1.0] θ (mclip @ m @ n @ 𝔻 xs) ys) ;
+            (mLipGrad @ m @ n θ (mclip @ m @ n @ 𝔻 xs) ys) ;
       return (matsub @ ℕ[1.0] @ n θ g))
     m₀
     δ′
