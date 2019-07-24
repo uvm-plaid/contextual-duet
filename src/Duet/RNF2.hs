@@ -44,7 +44,7 @@ data RNFProds = RNFProds
 
 -- ε ∈ RNFAtom
 data RNFAtom =
-    VarRA 𝕏
+    VarRA {- 𝔹 -} 𝕏 -- the boolean is a flag for if it is truncated or not
   | LogRA RNFSums
   | EfnRA RNFProds
   deriving (Eq,Ord,Show)
@@ -102,7 +102,7 @@ varRNF =
   ∘ oneSum
   ∘ oneProd
   ∘ oneAtom
-  ∘ VarRA
+  ∘ VarRA -- False
 
 ---------
 -- MAX --
@@ -1009,6 +1009,7 @@ data RExpPre =
   | PowRE ℚ RExp
   | EfnRE RExp
   | LogRE RExp
+  -- | TruncateRE RExp
   deriving (Eq,Ord,Show)
 makePrettySum ''RExpPre
 
@@ -1062,6 +1063,7 @@ normalizeRNFPre = \case
   -- add a x^y power (not just a constant rational) at some point
   EfnRE η → efnRNF $ normalizeRNF η
   LogRE η → logRNF $ normalizeRNF η
+  -- TruncateRE η → trRNF $ normalizeRNF η
 
 e1 ∷ RNF
 e1 = normalizeRNF $ varRE (var "x") `timesRE` varRE (var "x")

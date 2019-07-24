@@ -473,118 +473,105 @@ inferMExp me = case me of
     return $ RexpME r τ'
 
 inferSens ∷ ∀ p. (PRIV_C p) ⇒ SExpSource p RNF → SM p (Type RNF)
-inferSens eA = do
-  σ :* τ ← hijack body
-  pptraceM $ ppVertical $ list
-    [ ppHeader "TERM"
-    , pretty eA
-    , ppHeader "TYPE"
-    , pretty τ
-    , ppHeader "SENS"
-    , pretty σ
-    ]
-  tell σ
-  return τ
-  where
-    body = case extract eA of
-      ℕˢSE n → return $ ℕˢT $ ι n
-      ℝˢSE d → return $ ℝˢT $ ι d
-      ℕSE _n → return $ ℕT
-      ℝSE _d → return $ ℝT
-      VarSE x → do
-        γ ← askL contextTypeL
-        case γ ⋕? x of
-          None → error $ concat
-                [ "Variable lookup error: failed to find " ⧺ (pprender x) ⧺ " in the environment:\n"
-                , pprender γ
-                , "\n"
-                , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-                ]
-          Some τ → do
-            tell (TMVar x ↦ ι 1.0)
-            return τ
-      LetSE x e₁ e₂ → do
-        σ₁ :* τ₁ ← hijack $ inferSens e₁
-        σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁) ⩌ γ) $ inferSens e₂
-        let (ς :* σ₂') = ifNone (zero :* σ₂) $ dview (TMVar x) σ₂
-        do
-            tell $ ς ⨵ σ₁
-            tell σ₂'
-            return τ₂
-      TAbsSE x κ e → do
-        mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
-          τ ← inferSens e
-          return $ ForallT x κ τ
-      TAppSE e τ' → do
-        τ ← inferSens e
-        case τ of
-          ForallT x κ τ → do
-            let τ'' = case κ of
-                  ℕK → case extract τ' of
-                    ℕˢT r → substTypeR x r τ
-                    VarT x' → substTypeR x (varRNF x') τ
-                    _ → error $ "in type-level application: expected static nat, got: " ⧺ pprender τ'
-                  ℝK → case extract τ' of
-                    ℝˢT r → substTypeR x r τ
-                    VarT x' → substTypeR x (varRNF x') τ
-                    _ → error $ "in type-level application: expected static real, got: " ⧺ pprender τ'
-                  CxtK → case extract τ' of
-                    CxtT xs → substTypeCxt x (list $ iter $ xs) τ
-                  TypeK → checkOption $ checkTypeLang $ substTL x (typeToTLExp $ extract τ') (typeToTLExp τ)
-            return τ''
-          _ → error $ "expected ForallT, got: " ⧺ pprender τ
-      SFunSE x τ e → do
-          checkType $ extract τ
-          let τ' = extract τ
-          σ :* τ'' ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferSens e
-          let σ' = case σ ⋕? TMVar x of
-                     None → (TMVar x ↦ bot) ⩌ σ
-                     Some _ → σ
-          let σ'' = assoc $ map (\(TMVar x' :* s) → (TMVar x' :* s)) $ list σ'
-          do
-              tell $ snd $ ifNone (zero :* σ') $ dview (TMVar x) σ'
-              return $ (x :* τ') :⊸: (σ'' :* τ'')
-      AppSE e₁ xsO e₂ → do
-        τ₁ ← inferSens e₁
-        σ₂ :* τ₂ ← hijack $ inferSens e₂
-        allInScopeₜₘ ← map pow $ mapp TMVar $ map list $ map keys $ askL contextTypeL
-        allInScopeₜₗ ← map pow $ mapp TLVar $ map list $ map keys $ askL contextKindL
-        let xsₜₘ = elim𝑂 allInScopeₜₘ (\xs0' → pow $ getTMVs xs0' Nil) xsO
-        let xsₜₗ = elim𝑂 allInScopeₜₗ (\xs0' → pow $ getTLVs xs0' Nil) xsO
-        let xs = xsₜₘ ∪ xsₜₗ
-        case xsₜₘ ⊆ allInScopeₜₘ ⩓ xsₜₗ ⊆ allInScopeₜₗ of
-          True → skip
-          False → error $ "provided variables to application which are not in scope: " ⧺ show𝕊 (xsₜₘ ∖ allInScopeₜₘ) ⧺ show𝕊 (xsₜₗ ∖ allInScopeₜₗ)
-        case (τ₁) of
-          (x :* τ₁₁) :⊸: (sσ :* τ₁₂) | alphaEquiv dø dø τ₁₁ τ₂ → do
-            tell $ (sσ ⋕! (TMVar x)) ⨵ (restrict xs σ₂)
-            tell $ top ⨵ (without xs σ₂)
-            tell $ without (single $ TMVar x) sσ
-            return $ substGammaSens σ₂ x τ₁₂
-          (x :* τ₁₁) :⊸: (sσ :* τ₁₂) → error $ concat
-                [ "AppSE error 1 (argument type mismatch): \n"
-                , "expected: " ⧺ pprender τ₁₁
-                , "\n"
-                , "got: " ⧺ pprender τ₂
-                , "\n"
-                , "in the function: " ⧺ (pprender ((x :* τ₁₁) :⊸: (sσ :* τ₁₂)))
-                , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-                ]
-          _ →  error $ concat
-                [ "AppSE error 2 (tried to apply a non sλ): "
-                , pprender τ₁
-                , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-                ]
-      PFunSE x τ e → do
-        checkType $ extract τ
-        let τ' = extract τ
-        σ :* τ'' ← smFromPM $ hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferPriv e
-        return $ (x :* τ') :⊸⋆: (PEnv σ :* τ'')
-      _ → error $ concat
-            [ "inferSens unknown expression type: "
+inferSens eA = case extract eA of
+  ℕˢSE n → return $ ℕˢT $ ι n
+  ℝˢSE d → return $ ℝˢT $ ι d
+  ℕSE _n → return $ ℕT
+  ℝSE _d → return $ ℝT
+  VarSE x → do
+    γ ← askL contextTypeL
+    case γ ⋕? x of
+      None → error $ concat
+            [ "Variable lookup error: failed to find " ⧺ (pprender x) ⧺ " in the environment:\n"
+            , pprender γ
             , "\n"
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             ]
+      Some τ → do
+        tell (TMVar x ↦ ι 1.0)
+        return τ
+  LetSE x e₁ e₂ → do
+    σ₁ :* τ₁ ← hijack $ inferSens e₁
+    σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁) ⩌ γ) $ inferSens e₂
+    let (ς :* σ₂') = ifNone (zero :* σ₂) $ dview (TMVar x) σ₂
+    do
+        tell $ ς ⨵ σ₁
+        tell σ₂'
+        return τ₂
+  TAbsSE x κ e → do
+    mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
+      τ ← inferSens e
+      return $ ForallT x κ τ
+  TAppSE e τ' → do
+    τ ← inferSens e
+    case τ of
+      ForallT x κ τ → do
+        let τ'' = case κ of
+              ℕK → case extract τ' of
+                ℕˢT r → substTypeR x r τ
+                VarT x' → substTypeR x (varRNF x') τ
+                _ → error $ "in type-level application: expected static nat, got: " ⧺ pprender τ'
+              ℝK → case extract τ' of
+                ℝˢT r → substTypeR x r τ
+                VarT x' → substTypeR x (varRNF x') τ
+                _ → error $ "in type-level application: expected static real, got: " ⧺ pprender τ'
+              CxtK → case extract τ' of
+                CxtT xs → substTypeCxt x (list $ iter $ xs) τ
+              TypeK → checkOption $ checkTypeLang $ substTL x (typeToTLExp $ extract τ') (typeToTLExp τ)
+        return τ''
+      _ → error $ "expected ForallT, got: " ⧺ pprender τ
+  SFunSE x τ e → do
+      checkType $ extract τ
+      let τ' = extract τ
+      σ :* τ'' ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferSens e
+      let σ' = case σ ⋕? TMVar x of
+                 None → (TMVar x ↦ bot) ⩌ σ
+                 Some _ → σ
+      let σ'' = assoc $ map (\(TMVar x' :* s) → (TMVar x' :* s)) $ list σ'
+      do
+          tell $ snd $ ifNone (zero :* σ') $ dview (TMVar x) σ'
+          return $ (x :* τ') :⊸: (σ'' :* τ'')
+  AppSE e₁ xsO e₂ → do
+    τ₁ ← inferSens e₁
+    σ₂ :* τ₂ ← hijack $ inferSens e₂
+    allInScopeₜₘ ← map pow $ mapp TMVar $ map list $ map keys $ askL contextTypeL
+    allInScopeₜₗ ← map pow $ mapp TLVar $ map list $ map keys $ askL contextKindL
+    let xsₜₘ = elim𝑂 allInScopeₜₘ (\xs0' → pow $ getTMVs xs0' Nil) xsO
+    let xsₜₗ = elim𝑂 allInScopeₜₗ (\xs0' → pow $ getTLVs xs0' Nil) xsO
+    let xs = xsₜₘ ∪ xsₜₗ
+    case xsₜₘ ⊆ allInScopeₜₘ ⩓ xsₜₗ ⊆ allInScopeₜₗ of
+      True → skip
+      False → error $ "provided variables to application which are not in scope: " ⧺ show𝕊 (xsₜₘ ∖ allInScopeₜₘ) ⧺ show𝕊 (xsₜₗ ∖ allInScopeₜₗ)
+    case (τ₁) of
+      (x :* τ₁₁) :⊸: (sσ :* τ₁₂) | alphaEquiv dø dø τ₁₁ τ₂ → do
+        tell $ (sσ ⋕! (TMVar x)) ⨵ (restrict xs σ₂)
+        tell $ top ⨵ (without xs σ₂)
+        tell $ without (single $ TMVar x) sσ
+        return $ substGammaSens σ₂ x τ₁₂
+      (x :* τ₁₁) :⊸: (sσ :* τ₁₂) → error $ concat
+            [ "AppSE error 1 (argument type mismatch): \n"
+            , "expected: " ⧺ pprender τ₁₁
+            , "\n"
+            , "got: " ⧺ pprender τ₂
+            , "\n"
+            , "in the function: " ⧺ (pprender ((x :* τ₁₁) :⊸: (sσ :* τ₁₂)))
+            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+            ]
+      _ →  error $ concat
+            [ "AppSE error 2 (tried to apply a non sλ): "
+            , pprender τ₁
+            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+            ]
+  PFunSE x τ e → do
+    checkType $ extract τ
+    let τ' = extract τ
+    σ :* τ'' ← smFromPM $ hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferPriv e
+    return $ (x :* τ') :⊸⋆: (PEnv σ :* τ'')
+  _ → error $ concat
+        [ "inferSens unknown expression type: "
+        , "\n"
+        , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+        ]
 
 inferPriv ∷ ∀ p. (PRIV_C p) ⇒ PExpSource p RNF → PM p (Type RNF)
 inferPriv eA = case extract eA of
