@@ -8,6 +8,68 @@ data RNF =
   | SymRNF RNFMaxs
   deriving (Eq,Ord,Show)
 
+instance Pretty RNF where pretty = ppRNF
+
+ppRNF ∷ RNF → Doc
+ppRNF = \case
+  ConstantRNF n → concat [pretty n]
+  SymRNF xs⁴ → ppMax xs⁴
+
+ppMax ∷ RNFMaxs → Doc
+ppMax (RNFMaxs d pmins) =
+  case (d, list pmins) of
+    (Bot, Nil) → pretty 0
+    _ →
+      let maxConstant = case d of
+            Bot → list []
+            AddBot d' → list [pretty d']
+      in
+      let maxSymbolic = map ppMin $ list pmins in
+      ppAtLevel 5 $ concat $ inbetween (ppOp "⊔") $ maxConstant ⧺ maxSymbolic
+
+ppMin ∷ RNFMins → Doc
+ppMin (RNFMins d psums) =
+  case (d, list psums) of
+    (Top, Nil) → pretty 1
+    _ →
+      let minConstant = case d of
+            Top → list []
+            AddTop d' → list [pretty d']
+      in
+      let minSymbolic = map ppSum $ list psums in
+      ppAtLevel 6 $ concat $ inbetween (ppOp "⊔") $ minConstant ⧺ minSymbolic
+
+ppSum ∷ RNFSums → Doc
+ppSum (RNFSums d prodNs) =
+  case (d, list prodNs) of
+    (Bot, Nil) → pretty 0
+    _ →
+      let sumConstant = case d of
+            Bot → list []
+            AddBot d' → list [pretty d']
+      in
+      let sumSymbolic = map (\(prods :* n) → ppSum' prods n) $ list prodNs in
+      ppAtLevel 6 $ concat $ inbetween (ppOp "+") $ sumConstant ⧺ sumSymbolic
+
+ppSum' ∷ (Pretty a) ⇒ a → AddTop 𝔻 → Doc
+ppSum' a Top = ppAtLevel 7 $ concat [ppOp "⊤",ppOp "⋅",pretty a]
+ppSum' a (AddTop 1.0) = pretty a
+ppSum' a (AddTop d) = ppAtLevel 7 $ concat [pretty d,ppOp "⋅",pretty a]
+
+ppProd ∷ RNFProds → Doc
+ppProd (RNFProds irreds atoms) =
+  case (list irreds, list atoms) of
+    (Nil, Nil) → pretty 1
+    _ →
+      let prodIrreds = map (\(sum' :* q) → ppProd' sum' q) $ list irreds in
+      let prodSymbolicAtoms = map (\(atom :* q) → ppProd' atom q) $ list atoms in
+      ppAtLevel 6 $ concat $ inbetween (ppOp "⋅") $ prodIrreds ⧺ prodSymbolicAtoms
+
+ppProd' ∷ (Pretty a) ⇒ a → ℚ → Doc
+ppProd' a q = case (q ≡ one) of
+  True → pretty a
+  False → ppAtLevel 7 $ concat [pretty a,ppOp "^",pretty q]
+
 -- α̇ ∈ RNFMaxs ⩴ c ⊔̇ α
 -- α ∈ ℘(RNFMins)
 data RNFMaxs = RNFMaxs
@@ -16,6 +78,8 @@ data RNFMaxs = RNFMaxs
   }
   deriving (Eq,Ord,Show)
 
+instance Pretty RNFMaxs where pretty = ppMax
+
 -- β̇ ∈ RNFMins ⩴ c ⊓̇ β
 -- β ∈ ℘(RNFSums)
 data RNFMins = RNFMins
@@ -23,6 +87,8 @@ data RNFMins = RNFMins
   , rnfMinsSymbolic ∷ 𝑃 RNFSums -- (at least one inside)
   }
   deriving (Eq,Ord,Show)
+
+instance Pretty RNFMins where pretty = ppMin
 
 -- γ̇ ∈ RNFSums ⩴ c +̇ γ
 -- γ ∈ RNFProds ⇰ 𝔻 ᐪ
@@ -33,6 +99,8 @@ data RNFSums = RNFSums
   }
   deriving (Eq,Ord,Show)
 
+instance Pretty RNFSums where pretty = ppSum
+
 -- δ̇ ∈ RNFProds ⩴ δ̂ ×̇ δ̌
 -- δ̂ ∈ RNFSums ⇰ ℚ
 -- δ̌ ∈ RNFAtom ⇰ ℚ
@@ -42,6 +110,8 @@ data RNFProds = RNFProds
   }
   deriving (Eq,Ord,Show)
 
+instance Pretty RNFProds where pretty = ppProd
+
 -- ε ∈ RNFAtom
 data RNFAtom =
     VarRA {- 𝔹 -} 𝕏 -- the boolean is a flag for if it is truncated or not
@@ -49,12 +119,20 @@ data RNFAtom =
   | EfnRA RNFProds
   deriving (Eq,Ord,Show)
 
-makePrettySum ''RNF
-makePrettySum ''RNFMaxs
-makePrettySum ''RNFMins
-makePrettySum ''RNFSums
-makePrettySum ''RNFProds
-makePrettySum ''RNFAtom
+ppAtom ∷ RNFAtom → Doc
+ppAtom = \case
+  VarRA x → pretty x
+  LogRA sums → ppAtLevel 7 $ concat [ppOp "㏒",ppSum sums]
+  EfnRA prods → ppAtLevel 7 $ concat [ppOp "exp",ppProd prods]
+
+instance Pretty RNFAtom where pretty = ppAtom
+
+-- makePrettySum ''RNF
+-- makePrettySum ''RNFMaxs
+-- makePrettySum ''RNFMins
+-- makePrettySum ''RNFSums
+-- makePrettySum ''RNFProds
+-- makePrettySum ''RNFAtom
 
 -------------
 -- HELPERS --
@@ -1122,6 +1200,7 @@ substRExPre x rSub rTarget = case rTarget of
   PowRE c η → PowRE c $ substRExp x rSub η
   EfnRE η → EfnRE $ substRExp x rSub η
   LogRE η → LogRE $ substRExp x rSub η
+
 
 substRNF ∷ 𝕏 → RNF → RNF → RNF
 substRNF _ _ (ConstantRNF a) = ConstantRNF a
