@@ -718,7 +718,7 @@ prodRNF e₁ e₂ = case (e₁,e₂) of
   -- ⊤ ×̃ c ≜ ⊤
   (ConstantRNF TopBT,ConstantRNF _) → ConstantRNF TopBT
   -- c ×̃ ⊤ ≜ ⊤
-  (ConstantRNF _,ConstantRNF TopBT) → ConstantRNF BotBT
+  (ConstantRNF _,ConstantRNF TopBT) → ConstantRNF TopBT
   -- c₁ ×̃ c₂ ≜ c₁ × c₂
   (ConstantRNF (AddBT c₁),ConstantRNF (AddBT c₂)) → ConstantRNF $ AddBT $ c₁ × c₂
   -- ⊤ ×̃ α̇
@@ -1220,19 +1220,15 @@ truncateRNFProds (RNFProds δ̂ δ̌) =
   in prodRNF δ̂' δ̌'
 
 truncateAddTop ∷ AddTop 𝔻 → AddTop 𝔻
-truncateAddTop Top = AddTop 1.0
-truncateAddTop (AddTop 0.0) = AddTop 0.0
-truncateAddTop (AddTop n) = AddTop 1.0
+truncateAddTop _ = AddTop 1.0
 
 truncateAddBot ∷ AddBot 𝔻 → AddBot 𝔻
-truncateAddBot Bot = AddBot 0.0
-truncateAddBot (AddBot 0.0) = AddBot 0.0
-truncateAddBot (AddBot n) = AddBot 1.0
+truncateAddBot Bot = Bot
+truncateAddBot (AddBot _) = AddBot 1.0
 
 truncateAddBT ∷ AddBT 𝔻 → AddBT 𝔻
-truncateAddBT BotBT = AddBT 0.0
+truncateAddBT BotBT = BotBT
 truncateAddBT TopBT = AddBT 1.0
-truncateAddBT (AddBT 0.0) = AddBT 0.0
 truncateAddBT (AddBT n) = AddBT 1.0
 
 truncateRAtom ∷ RNFAtom → RNF

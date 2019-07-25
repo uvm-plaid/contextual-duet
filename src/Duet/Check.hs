@@ -273,6 +273,8 @@ frKindEM κ = case frKindE κ of
 -- inferKind ∷ RExpPre → SM p Kind
 -- inferKind _ = return ()
 
+--inferkindrexp
+
 -- inferKind ∷ RExpPre → SM p Kind
 -- inferKind = \case
 --   VarRE x → inferKindVar x
@@ -315,6 +317,8 @@ frKindEM κ = case frKindE κ of
 -- kind checking
 checkType ∷ ∀ p. (PRIV_C p) ⇒ Type RNF → SM p ()
 checkType _ = return ()
+
+-- TODO: call on prims
 
 -- checkType ∷ ∀ p. (PRIV_C p) ⇒ Type RNF → SM p ()
 -- checkType τA = case τA of
@@ -365,7 +369,7 @@ checkType _ = return ()
 --         -- void $ checkProgramVar x'
 --         checkPriv $ map extract p
 --       checkType τ₂
---   VarT x → void $ inferKindVar x
+--   VarT x → void $ inferKindVar x -- make sure the kind is TypeK
 --   ForallT x κ τ → do
 --     mapEnvL contextKindL ( \ γ → (x ↦ κ) ⩌ γ) $ do
 --       checkType τ
@@ -605,7 +609,6 @@ inferPriv eA = case extract eA of
           Some Refl → do
             let (pₓ :* σ'') = ifNone (makePr zero :* σ') $ dview (TMVar x) σ'
             -- TODO: change iteratePr to something functionally the same but less hacky
-            traceM $ pprender σ₂
             let σ₂' = mapOn (restrict xs σ₂) $ (\ i → iteratePr i pₓ) ∘ truncateRNF ∘ unSens
             let σinf = mapOn (without xs σ₂) $ (\ i → iteratePr i $ makePr top) ∘ truncateRNF ∘ unSens
             tell $ σ₂'
