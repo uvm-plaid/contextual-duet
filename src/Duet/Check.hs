@@ -62,6 +62,11 @@ pmFromSM ∷ (PRIV_C p) ⇒ SM p a → PM p a
 pmFromSM xM = mkPM $ \ δ γ ᴍ n →
   mapInr (mapFst $ mapSnd $ map $ makePr ∘ (×) top ∘ truncateRNF ∘ unSens) $ runSM δ γ ᴍ n xM
 
+
+pmFromSM' ∷ (PRIV_C p) ⇒ SM p a → PM p a
+pmFromSM' xM = mkPM $ \ δ γ ᴍ n →
+  mapInr (mapFst $ mapSnd $ map $ makePr ∘ (×) top ∘ unSens) $ runSM δ γ ᴍ n xM
+
 mapPPM ∷ (Pr p₁ RNF → Pr p₂ RNF) → PM p₁ a → PM p₂ a
 mapPPM f xM = mkPM $ \ δ γ ᴍ n → mapInr (mapFst $ mapSnd $ map f) $ runPM δ γ ᴍ n xM
 
@@ -575,7 +580,8 @@ inferSens eA = case extract eA of
 
 inferPriv ∷ ∀ p. (PRIV_C p) ⇒ PExpSource p RNF → PM p (Type RNF)
 inferPriv eA = case extract eA of
-  ReturnPE e → pmFromSM $ inferSens e
+  ReturnPE e → do
+    pmFromSM $ inferSens e
   BindPE x e₁ e₂ → do
     τ₁ ← inferPriv e₁
     σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁) ⩌ γ) $ inferPriv e₂
@@ -599,6 +605,7 @@ inferPriv eA = case extract eA of
           Some Refl → do
             let (pₓ :* σ'') = ifNone (makePr zero :* σ') $ dview (TMVar x) σ'
             -- TODO: change iteratePr to something functionally the same but less hacky
+            traceM $ pprender σ₂
             let σ₂' = mapOn (restrict xs σ₂) $ (\ i → iteratePr i pₓ) ∘ truncateRNF ∘ unSens
             let σinf = mapOn (without xs σ₂) $ (\ i → iteratePr i $ makePr top) ∘ truncateRNF ∘ unSens
             tell $ σ₂'

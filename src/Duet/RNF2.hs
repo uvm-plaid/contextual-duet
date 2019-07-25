@@ -127,13 +127,6 @@ ppAtom = \case
 
 instance Pretty RNFAtom where pretty = ppAtom
 
--- makePrettySum ''RNF
--- makePrettySum ''RNFMaxs
--- makePrettySum ''RNFMins
--- makePrettySum ''RNFSums
--- makePrettySum ''RNFProds
--- makePrettySum ''RNFAtom
-
 -------------
 -- HELPERS --
 -------------
@@ -1030,9 +1023,6 @@ logRNF e =
   -- (c ⊔̇ α) ^̃ q ≜ (c ^ q) ⊔̇ (α ^̃ q)
   SymRNF α̇ → elimAddTop (ConstantRNF TopBT) SymRNF $ logRNFMaxs α̇
 
-truncateRNF ∷ RNF → RNF
-truncateRNF r = r
-
 instance HasPrism RNF ℕ where
   hasPrism = Prism (dblRNF ∘ dbl) $ \case
     ConstantRNF BotBT → Some 0
@@ -1201,6 +1191,55 @@ substRExPre x rSub rTarget = case rTarget of
   EfnRE η → EfnRE $ substRExp x rSub η
   LogRE η → LogRE $ substRExp x rSub η
 
+--
+-- truncateRNF ∷ RNF → RNF
+-- truncateRNF r = r
+
+truncateRNF ∷ RNF → RNF
+truncateRNF = \case
+  ConstantRNF n → ConstantRNF $ truncateAddBT n
+  SymRNF xs⁴ → truncateRNFMaxs xs⁴
+
+truncateRNFMaxs ∷ RNFMaxs → RNF
+truncateRNFMaxs (RNFMaxs d pmins) = fold (addBot2RNF $ truncateAddBot d) maxRNF $ do
+  (RNFMins c psums) ← list pmins
+  return $ fold (addTop2RNF $ truncateAddTop c) minRNF $ do
+    sums ← list psums
+    return $ truncateRNFSums sums
+
+truncateRNFSums ∷ RNFSums → RNF
+truncateRNFSums (RNFSums d γ) = do
+  fold (addBot2RNF $ truncateAddBot d) maxRNF $ do
+    (prods :* sca) ← list γ
+    return $ prodRNF (addTop2RNF $ truncateAddTop sca) $ truncateRNFProds prods
+
+truncateRNFProds ∷ RNFProds → RNF
+truncateRNFProds (RNFProds δ̂ δ̌) =
+  let δ̂' = fold (dblRNF 1.0) minRNF $ map (\(sums :* q) → powerRNF q $ truncateRNFSums sums) $ list δ̂ in
+  let δ̌' = fold (dblRNF 1.0) minRNF $ map (\(atom :* q) → powerRNF q $ truncateRAtom atom) $ list δ̌
+  in prodRNF δ̂' δ̌'
+
+truncateAddTop ∷ AddTop 𝔻 → AddTop 𝔻
+truncateAddTop Top = AddTop 1.0
+truncateAddTop (AddTop 0.0) = AddTop 0.0
+truncateAddTop (AddTop n) = AddTop 1.0
+
+truncateAddBot ∷ AddBot 𝔻 → AddBot 𝔻
+truncateAddBot Bot = AddBot 0.0
+truncateAddBot (AddBot 0.0) = AddBot 0.0
+truncateAddBot (AddBot n) = AddBot 1.0
+
+truncateAddBT ∷ AddBT 𝔻 → AddBT 𝔻
+truncateAddBT BotBT = AddBT 0.0
+truncateAddBT TopBT = AddBT 1.0
+truncateAddBT (AddBT 0.0) = AddBT 0.0
+truncateAddBT (AddBT n) = AddBT 1.0
+
+truncateRAtom ∷ RNFAtom → RNF
+truncateRAtom = \case
+  VarRA y → varRNF y --TODO
+  LogRA xs² → dblRNF 1.0
+  EfnRA xs¹ → dblRNF 1.0
 
 substRNF ∷ 𝕏 → RNF → RNF → RNF
 substRNF _ _ (ConstantRNF a) = ConstantRNF a
