@@ -206,39 +206,39 @@ parMExp mode = mixfixParser $ concat
   , mix $ MixTerminal $ VarME ^$ parVar
   ]
 
-parSTLExp ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (STLExp RExp)
-parSTLExp mode = mixfixParserWithContext "tlexp" $ concat
-  [ mixF $ MixFTerminal $ VarSTE ^$ parVar
+parTLExp ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (TLExp RExp)
+parTLExp mode = mixfixParserWithContext "tlexp" $ concat
+  [ mixF $ MixFTerminal $ VarTE ^$ parVar
   -- Type Stuff
   , mixF $ MixFTerminal $ do
       parLit "ℕ"
       parLit "["
       η ← parRExp
       parLit "]"
-      return $ ℕˢSTE η
+      return $ ℕˢTE η
   , mixF $ MixFTerminal $ do
       parLit "ℝ⁺"
       parLit "["
       η ← parRExp
       parLit "]"
-      return $ ℝˢSTE η
+      return $ ℝˢTE η
   , mixF $ MixFTerminal $ do
       parLit "⟨"
-      η₁ ← parSTLExp mode
+      η₁ ← parTLExp mode
       parLit ","
-      η₂ ← parSTLExp mode
+      η₂ ← parTLExp mode
       parLit "⟩"
-      return $ PairSTE η₁ η₂
-  , mixF $ MixFTerminal $ const ℕSTE ^$ parLit "ℕ"
-  , mixF $ MixFTerminal $ const ℝSTE ^$ parLit "ℝ"
-  , mixF $ MixFTerminal $ const 𝔹STE ^$ parLit "𝔹"
-  , mixF $ MixFTerminal $ const 𝕊STE ^$ parLit "𝕊"
+      return $ PairTE η₁ η₂
+  , mixF $ MixFTerminal $ const ℕTE ^$ parLit "ℕ"
+  , mixF $ MixFTerminal $ const ℝTE ^$ parLit "ℝ"
+  , mixF $ MixFTerminal $ const 𝔹TE ^$ parLit "𝔹"
+  , mixF $ MixFTerminal $ const 𝕊TE ^$ parLit "𝕊"
   , mixF $ MixFTerminal $ do
       parLit "𝕀"
       parLit "["
       η ← parRExp
       parLit "]"
-      return $ 𝕀STE η
+      return $ 𝕀TE η
   , mixF $ MixFTerminal $ do
       parLit "𝕄"
       parLit "["
@@ -250,49 +250,51 @@ parSTLExp mode = mixfixParserWithContext "tlexp" $ concat
       parLit ","
       ηₙ ← parMExp mode
       parLit "]"
-      return $ 𝕄STE ℓ c ηₘ ηₙ
+      return $ 𝕄TE ℓ c ηₘ ηₙ
   -- , mixF $ MixFTerminal $ do
   --     parLit "𝔻"
   --     return $ 𝔻TE ℝTE
   , mixF $ MixFTerminal $ do
       parLit "℘"
       parLit "("
-      τe ← parSTLExp mode
+      τe ← parTLExp mode
       parLit ")"
-      return $ SetSTE τe
+      return $ SetTE τe
   -- TODO: support parsing sensitivity and clip
-  , mixF $ MixFPrefix 6 $ const (𝔻STE) ^$ parLit "𝐝"
-  , mixF $ MixFInfixL 3 $ const (:⊕♭♭:) ^$ parLit "+"
-  , mixF $ MixFInfixL 4 $ const (:⊗♭♭:) ^$ parLit "×"
-  , mixF $ MixFInfixL 4 $ const (:&♭♭:) ^$ parLit "&"
+  , mixF $ MixFPrefix 6 $ const (𝔻TE) ^$ parLit "𝐝"
+  , mixF $ MixFInfixL 3 $ const (:⊕♭:) ^$ parLit "+"
+  , mixF $ MixFInfixL 4 $ const (:⊗♭:) ^$ parLit "×"
+  , mixF $ MixFInfixL 4 $ const (:&♭:) ^$ parLit "&"
   , mixF $ MixFPrefix 2 $ do
-      τ₁ ← parSTLExp mode
-      parLit "⊸"
-      parLit "["
-      s ← parSens
-      parLit "]"
-      return $ \ τ₂ → τ₁ :⊸♭♭: (s :* τ₂)
-  , mixF $ MixFPrefix 2 $ do
+      parLit "("
       x ← parVar
       parLit ":"
-      τ₁ ← parSTLExp mode
+      τ₁ ← parTLExp mode
+      parLit ")"
+      parLit "⊸"
+      σ ← parSEnv
+      return $ \ τ₂ → (x :* τ₁) :⊸♭: (σ :* τ₂)
+  , mixF $ MixFPrefix 2 $ do
+      parLit "("
+      x ← parVar
+      parLit ":"
+      τ₁ ← parTLExp mode
       parLit "⊸⋆"
-      parLit "["
+      parLit ")"
       σ ← parPEnv mode
-      parLit "]"
-      return $ \ τ₂ → (x :* τ₁) :⊸⋆♭♭: (σ :* τ₂)
+      return $ \ τ₂ → (x :* τ₁) :⊸⋆♭: (σ :* τ₂)
   , mixF $ MixFPrefix 2 $ do
       parLit "∀"
       α ← parVar
       parLit ":"
       κ ← parKind
       parLit "."
-      return $ \ τ → ForallSTE α κ τ
+      return $ \ τ → ForallTE α κ τ
   , mixF $ MixFTerminal $ do
       parLit "<"
       xs ← pManySepBy (parLit ",") parVar
       parLit ">"
-      return $ CxtSTE $ pow xs
+      return $ CxtTE $ pow xs
   , mixF $ MixFPrefix 3 $ do
       parLit "box"
       parLit "["
@@ -302,19 +304,19 @@ parSTLExp mode = mixfixParserWithContext "tlexp" $ concat
         η ← parRExp
         return (x :* η)
       parLit "]"
-      return $ \ τ → BoxedSTE (map ι $ assoc xηs) τ
+      return $ \ τ → BoxedTE (map ι $ assoc xηs) τ
   -- RExp Stuff
-  , mixF $ MixFTerminal $ NatSTE ^$ parNat
-  , mixF $ MixFTerminal $ NNRealSTE ^$ parNNDbl
-  , mixF $ MixFInfixL 2 $ const MaxSTE ^$ parLit "⊔"
-  , mixF $ MixFInfixL 3 $ const MinSTE ^$ parLit "⊓"
-  , mixF $ MixFInfixL 4 $ const PlusSTE ^$ parLit "+"
-  , mixF $ MixFInfixL 5 $ const TimesSTE ^$ parLit "⋅"
-  , mixF $ MixFInfixL 6 $ const DivSTE ^$ parLit "/"
-  , mixF $ MixFPrefix 7 $ const RootSTE ^$ parLit "√"
-  , mixF $ MixFPrefix 7 $ const LogSTE ^$ parLit "㏒"
+  , mixF $ MixFTerminal $ NatTE ^$ parNat
+  , mixF $ MixFTerminal $ NNRealTE ^$ parNNDbl
+  , mixF $ MixFInfixL 2 $ const MaxTE ^$ parLit "⊔"
+  , mixF $ MixFInfixL 3 $ const MinTE ^$ parLit "⊓"
+  , mixF $ MixFInfixL 4 $ const PlusTE ^$ parLit "+"
+  , mixF $ MixFInfixL 5 $ const TimesTE ^$ parLit "⋅"
+  , mixF $ MixFInfixL 6 $ const DivTE ^$ parLit "/"
+  , mixF $ MixFPrefix 7 $ const RootTE ^$ parLit "√"
+  , mixF $ MixFPrefix 7 $ const LogTE ^$ parLit "㏒"
   -- Quantity Stuff
-  , mixF $ MixFTerminal $ do parLit "∞" ; return TopSTE
+  , mixF $ MixFTerminal $ do parLit "∞" ; return TopTE
   -- Privacy Stuff
   -- , mixF $ MixFTerminal $ -- ⟨ tle , tle ⟩
   ]

@@ -70,65 +70,8 @@ pmFromSM' xM = mkPM $ \ δ γ ᴍ n →
 mapPPM ∷ (Pr p₁ RNF → Pr p₂ RNF) → PM p₁ a → PM p₂ a
 mapPPM f xM = mkPM $ \ δ γ ᴍ n → mapInr (mapFst $ mapSnd $ map f) $ runPM δ γ ᴍ n xM
 
-checkSensLang ∷ TLExp RNF → 𝑂 (Sens RNF)
-checkSensLang e = do
-  η ← checkRExpLang e
-  return $ Sens η
-
-checkPrivLang ∷ (PRIV_C p) ⇒ PRIV_W p → TLExp RNF → 𝑂 (Pr p RNF)
-checkPrivLang p e₀ = case p of
-  EPS_W → do
-    η ← checkRExpLang e₀
-    return $ EpsPriv η
-  ED_W → do
-    case e₀ of
-      PairTE e₁ e₂ → do
-        η₁ ← checkRExpLang e₁
-        η₂ ← checkRExpLang e₂
-        return $ EDPriv η₁ η₂
-      _ → error "non pair TLExp while coercing in ED_W mode"
-  _ → undefined
-
-privToTLExp ∷ Pr p RNF → TLExp RNF
-privToTLExp = \case
-  EpsPriv r → rnfToTLExp r
-  EDPriv r₁ r₂ → PairTE (rnfToTLExp r₁) (rnfToTLExp r₂)
-  RenyiPriv r₁ r₂ → PairTE (rnfToTLExp r₁) (rnfToTLExp r₂)
-  ZCPriv r → rnfToTLExp r
-  TCPriv r₁ r₂ → PairTE (rnfToTLExp r₁) (rnfToTLExp r₂)
-
-sensToTLExp ∷ Sens RNF → TLExp RNF
-sensToTLExp s = rnfToTLExp $ unSens s
-
-rnfToTLExp ∷ RNF → TLExp RNF
-rnfToTLExp = \case
-  ConstantRNF r → case r of
-    TopBT → TopTE
-    BotBT → ℝˢTE $ dblRNF 0.0
-    AddBT a → ℝˢTE $ dblRNF a
-
-typeToTLExp ∷ Type RNF → TLExp RNF
-typeToTLExp = \case
-  VarT x → VarTE x
-  ℕˢT r → ℕˢTE r
-  ℝˢT r → ℝˢTE r
-  ℕT → ℕTE
-  ℝT → ℝTE
-  𝕀T r → 𝕀TE r
-  𝔹T → 𝔹TE
-  𝕊T → 𝕊TE
-  SetT τ → SetTE $ typeToTLExp τ
-  𝕄T ℓ c rows cols → 𝕄TE ℓ c rows cols
-  𝔻T τ → 𝔻TE $ typeToTLExp τ
-  τ₁ :⊕: τ₂ → typeToTLExp τ₁ :⊕♭: typeToTLExp τ₂
-  τ₁ :⊗: τ₂ → typeToTLExp τ₁ :⊗♭: typeToTLExp τ₂
-  τ₁ :&: τ₂ → typeToTLExp τ₁ :&♭: typeToTLExp τ₂
-  (x :* τ₁) :⊸: (sσ :* τ₂) → (x :* typeToTLExp τ₁) :⊸♭: (sσ :* typeToTLExp τ₂)
-  (x :* τ₁) :⊸⋆: (pσ :* τ₂) → (x :* typeToTLExp τ₁) :⊸⋆♭: (pσ :* typeToTLExp τ₂)
-  ForallT x κ τ → ForallTE x κ $ typeToTLExp τ
-
 checkTypeLang ∷ TLExp RNF → 𝑂 (Type RNF)
-checkTypeLang e₀ = case e₀ of
+checkTypeLang e₀ = case (extract e₀) of
   VarTE x → return $ VarT x
   ℕˢTE r → return $ ℕˢT r
   ℝˢTE r → return $ ℝˢT r
@@ -167,7 +110,7 @@ checkTypeLang e₀ = case e₀ of
   _ → None
 
 checkRExpLang ∷ TLExp RNF → 𝑂 RNF
-checkRExpLang e₀ = case e₀ of
+checkRExpLang e₀ = case (extract e₀) of
   VarTE x → return $ varRNF x
   NatTE n → return $ ConstantRNF $ AddBT $ dbl n
   NNRealTE r → return $ ConstantRNF $ AddBT r
@@ -526,7 +469,7 @@ inferSens eA = case extract eA of
                 _ → error $ "in type-level application: expected static real, got: " ⧺ pprender τ'
               CxtK → case extract τ' of
                 CxtT xs → substTypeCxt x (list $ iter $ xs) τ
-              TypeK → checkOption $ checkTypeLang $ substTL x (typeToTLExp $ extract τ') (typeToTLExp τ)
+              TypeK → substType x (extract τ') τ
         return τ''
       _ → error $ "expected ForallT, got: " ⧺ pprender τ
   SFunSE x τ e → do
@@ -633,91 +576,36 @@ inferPriv eA = case extract eA of
         , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
         ]
 
-checkOption ∷ 𝑂 a → a
-checkOption = \case
-  None → error "checkOption failed"
-  Some α → α
-
-
-substTLMExp ∷ 𝕏 → TLExp RNF → MExp RNF → MExp RNF
-substTLMExp x tl = \case
+substTMExp ∷ 𝕏 → Type RNF → MExp RNF → MExp RNF
+substTMExp x₉ τ₉ = \case
   EmptyME → EmptyME
   VarME x' → VarME x'
   ConsME τ me →
-    ConsME (checkOption $ checkTypeLang (substTL x tl (typeToTLExp τ))) (substTLMExp x tl me)
-  AppendME me₁ me₂ → AppendME (substTLMExp x tl me₁) (substTLMExp x tl me₂)
-  RexpME r τ → RexpME r (checkOption $ checkTypeLang (substTL x tl (typeToTLExp τ)))
-
-
-substTL ∷ 𝕏 → TLExp RNF → TLExp RNF → TLExp RNF
-substTL x tl₁ tl₂ = case tl₂ of
-  VarTE x' → case x ≡ x' of
-    True → tl₁
-    False → VarTE x'
-  -- Type Stuff →
-  ℕˢTE r → ℕˢTE r
-  ℝˢTE r → ℝˢTE r
-  ℕTE → ℕTE
-  ℝTE → ℝTE
-  𝕀TE r → 𝕀TE r
-  𝔹TE → 𝔹TE
-  𝕊TE → 𝕊TE
-  SetTE τ → SetTE $ substTL x tl₁ τ
-  𝕄TE ℓ c rows cols → 𝕄TE ℓ c rows $ substTLMExp x tl₁ cols
-  𝔻TE τ → 𝔻TE $ substTL x tl₁ τ
-  τ₁ :⊕♭: τ₂ → substTL x tl₁ τ₁ :⊕♭: substTL x tl₁ τ₂
-  τ₁ :⊗♭: τ₂ → substTL x tl₁ τ₁ :⊗♭: substTL x tl₁ τ₂
-  τ₁ :&♭: τ₂ → substTL x tl₁ τ₁ :&♭: substTL x tl₁ τ₂
-  -- TODO: sens -> tlexp -> then substTL -> sens
-  (x' :* τ₁) :⊸♭: (sσ :* τ₂) → (x' :* substTL x tl₁ τ₁) :⊸♭: (sσ :* substTL x tl₁ τ₂)
-  (x' :* τ₁) :⊸⋆♭: (pσ :* τ₂) → (x' :* substTL x tl₁ τ₁) :⊸⋆♭: (pσ :* substTL x tl₁ τ₂)
-  ForallTE x' κ τ → ForallTE x' κ $ substTL x tl₁ τ
-   -- RExp Stuff →
-  NatTE n → NatTE n
-  NNRealTE d → NNRealTE d
-  MaxTE τ₁ τ₂ → MaxTE (substTL x tl₁ τ₁) (substTL x tl₁ τ₂)
-  MinTE τ₁ τ₂ → MinTE (substTL x tl₁ τ₁) (substTL x tl₁ τ₂)
-  PlusTE τ₁ τ₂ → PlusTE (substTL x tl₁ τ₁) (substTL x tl₁ τ₂)
-  TimesTE τ₁ τ₂ → TimesTE (substTL x tl₁ τ₁) (substTL x tl₁ τ₂)
-  DivTE τ₁ τ₂ → DivTE (substTL x tl₁ τ₁) (substTL x tl₁ τ₂)
-  RootTE τ → RootTE $ substTL x tl₁ τ
-  LogTE τ → LogTE $ substTL x tl₁ τ
-  TopTE → TopTE
-   -- Privacy Stuff →
-  PairTE τ₁ τ₂ → PairTE (substTL x tl₁ τ₁) (substTL x tl₁ τ₂)
-
-substPriv ∷ (PRIV_C p) ⇒ 𝕏 → Pr p RNF → Type RNF → Type RNF
-substPriv x p τ =
-  let τ' = checkTypeLang $ substTL x (privToTLExp p) (typeToTLExp τ) in
-        case τ' of
-          None → error "type coercion failed"
-          Some τ'' → τ''
-
-substPrivExp ∷ ∀ p p'. (PRIV_C p, PRIV_C p') ⇒ 𝕏 → Pr p' RNF → Pr p RNF → Pr p' RNF
-substPrivExp x pe pr =
-  case eqPRIV (priv @ p) (priv @ p') of
-    None → error "privacy variants dont match"
-    Some Refl → do
-      case (pe,pr) of
-        ((EpsPriv r) , (EpsPriv r')) → EpsPriv $ substRNF x r r'
-        ((EDPriv r₁ r₂) , (EDPriv r₁' r₂')) → EDPriv (substRNF x r₁ r₁') (substRNF x r₂ r₂')
-        ((RenyiPriv r₁ r₂) , (RenyiPriv r₁' r₂')) → RenyiPriv (substRNF x r₁ r₁') (substRNF x r₂ r₂')
-        ((ZCPriv r) , (ZCPriv r')) → ZCPriv $ substRNF x r r'
-        ((TCPriv r₁ r₂) , (TCPriv r₁' r₂')) → TCPriv (substRNF x r₁ r₁') (substRNF x r₂ r₂')
-
-substSens ∷ 𝕏 → Sens RNF → Type RNF → Type RNF
-substSens x s τ =
-  let τ' = checkTypeLang $ substTL x (sensToTLExp s) (typeToTLExp τ) in
-        case τ' of
-          None → error "type coercion failed"
-          Some τ'' → τ''
+    ConsME (substType x₉ τ₉ τ) (substTMExp x₉ τ₉ me)
+  AppendME me₁ me₂ → AppendME (substTMExp x₉ τ₉ me₁) (substTMExp x₉ τ₉ me₂)
+  RexpME r τ → RexpME r $ substType x₉ τ₉ τ
 
 substType ∷ 𝕏 → Type RNF → Type RNF → Type RNF
-substType x τ₁ τ₂ =
-  let τ' = checkTypeLang $ substTL x (typeToTLExp τ₁) (typeToTLExp τ₁) in
-        case τ' of
-          None → error "type coercion failed"
-          Some τ'' → τ''
+substType x₉ τ' τ'' = case τ'' of
+  VarT x' → case x' ≡ x₉ of
+    True → τ'
+    False → VarT x'
+  ℕˢT r → ℕˢT r
+  ℝˢT r → ℝˢT r
+  ℕT → ℕT
+  ℝT → ℝT
+  𝕀T r → 𝕀T r
+  𝔹T → 𝔹T
+  𝕊T → 𝕊T
+  SetT τ → SetT $ substType x₉ τ' τ
+  𝕄T ℓ c rows cols → 𝕄T ℓ c rows $ substTMExp x₉ τ' cols
+  𝔻T τ → 𝔻T $ substType x₉ τ' τ
+  τ₁ :⊕: τ₂ → substType x₉ τ' τ₁ :⊕: substType x₉ τ' τ₂
+  τ₁ :⊗: τ₂ → substType x₉ τ' τ₁ :⊗: substType x₉ τ' τ₂
+  τ₁ :&: τ₂ → substType x₉ τ' τ₁ :&: substType x₉ τ' τ₂
+  (x' :* τ₁) :⊸: (sσ :* τ₂) → (x' :* substType x₉ τ' τ₁) :⊸: (sσ :* substType x₉ τ' τ₂)
+  (x' :* τ₁) :⊸⋆: (pσ :* τ₂) → (x' :* substType x₉ τ' τ₁) :⊸⋆: (pσ :* substType x₉ τ' τ₂)
+  ForallT x' κ τ → ForallT x' κ $ substType x₉ τ' τ
 
 substMExpR ∷ 𝕏 → RNF → MExp RNF → MExp RNF
 substMExpR x r' = \case

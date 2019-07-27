@@ -413,7 +413,8 @@ alphaEquivRows ρ rows₁ rows₂ = case (rows₁,rows₂) of
   (RexpRT r₁, RexpRT r₂) → (substAlphaRNF (list ρ) r₁) ≡ r₂
   _ → False
 
-data TLExp r =
+type TLExp r = Annotated FullContext (TLExpPre r)
+data TLExpPre r =
     VarTE 𝕏
   -- Type Stuff
   | ℕˢTE r
@@ -449,50 +450,6 @@ data TLExp r =
   | PairTE (TLExp r) (TLExp r)
   deriving (Eq,Ord,Show)
 
-type STLExp r = Annotated FullContext (STLExpPre r)
-data STLExpPre r =
-    VarSTE 𝕏
-  -- Type Stuff
-  | ℕˢSTE r
-  | ℝˢSTE r
-  | ℕSTE
-  | ℝSTE
-  | 𝕀STE r
-  | 𝔹STE
-  | 𝕊STE
-  | SetSTE (STLExp r)
-  | 𝕄STE Norm Clip (RowsT r) (MExp r)
-  | 𝔻STE (STLExp r)
-  | STLExp r :⊕♭♭: STLExp r
-  | STLExp r :⊗♭♭: STLExp r
-  | STLExp r :&♭♭: STLExp r
-  | STLExp r :⊸♭♭: (Sens r ∧ STLExp r)
-  | (𝕏 ∧ STLExp r) :⊸⋆♭♭: (PEnv r ∧ STLExp r)
-  | ForallSTE 𝕏 Kind (STLExp r)
-  | CxtSTE (𝑃 𝕏)
-  -- | (𝐿 (𝕏 ∧ Kind) ∧ STLExp r) :⊸♭: (Sens r ∧ STLExp r)
-  -- -- ∀α:κ,…,α:κ. (x:τ,…,x:τ) → {x⋅p,…,x⋅p} τ
-  -- | (𝐿 (𝕏 ∧ Kind) ∧ 𝐿 (𝕏 ∧ STLExp r)) :⊸⋆♭: (PEnv r ∧ STLExp r)
-  | BoxedSTE (𝕏 ⇰ Sens r) (STLExp r)
-  -- RExp Stuff
-  | NatSTE ℕ
-  | NNRealSTE 𝔻
-  | MaxSTE (STLExp r) (STLExp r)
-  | MinSTE (STLExp r) (STLExp r)
-  | PlusSTE (STLExp r) (STLExp r)
-  | TimesSTE (STLExp r) (STLExp r)
-  | DivSTE (STLExp r) (STLExp r)
-  | RootSTE (STLExp r)
-  | LogSTE (STLExp r)
-  | TopSTE
-  -- Privacy Stuff
-  | PairSTE (STLExp r) (STLExp r)
-  deriving (Eq,Ord)
-
-frSTLExp ∷ STLExp r → TLExp r
-frSTLExp = undefined
-
-deriving instance (Show r) ⇒ Show (STLExpPre r)
 
 instance Functor Type where
   map ∷ (a → b) → Type a → Type b
