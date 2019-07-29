@@ -251,9 +251,9 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
       ηₙ ← parMExp mode
       parLit "]"
       return $ 𝕄TE ℓ c ηₘ ηₙ
-  -- , mixF $ MixFTerminal $ do
-  --     parLit "𝔻"
-  --     return $ 𝔻TE ℝTE
+  , mixF $ MixFTerminal $ do
+      parLit "𝔻"
+      return $ 𝔻TE $ Annotated null ℝTE
   , mixF $ MixFTerminal $ do
       parLit "℘"
       parLit "("
@@ -292,7 +292,7 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
       return $ \ τ → ForallTE α κ τ
   , mixF $ MixFTerminal $ do
       parLit "<"
-      xs ← pManySepBy (parLit ",") parVar
+      xs ← pManySepBy (parLit ",") parProgramVar
       parLit ">"
       return $ CxtTE $ pow xs
   , mixF $ MixFPrefix 3 $ do
@@ -588,7 +588,7 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
         in TAbsSE x κ $ foldr e (\ (x' :* κ') e' → Annotated ecxt $ TAbsSE x' κ' e') xκs
   , mixF $ MixFPostfix 10 $ do
       parLit "@"
-      τ ← parTypeSource p
+      τ ← parTLExp p
       return $ \ e → TAppSE e τ
   ]
 

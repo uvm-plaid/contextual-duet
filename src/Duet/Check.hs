@@ -454,22 +454,22 @@ inferSens eA = case extract eA of
     mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
       τ ← inferSens e
       return $ ForallT x κ τ
-  TAppSE e τ' → do
+  TAppSE e tl' → do
     τ ← inferSens e
     case τ of
       ForallT x κ τ → do
         let τ'' = case κ of
-              ℕK → case extract τ' of
-                ℕˢT r → substTypeR x r τ
-                VarT x' → substTypeR x (varRNF x') τ
-                _ → error $ "in type-level application: expected static nat, got: " ⧺ pprender τ'
-              ℝK → case extract τ' of
-                ℝˢT r → substTypeR x r τ
-                VarT x' → substTypeR x (varRNF x') τ
-                _ → error $ "in type-level application: expected static real, got: " ⧺ pprender τ'
-              CxtK → case extract τ' of
-                CxtT xs → substTypeCxt x (list $ iter $ xs) τ
-              TypeK → substType x (extract τ') τ
+              ℕK → case extract tl' of
+                ℕˢTE r → substTypeR x r τ
+                VarTE x' → substTypeR x (varRNF x') τ
+                _ → error $ "in type-level application: expected static nat, got: " ⧺ show𝕊 tl'
+              ℝK → case extract tl' of
+                ℝˢTE r → substTypeR x r τ
+                VarTE x' → substTypeR x (varRNF x') τ
+                _ → error $ "in type-level application: expected static real, got: " ⧺ show𝕊 tl'
+              CxtK → case extract tl' of
+                CxtTE xs → substTypeCxt x (list $ iter $ xs) τ
+              TypeK → substType x (checkOption $ checkTypeLang $ tl') τ
         return τ''
       _ → error $ "expected ForallT, got: " ⧺ pprender τ
   SFunSE x τ e → do
@@ -708,9 +708,8 @@ freshenSTerm ρ β eA nInit = do
           (TAbsSE xⁿ κ e' :* n')
         TAppSE e τ → do
           let e' :* n' = freshenSTerm ρ β e nInit
-          let tcxt = annotatedTag τ
-          let τ' :* n'' = freshenType ρ β (extract τ) n'
-          (TAppSE e' (Annotated tcxt τ') :* n'')
+          let τ' :* n'' = freshenTL ρ β τ n'
+          (TAppSE e' τ' :* n'')
         SFunSE x τ e → do
           let tcxt = annotatedTag τ
           let τ' :* n' = freshenType ρ β (extract τ) np1
@@ -868,3 +867,8 @@ isRealType _ = False
 
 matchArgPrivs ∷ 𝐿 (𝕏 ⇰ Sens RNF) → 𝐿 (Pr p RNF) → 𝐿 (𝕏 ⇰ Pr p RNF)
 matchArgPrivs xss xps = list $ zipWith (↦) (fold Nil (⧺) (map (list ∘ uniques ∘ keys) xss)) xps
+
+checkOption ∷ 𝑂 a → a
+checkOption = \case
+  None → error "checkOption failed"
+  Some α → α

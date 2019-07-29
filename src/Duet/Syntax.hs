@@ -252,6 +252,230 @@ data Type r =
   -- - contextual/lazy function, pair, and sum connectives
   deriving (Eq,Ord,Show)
 
+instance Functor Type where
+  map ∷ (a → b) → Type a → Type b
+  map f = \case
+    ℕˢT r → ℕˢT $ f r
+    ℝˢT r → ℝˢT $ f r
+    ℕT → ℕT
+    ℝT → ℝT
+    𝕀T r → 𝕀T $ f r
+    𝔹T → 𝔹T
+    𝕊T → 𝕊T
+    SetT τ → SetT (map f τ)
+    𝕄T ℓ c r₁ r₂ → 𝕄T ℓ c (map f r₁) (map f r₂)
+    𝔻T τ → 𝔻T $ map f τ
+    τ₁ :⊕: τ₂ → map f τ₁ :⊕: map f τ₂
+    τ₁ :⊗: τ₂ → map f τ₁ :⊗: map f τ₂
+    τ₁ :&: τ₂ → map f τ₁ :&: map f τ₂
+    (x :* τ₁) :⊸: (s :* τ₂) → (x :* map f τ₁) :⊸: (mapp f s :*  map f τ₂)
+    (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → (x :* map f τ₁) :⊸⋆: (PEnv (map (map f) pσ) :* map f τ₂)
+    ForallT α κ τ → ForallT α κ $ map f τ
+    CxtT xs → CxtT xs
+    BoxedT σ τ → BoxedT (map (map f) σ) (map f τ)
+    VarT x → VarT x
+
+type TLExp r = Annotated FullContext (TLExpPre r)
+data TLExpPre r =
+    VarTE 𝕏
+  -- Type Stuff
+  | ℕˢTE r
+  | ℝˢTE r
+  | ℕTE
+  | ℝTE
+  | 𝕀TE r
+  | 𝔹TE
+  | 𝕊TE
+  | SetTE (TLExp r)
+  | 𝕄TE Norm Clip (RowsT r) (MExp r)
+  | 𝔻TE (TLExp r)
+  | TLExp r :⊕♭: TLExp r
+  | TLExp r :⊗♭: TLExp r
+  | TLExp r :&♭: TLExp r
+  | (𝕏 ∧ TLExp r) :⊸♭: ((ProgramVar ⇰ Sens r) ∧ TLExp r)
+  | (𝕏 ∧ TLExp r) :⊸⋆♭: (PEnv r ∧ TLExp r)
+  | ForallTE 𝕏 Kind (TLExp r)
+  | CxtTE (𝑃 ProgramVar)
+  | BoxedTE (𝕏 ⇰ Sens r) (TLExp r)
+  -- RExp Stuff
+  | NatTE ℕ
+  | NNRealTE 𝔻
+  | MaxTE (TLExp r) (TLExp r)
+  | MinTE (TLExp r) (TLExp r)
+  | PlusTE (TLExp r) (TLExp r)
+  | TimesTE (TLExp r) (TLExp r)
+  | DivTE (TLExp r) (TLExp r)
+  | RootTE (TLExp r)
+  | LogTE (TLExp r)
+  | TopTE
+  -- Privacy Stuff
+  -- QUESTION, TODO
+  | PairTE (TLExp r) (TLExp r)
+  deriving (Eq,Ord,Show)
+makePrettySum ''TLExpPre
+
+instance Functor TLExpPre where
+  map ∷ (a → b) → TLExpPre a → TLExpPre b
+  map f = \case
+    ℕˢTE r → ℕˢTE $ f r
+    ℝˢTE r → ℝˢTE $ f r
+    ℕTE → ℕTE
+    ℝTE → ℝTE
+    𝕀TE r → 𝕀TE $ f r
+    𝔹TE → 𝔹TE
+    𝕊TE → 𝕊TE
+    SetTE τ → do
+      let tag = annotatedTag τ
+      SetTE $ Annotated tag (map f (extract τ))
+    𝕄TE ℓ c r₁ r₂ → 𝕄TE ℓ c (map f r₁) (map f r₂)
+    𝔻TE τ → do
+      let tag = annotatedTag τ
+      𝔻TE $ Annotated tag (map f (extract τ))
+    τ₁ :⊕♭: τ₂ → do
+      let tag₁ = annotatedTag τ₁
+      let tag₂ = annotatedTag τ₂
+      (Annotated tag₁ (map f (extract τ₁))) :⊕♭: (Annotated tag₂ (map f (extract τ₂)))
+    τ₁ :⊗♭: τ₂ → do
+      let tag₁ = annotatedTag τ₁
+      let tag₂ = annotatedTag τ₂
+      (Annotated tag₁ (map f (extract τ₁))) :⊗♭: (Annotated tag₂ (map f (extract τ₂)))
+    τ₁ :&♭: τ₂ → do
+      let tag₁ = annotatedTag τ₁
+      let tag₂ = annotatedTag τ₂
+      (Annotated tag₁ (map f (extract τ₁))) :&♭: (Annotated tag₂ (map f (extract τ₂)))
+    (x :* τ₁) :⊸♭: (s :* τ₂) → do
+      let tag₁ = annotatedTag τ₁
+      let tag₂ = annotatedTag τ₂
+      (x :* (Annotated tag₁ (map f (extract τ₁)))) :⊸♭: (mapp f s :* (Annotated tag₁ (map f (extract τ₂))))
+    (x :* τ₁) :⊸⋆♭: (PEnv pσ :* τ₂) → do
+      let tag₁ = annotatedTag τ₁
+      let tag₂ = annotatedTag τ₂
+      (x :* (Annotated tag₁ (map f (extract τ₁)))) :⊸⋆♭: (PEnv (map (map f) pσ) :* (Annotated tag₁ (map f (extract τ₂))))
+    ForallTE α κ τ → do
+      let tag = annotatedTag τ
+      ForallTE α κ $ (Annotated tag (map f (extract τ)))
+    CxtTE xs → CxtTE xs
+    VarTE x → VarTE x
+    NatTE n → NatTE n
+    NNRealTE d → NNRealTE d
+    MaxTE τ₁ τ₂ → do
+      let tag₁ = annotatedTag τ₁
+      let tag₂ = annotatedTag τ₂
+      MaxTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₁ (map f (extract τ₂)))
+    MinTE τ₁ τ₂ → do
+      let tag₁ = annotatedTag τ₁
+      let tag₂ = annotatedTag τ₂
+      MinTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₁ (map f (extract τ₂)))
+    PlusTE τ₁ τ₂ → do
+      let tag₁ = annotatedTag τ₁
+      let tag₂ = annotatedTag τ₂
+      PlusTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₁ (map f (extract τ₂)))
+    TimesTE τ₁ τ₂ → do
+      let tag₁ = annotatedTag τ₁
+      let tag₂ = annotatedTag τ₂
+      TimesTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₁ (map f (extract τ₂)))
+    DivTE τ₁ τ₂ → do
+      let tag₁ = annotatedTag τ₁
+      let tag₂ = annotatedTag τ₂
+      DivTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₁ (map f (extract τ₂)))
+    RootTE τ →  do
+      let tag = annotatedTag τ
+      RootTE (Annotated tag (map f (extract τ)))
+    LogTE τ →  do
+      let tag = annotatedTag τ
+      LogTE (Annotated tag (map f (extract τ)))
+    TopTE → TopTE
+
+freshenTL ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → TLExp RNF → ℕ → (TLExp RNF ∧ ℕ)
+freshenTL ρ β τ''' n =
+  let nplusone = n + one in
+  let tag = annotatedTag τ''' in
+  let (z :* nFinal) = case (extract τ''') of
+        ℕˢTE r → (ℕˢTE (substAlphaRNF (list ρ) r)) :* n
+        ℝˢTE r → (ℝˢTE (substAlphaRNF (list ρ) r)) :* n
+        ℕTE → (ℕTE :* n)
+        ℝTE → (ℝTE :* n)
+        𝕀TE r → (𝕀TE (substAlphaRNF (list ρ) r)) :* n
+        𝔹TE → (𝔹TE :* n)
+        𝕊TE → (𝕊TE :* n)
+        SetTE τ → do
+          let (τ' :* n') = freshenTL ρ β τ n
+          (SetTE τ') :* n'
+        𝕄TE l c rows cols →
+          let rows' = case rows of
+                        StarRT → StarRT
+                        RexpRT r → RexpRT (substAlphaRNF (list ρ) r)
+          in let (cols' :* n') = (freshenMExp ρ β cols n)
+          in (𝕄TE l c rows' cols') :* n'
+        𝔻TE τ → do
+          let (τ' :* n') = freshenTL ρ β τ n
+          (𝔻TE τ') :* n'
+        τ₁ :⊕♭: τ₂ →
+          let (τ₁' :* n') = freshenTL ρ β τ₁ n in
+          let (τ₂' :* n'') = freshenTL ρ β τ₂ n' in
+          (τ₁' :⊕♭: τ₂') :* n''
+        τ₁ :⊗♭: τ₂ →
+          let (τ₁' :* n') = freshenTL ρ β τ₁ n in
+          let (τ₂' :* n'') = freshenTL ρ β τ₂ n' in
+          (τ₁' :⊗♭: τ₂') :* n''
+        τ₁ :&♭: τ₂ →
+          let (τ₁' :* n') = freshenTL ρ β τ₁ n in
+          let (τ₂' :* n'') = freshenTL ρ β τ₂ n' in
+          (τ₁' :&♭: τ₂') :* n''
+        (x₁ :* τ₁) :⊸♭: (sσ₁ :* τ₂) →
+          let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some n} in
+          let (τ₁' :* n') = freshenTL ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₁ nplusone in
+          let (τ₂' :* n'') = freshenTL ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₂ n' in
+          let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁) in
+          let sσ₁'' ∷ (ProgramVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ ((x₁↦ x₁ⁿ) ⩌ β) x :* s) $ list sσ₁' in
+          ((x₁ⁿ :* τ₁') :⊸♭: (sσ₁'' :* τ₂') :* n'')
+        (x₁ :* τ₁) :⊸⋆♭: (PEnv pσ₁ :* τ₂) →
+          let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some n} in
+          let (τ₁' :* n') = freshenTL ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₁ nplusone in
+          let (τ₂' :* n'') = freshenTL ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₂ n' in
+          let pσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) pσ₁) in
+          let pσ₁'' = assoc $ map (\(x :* p) → freshenRef ρ ((x₁↦ x₁ⁿ) ⩌ β) x :* p) $ list pσ₁' in
+          ((x₁ⁿ :* τ₁') :⊸⋆♭: (PEnv pσ₁'' :* τ₂') :* n'')
+        ForallTE x κ τ →
+          let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some n} in
+          let (τ' :* n') = freshenTL ((x↦ xⁿ) ⩌ ρ) β τ nplusone in
+          (ForallTE xⁿ κ τ' ) :* n'
+        CxtTE xs → do
+          let xs' = pow $ map (\x → freshenRef ρ β x) $ list xs
+          (CxtTE xs' :* n)
+        VarTE x → (VarTE $ getTLVar $ freshenRef ρ β (TLVar x)) :* n
+        NatTE η → NatTE η :* n
+        NNRealTE d → NNRealTE d :* n
+        MaxTE τ₁ τ₂ →
+          let (τ₁' :* n') = freshenTL ρ β τ₁ n in
+          let (τ₂' :* n'') = freshenTL ρ β τ₂ n' in
+          (MaxTE τ₁' τ₂') :* n''
+        MinTE τ₁ τ₂ →
+          let (τ₁' :* n') = freshenTL ρ β τ₁ n in
+          let (τ₂' :* n'') = freshenTL ρ β τ₂ n' in
+          (MinTE τ₁' τ₂') :* n''
+        PlusTE τ₁ τ₂ →
+          let (τ₁' :* n') = freshenTL ρ β τ₁ n in
+          let (τ₂' :* n'') = freshenTL ρ β τ₂ n' in
+          (PlusTE τ₁' τ₂') :* n''
+        TimesTE τ₁ τ₂ →
+          let (τ₁' :* n') = freshenTL ρ β τ₁ n in
+          let (τ₂' :* n'') = freshenTL ρ β τ₂ n' in
+          (TimesTE τ₁' τ₂') :* n''
+        DivTE τ₁ τ₂ →
+          let (τ₁' :* n') = freshenTL ρ β τ₁ n in
+          let (τ₂' :* n'') = freshenTL ρ β τ₂ n' in
+          (DivTE τ₁' τ₂') :* n''
+        RootTE τ →
+          let (τ' :* n') = freshenTL ρ β τ n in
+          (RootTE τ') :* n'
+        LogTE τ →
+          let (τ' :* n') = freshenTL ρ β τ n in
+          (LogTE τ') :* n'
+        TopTE → TopTE :* n
+  in
+  (Annotated tag z) :* nFinal
+
 freshenType ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → Type RNF → ℕ → (Type RNF ∧ ℕ)
 freshenType ρ β τ''' n = let nplusone = n + one in
   case τ''' of
@@ -413,67 +637,6 @@ alphaEquivRows ρ rows₁ rows₂ = case (rows₁,rows₂) of
   (RexpRT r₁, RexpRT r₂) → (substAlphaRNF (list ρ) r₁) ≡ r₂
   _ → False
 
-type TLExp r = Annotated FullContext (TLExpPre r)
-data TLExpPre r =
-    VarTE 𝕏
-  -- Type Stuff
-  | ℕˢTE r
-  | ℝˢTE r
-  | ℕTE
-  | ℝTE
-  | 𝕀TE r
-  | 𝔹TE
-  | 𝕊TE
-  | SetTE (TLExp r)
-  | 𝕄TE Norm Clip (RowsT r) (MExp r)
-  | 𝔻TE (TLExp r)
-  | TLExp r :⊕♭: TLExp r
-  | TLExp r :⊗♭: TLExp r
-  | TLExp r :&♭: TLExp r
-  | (𝕏 ∧ TLExp r) :⊸♭: ((ProgramVar ⇰ Sens r) ∧ TLExp r)
-  | (𝕏 ∧ TLExp r) :⊸⋆♭: (PEnv r ∧ TLExp r)
-  | ForallTE 𝕏 Kind (TLExp r)
-  | CxtTE (𝑃 𝕏)
-  | BoxedTE (𝕏 ⇰ Sens r) (TLExp r)
-  -- RExp Stuff
-  | NatTE ℕ
-  | NNRealTE 𝔻
-  | MaxTE (TLExp r) (TLExp r)
-  | MinTE (TLExp r) (TLExp r)
-  | PlusTE (TLExp r) (TLExp r)
-  | TimesTE (TLExp r) (TLExp r)
-  | DivTE (TLExp r) (TLExp r)
-  | RootTE (TLExp r)
-  | LogTE (TLExp r)
-  | TopTE
-  -- Privacy Stuff
-  | PairTE (TLExp r) (TLExp r)
-  deriving (Eq,Ord,Show)
-
-
-instance Functor Type where
-  map ∷ (a → b) → Type a → Type b
-  map f = \case
-    ℕˢT r → ℕˢT $ f r
-    ℝˢT r → ℝˢT $ f r
-    ℕT → ℕT
-    ℝT → ℝT
-    𝕀T r → 𝕀T $ f r
-    𝔹T → 𝔹T
-    𝕊T → 𝕊T
-    SetT τ → SetT (map f τ)
-    𝕄T ℓ c r₁ r₂ → 𝕄T ℓ c (map f r₁) (map f r₂)
-    𝔻T τ → 𝔻T $ map f τ
-    τ₁ :⊕: τ₂ → map f τ₁ :⊕: map f τ₂
-    τ₁ :⊗: τ₂ → map f τ₁ :⊗: map f τ₂
-    τ₁ :&: τ₂ → map f τ₁ :&: map f τ₂
-    (x :* τ₁) :⊸: (s :* τ₂) → (x :* map f τ₁) :⊸: (mapp f s :*  map f τ₂)
-    (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → (x :* map f τ₁) :⊸⋆: (PEnv (map (map f) pσ) :* map f τ₂)
-    ForallT α κ τ → ForallT α κ $ map f τ
-    CxtT xs → CxtT xs
-    BoxedT σ τ → BoxedT (map (map f) σ) (map f τ)
-    VarT x → VarT x
-
 -----------------
 -- Expressions --
 -----------------
@@ -497,7 +660,7 @@ data SExp (p ∷ PRIV) r where
   AppSE ∷ SExpSource p r → 𝑂 (𝐿 ProgramVar) → SExpSource p r → SExp p r
   PFunSE ∷ 𝕏 → TypeSource r → PExpSource p r → SExp p r
   TAbsSE ∷ 𝕏 → Kind → SExpSource p r → SExp p r
-  TAppSE ∷ SExpSource p r → TypeSource r → SExp p r
+  TAppSE ∷ SExpSource p r → TLExp r → SExp p r
   deriving (Eq,Ord,Show)
 
 instance Functor (SExp p) where
