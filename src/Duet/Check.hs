@@ -152,171 +152,98 @@ checkSchemaVar x = do
       , pprender ᴍ
       ]
 
-inferKindVar ∷ 𝕏 → SM p Kind
-inferKindVar x = do
-  δ ← askL contextKindL
-  case δ ⋕? x of
-    Some κ → return κ
-    None → error $ concat
-      [ "Kind variable lookup error: failed to find " ⧺ (pprender x) ⧺ " in the environment:\n"
-      , pprender δ
-      ]
+checkProgramVar ∷ ProgramVar → SM p ()
+checkProgramVar x = return ()
 
-checkProgramVar ∷ 𝕏 → SM p ()
-checkProgramVar x = do
-  σ ← askL contextTypeL
-  case σ ⋕? x of
-    Some _τ → return ()
-    None → do
-      δ ← askL contextKindL
-      case δ ⋕? x of
-        Some κ → case κ of
-          CxtK → return ()
-          _ → error $ concat
-            [ "checkProgramVar: failed on " ⧺ (pprender x) ⧺ " in the environments:\n"
-            , pprender σ
-            , pprender δ
-            ]
-        None → error $ concat
-          [ "checkProgramVar: failed on " ⧺ (pprender x) ⧺ " in the environments:\n"
-          , pprender σ
-          , pprender δ
-          ]
+-- checkProgramVar x = do
+--   σ ← askL contextTypeL
+--   case σ ⋕? x of
+--     Some _τ → return ()
+--     None → do
+--       δ ← askL contextKindL
+--       case δ ⋕? x of
+--         Some κ → case κ of
+--           CxtK → return ()
+--           _ → error $ concat
+--             [ "checkProgramVar: failed on " ⧺ (pprender x) ⧺ " in the environments:\n"
+--             , pprender σ
+--             , pprender δ
+--             ]
+--         None → error $ concat
+--           [ "checkProgramVar: failed on " ⧺ (pprender x) ⧺ " in the environments:\n"
+--           , pprender σ
+--           , pprender δ
+--           ]
 
-checkSens ∷ Sens RExpPre → SM p ()
-checkSens (Sens r) = checkKind ℝK r
-
-checkPriv ∷ Pr p' RExpPre → SM p ()
-checkPriv = \case
-  EpsPriv r → checkKind ℝK r
-  EDPriv r₁ r₂ → do
-    checkKind ℝK r₁
-    checkKind ℝK r₂
-  RenyiPriv r₁ r₂ → do
-    checkKind ℝK r₁
-    checkKind ℝK r₂
-  ZCPriv r → checkKind ℝK r
-  TCPriv r₁ r₂ → do
-    checkKind ℝK r₁
-    checkKind ℝK r₂
-
-checkKind ∷ Kind → RExpPre → SM p ()
-checkKind κ r = return ()
--- checkKind κ r = do
---   κ' ← inferKind r
---   case κ' ⊑ κ of
---     True → return ()
---     False → error $ "kind error on : " ⧺ pprender r ⧺ ", expected: " ⧺ pprender κ' ⧺ " to be a subtype of " ⧺ pprender κ
-
-frKindEM ∷ KindE → SM p Kind
-frKindEM κ = case frKindE κ of
-  None → error "kind error"
-  Some κ → return κ
-
--- inferKind ∷ RExpPre → SM p Kind
--- inferKind _ = return ()
-
---inferkindrexp
-
--- inferKind ∷ RExpPre → SM p Kind
--- inferKind = \case
---   VarRE x → inferKindVar x
---   ConstRE Top → return ℝK
---   ConstRE (AddTop r)
---     | dbl (truncate r) ≡ r → return ℕK
---     | otherwise            → return ℝK
---   MaxRE e₁ e₂ → do
---     κ₁ ← inferKind $ extract e₁
---     κ₂ ← inferKind $ extract e₂
---     frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
---   MinRE e₁ e₂ → do
---     κ₁ ← inferKind $ extract e₁
---     κ₂ ← inferKind $ extract e₂
---     frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
---   PlusRE e₁ e₂ → do
---     κ₁ ← inferKind $ extract e₁
---     κ₂ ← inferKind $ extract e₂
---     frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
---   TimesRE e₁ e₂ → do
---     κ₁ ← inferKind $ extract e₁
---     κ₂ ← inferKind $ extract e₂
---     frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
---   PowRE q e → do
---     κ ← inferKind $ extract e
---     return $ case ratDen q ≡ 1 of
---       True → κ
---       False → ℝK
---   EfnRE e → do
---     void $ inferKind $ extract e
---     return ℝK
---   LogRE e → do
---     void $ inferKind $ extract e
---     return ℝK
---   DivRE e₁ e₂ → do
---     κ₁ ← inferKind $ extract e₁
---     κ₂ ← inferKind $ extract e₂
---     frKindEM $ toKindE κ₁ ⊔ toKindE κ₂
+checkTypeMExp ∷ ∀ p. (PRIV_C p) ⇒ MExp RNF → SM p ()
+checkTypeMExp me'' = case me'' of
+  EmptyME → skip
+  VarME x → checkSchemaVar x
+  ConsME (τ ∷ Type RNF) (me ∷ MExp RNF) → do
+    checkType τ
+    checkTypeMExp me
+  AppendME (me₁ ∷ MExp RNF) (me₂ ∷ MExp RNF) → do
+    checkTypeMExp me₁
+    checkTypeMExp me₂
+  RexpME r τ → do
+    checkType τ
 
 -- kind checking
-checkType ∷ ∀ p. (PRIV_C p) ⇒ Type RNF → SM p ()
-checkType _ = return ()
-
 -- TODO: call on prims
-
--- checkType ∷ ∀ p. (PRIV_C p) ⇒ Type RNF → SM p ()
--- checkType τA = case τA of
---   ℕˢT η → checkKind ℕK $ extract η
---   ℝˢT η → checkKind ℝK $ extract η
---   ℕT → skip
---   ℝT → skip
---   𝕀T η → checkKind ℕK $ extract η
---   𝔹T → skip
---   𝕊T → skip
---   SetT τ → checkType τ
---   𝕄T _ℓ _c rows me → do
---     case rows of
---       RexpRT r → do
---         checkKind ℕK $ extract r
---       StarRT → skip
---     case me of
---       EmptyME → skip
---       VarME x → checkSchemaVar x
---       ConsME (τ ∷ Type RExp) (me ∷ MExp RExp) → undefined
---       AppendME (me₁ ∷ MExp RExp) (me₂ ∷ MExp RExp) → undefined
---       RexpME r τ → do
---         checkKind ℕK $ extract r
---         checkType τ
---   𝔻T τ → checkType τ
---   τ₁ :⊕: τ₂ → do
---     checkType τ₁
---     checkType τ₂
---   τ₁ :⊗: τ₂ → do
---     checkType τ₁
---     checkType τ₂
---   τ₁ :&: τ₂ → do
---     checkType τ₁
---     checkType τ₂
---   (x :* τ₁) :⊸: (sσ :* τ₂) → do
---     checkType τ₁
---     mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
---       eachWith sσ $ \ (x' :* s) → do
---         -- TODO
---         -- void $ checkProgramVar x'
---         checkSens $ map extract s
---       checkType τ₂
---   (x :* τ₁) :⊸⋆: (PEnv (pσ ∷ ProgramVar ⇰ Pr p' RExp) :* τ₂) → do
---     checkType τ₁
---     mapEnvL contextTypeL ( \ γ → (x ↦ map normalizeRNF τ₁) ⩌ γ) $ do
---       eachWith pσ $ \ (x' :* p) → do
---         -- TODO
---         -- void $ checkProgramVar x'
---         checkPriv $ map extract p
---       checkType τ₂
---   VarT x → void $ inferKindVar x -- make sure the kind is TypeK
---   ForallT x κ τ → do
---     mapEnvL contextKindL ( \ γ → (x ↦ κ) ⩌ γ) $ do
---       checkType τ
---   _ → error $ "checkType error on " ⧺ pprender τA
+checkType ∷ ∀ p. (PRIV_C p) ⇒ Type RNF → SM p ()
+checkType τA = case τA of
+  ℕˢT η → skip
+  ℝˢT η → skip
+  ℕT → skip
+  ℝT → skip
+  𝕀T η → skip
+  𝔹T → skip
+  𝕊T → skip
+  SetT τ → checkType τ
+  𝕄T _ℓ _c rows me → do
+    case rows of
+      RexpRT r → skip
+      StarRT → skip
+    checkTypeMExp me
+  𝔻T τ → checkType τ
+  τ₁ :⊕: τ₂ → do
+    checkType τ₁
+    checkType τ₂
+  τ₁ :⊗: τ₂ → do
+    checkType τ₁
+    checkType τ₂
+  τ₁ :&: τ₂ → do
+    checkType τ₁
+    checkType τ₂
+  (x :* τ₁) :⊸: (sσ :* τ₂) → do
+    checkType τ₁
+    mapEnvL contextTypeL ( \ γ → (x ↦ τ₁) ⩌ γ) $ do
+      eachWith sσ $ \ (x' :* s) → do
+        -- TODO
+        void $ checkProgramVar x'
+        -- checkSens $ map extract s
+      checkType τ₂
+  (x :* τ₁) :⊸⋆: (PEnv (pσ ∷ ProgramVar ⇰ Pr p' RNF) :* τ₂) → do
+    checkType τ₁
+    mapEnvL contextTypeL ( \ γ → (x ↦ τ₁) ⩌ γ) $ do
+      eachWith pσ $ \ (x' :* p) → do
+        -- TODO
+        void $ checkProgramVar x'
+        -- checkPriv $ map extract p
+      checkType τ₂
+  VarT x → do
+    δ ← askL contextKindL
+    case δ ⋕? x of
+      Some TypeK → return ()
+      Some _ → error "not a TypeK kinded variable"
+      None → error $ concat
+        [ "Kind variable lookup error: failed to find " ⧺ (pprender x) ⧺ " in the environment:\n"
+        , pprender δ
+        ]
+  ForallT x κ τ → do
+    mapEnvL contextKindL ( \ γ → (x ↦ κ) ⩌ γ) $ do
+      checkType τ
+  _ → error $ "checkType error on " ⧺ pprender τA
 
 freshenSM ∷ Type RNF → SM p (Type RNF)
 freshenSM τ = do
@@ -457,6 +384,7 @@ inferSens eA = case extract eA of
   TAppSE e tl' → do
     τ ← inferSens e
     case τ of
+      -- TODO: recursive-kind checking on types before substitution for numbers
       ForallT x κ τ → do
         let τ'' = case κ of
               ℕK → case extract tl' of

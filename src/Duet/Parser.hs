@@ -30,7 +30,7 @@ tokKeywords = list
   ,"count","exponential","rand-resp","discf"
   ,"sample","rand-nat"
   ,"L1","L2","L∞","U"
-  ,"dyn","real"
+  ,"real"
   ,"ZCDP","RENYI","EPSDP"
   ,"box","unbox","boxed"
   ,"if","then","else"
