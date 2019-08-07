@@ -1,11 +1,13 @@
-let main = pλ ε   : ℝ⁺,
-              δ   : ℝ⁺
+let main = ∀  ε   : ℝ⁺,
+              δ   : ℝ⁺,
+              m   : ℕ,
+              n   : ℕ
               .
-              ε   : ℝ⁺[ε],
+          pλ  ε   : ℝ⁺[ε],
               δ   : ℝ⁺[δ],
-              df :  𝕄 [L∞ , U | ★ , 𝐝 ℕ ∷ 𝐝 ℝ ∷ [] ]
+              df :  𝕄 [L∞,U | m , n↦ℝ]
               ⇒
-  result ← gauss[ℝ⁺[1.0], ε, δ] <df> { real (rows df) };
+  result ← gauss @ ε @ δ <df> ε <df> δ <df> (real₂ @ m (mrows @ m @ n @ ℝ df));
   return result
 in main
 

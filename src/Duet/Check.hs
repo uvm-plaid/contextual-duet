@@ -153,27 +153,27 @@ checkSchemaVar x = do
       ]
 
 checkProgramVar ∷ ProgramVar → SM p ()
-checkProgramVar x = return ()
-
--- checkProgramVar x = do
---   σ ← askL contextTypeL
---   case σ ⋕? x of
---     Some _τ → return ()
---     None → do
---       δ ← askL contextKindL
---       case δ ⋕? x of
---         Some κ → case κ of
---           CxtK → return ()
---           _ → error $ concat
---             [ "checkProgramVar: failed on " ⧺ (pprender x) ⧺ " in the environments:\n"
---             , pprender σ
---             , pprender δ
---             ]
---         None → error $ concat
---           [ "checkProgramVar: failed on " ⧺ (pprender x) ⧺ " in the environments:\n"
---           , pprender σ
---           , pprender δ
---           ]
+checkProgramVar (TMVar x) = do
+  σ ← askL contextTypeL
+  case σ ⋕? x of
+    Some _τ → return ()
+    None → error $ concat
+        [ "checkProgramVar₁: failed on " ⧺ (pprender x) ⧺ " in the environment:\n"
+        , pprender σ
+        ]
+checkProgramVar (TLVar x) = do
+  δ ← askL contextKindL
+  case δ ⋕? x of
+    Some κ → case κ of
+      CxtK → return ()
+      _ → error $ concat
+        [ "checkProgramVar₂: failed on " ⧺ (pprender x) ⧺ " in the environment:\n"
+        , pprender δ
+        ]
+    None → error $ concat
+      [ "checkProgramVar₃: failed on " ⧺ (pprender x) ⧺ " in the environment:\n"
+      , pprender δ
+      ]
 
 checkTypeMExp ∷ ∀ p. (PRIV_C p) ⇒ MExp RNF → SM p ()
 checkTypeMExp me'' = case me'' of
@@ -189,7 +189,6 @@ checkTypeMExp me'' = case me'' of
     checkType τ
 
 -- kind checking
--- TODO: call on prims
 checkType ∷ ∀ p. (PRIV_C p) ⇒ Type RNF → SM p ()
 checkType τA = case τA of
   ℕˢT η → skip
@@ -279,10 +278,11 @@ mapMDict f kvs = do
   lst ← mapM (mapM f) $ list kvs
   return $ assoc lst
 
--- TODO: kind-checking
 inferPrimitives ∷ ∀ p . (PRIV_C p) ⇒ (𝕏 ⇰ Type RNF) → SM p (𝕏 ⇰ Type RNF)
 inferPrimitives prims = do
-  mapM inferType prims
+  prims' ← mapM inferType prims
+  void $ mapM checkType prims'
+  return prims'
 
 inferType ∷ ∀ p. (PRIV_C p) ⇒ Type RNF → SM p (Type RNF)
 inferType τinit = do
@@ -384,16 +384,17 @@ inferSens eA = case extract eA of
   TAppSE e tl' → do
     τ ← inferSens e
     case τ of
-      -- TODO: recursive-kind checking on types before substitution for numbers
       ForallT x κ τ → do
         let τ'' = case κ of
               ℕK → case extract tl' of
                 ℕˢTE r → substTypeR x r τ
                 VarTE x' → substTypeR x (varRNF x') τ
+                TopTE →  substTypeR x (ConstantRNF TopBT) τ
                 _ → error $ "in type-level application: expected static nat, got: " ⧺ show𝕊 tl'
               ℝK → case extract tl' of
                 ℝˢTE r → substTypeR x r τ
                 VarTE x' → substTypeR x (varRNF x') τ
+                TopTE →  substTypeR x (ConstantRNF TopBT) τ
                 _ → error $ "in type-level application: expected static real, got: " ⧺ show𝕊 tl'
               CxtK → case extract tl' of
                 CxtTE xs → substTypeCxt x (list $ iter $ xs) τ

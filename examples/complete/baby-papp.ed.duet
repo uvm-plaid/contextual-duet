@@ -1,7 +1,7 @@
-let f = 
-  pλ m : ℕ . m : ℕ[ m ] ⇒ 
-    return pλ n : ℕ . n : ℕ[ n ] ⇒
-      return (m + n)
-in pλ . x : ℕ ⇒
-  f' ← f@[1.ℕ[1]] ;
-  f'@[2.ℕ[2]]
+let f =
+  ∀ m : ℕ . pλ m : ℕ[ m ] ⇒
+    return ∀ n : ℕ . pλ n : ℕ[ n ] ⇒
+      return (plus₄ @ m @ n m n)
+in pλ x : ℕ ⇒
+  f' ← f @ ℕ[1.0] ℕ[1] ;
+  f' @ ℕ[2.0] ℕ[2]

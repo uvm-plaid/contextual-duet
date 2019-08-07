@@ -1,4 +1,3 @@
-
-sλ c : ℝ⁺ . c : ℝ⁺[ c ] ⇒
-  sλ m : ℕ , n : ℕ . xs : 𝕄 [L∞,U | m , n⋅ℝ] ⇒
-    mmap xs { x ⇒ c ⋅ x }
+∀ c : ℝ⁺ . sλ c : ℝ⁺[c] ⇒
+  ∀  m : ℕ , n : ℕ . sλ xs : 𝕄 [L∞,U | m , n↦ℝ] ⇒
+    mscale @ m @ n @ c xs c
