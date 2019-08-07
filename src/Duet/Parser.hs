@@ -276,10 +276,12 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
       x ← parVar
       parLit ":"
       τ₁ ← parTLExp mode
+      parLit "⋅"
+      s ← parSens
       parLit "⊸⋆"
       parLit ")"
       σ ← parPEnv mode
-      return $ \ τ₂ → (x :* τ₁) :⊸⋆♭: (σ :* τ₂)
+      return $ \ τ₂ → (x :* τ₁ :* s) :⊸⋆♭: (σ :* τ₂)
   , mixF $ MixFPrefix 2 $ do
       parLit "∀"
       α ← parVar
@@ -452,10 +454,12 @@ parType mode = mixfixParser $ concat
       x ← parVar
       parLit ":"
       τ₁ ← parType mode
+      parLit "⋅"
+      s ← parSens
       parLit ")"
       parLit "⊸⋆"
       σ ← parPEnv mode
-      return $ \ τ₂ → (x :* τ₁) :⊸⋆: (σ :* τ₂)
+      return $ \ τ₂ → (x :* τ₁ :* s) :⊸⋆: (σ :* τ₂)
   , mix $ MixPrefix 2 $ do
       parLit "∀"
       x ← parVar
@@ -557,17 +561,21 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       x ← parVar
       parLit ":"
       τ ← parTypeSource p
+      parLit "⋅"
+      s ← parSens
       xτs ← pMany $ do
         parLit ","
         x' ← parVar
         parLit ":"
         τ' ← parTypeSource p
-        return $ x' :* τ'
+        parLit "⋅"
+        s' ← parSens
+        return $ x' :* τ' :* s'
       parLit "⇒"
       e ← parPExp p
       return $
         let ecxt = annotatedTag e
-        in PFunSE x τ $ foldr e (\ (x' :* τ') e' → Annotated ecxt $ ReturnPE $ Annotated ecxt $ PFunSE x' τ' e') xτs
+        in PFunSE x τ s $ foldr e (\ (x' :* τ' :* s') e' → Annotated ecxt $ ReturnPE $ Annotated ecxt $ PFunSE x' τ' s' e') xτs
   , mixF $ MixFPrefix 1 $ do
       parLit "∀"
       x ← parVar

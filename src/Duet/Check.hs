@@ -103,10 +103,10 @@ checkTypeLang e₀ = case (extract e₀) of
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
     return $ (x :* τ₁) :⊸: (sσ :* τ₂)
-  (x :* e₁) :⊸⋆♭: (pσ :* e₂) → do
+  (x :* e₁ :* s) :⊸⋆♭: (pσ :* e₂) → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
-    return $ (x :* τ₁) :⊸⋆: (pσ :* τ₂)
+    return $ (x :* τ₁ :* s) :⊸⋆: (pσ :* τ₂)
   _ → None
 
 checkRExpLang ∷ TLExp RNF → 𝑂 RNF
@@ -222,7 +222,7 @@ checkType τA = case τA of
         void $ checkProgramVar x'
         -- checkSens $ map extract s
       checkType τ₂
-  (x :* τ₁) :⊸⋆: (PEnv (pσ ∷ ProgramVar ⇰ Pr p' RNF) :* τ₂) → do
+  (x :* τ₁ :* s) :⊸⋆: (PEnv (pσ ∷ ProgramVar ⇰ Pr p' RNF) :* τ₂) → do
     checkType τ₁
     mapEnvL contextTypeL ( \ γ → (x ↦ τ₁) ⩌ γ) $ do
       eachWith pσ $ \ (x' :* p) → do
@@ -322,12 +322,12 @@ inferType τinit = do
         τ₂' ← inferType τ₂
         σ' ← fixTVs σ
         freshenSM $ (x :* τ₁') :⊸: (σ' :* τ₂')
-    (x :* τ₁) :⊸⋆: (PEnv σ :* τ₂) → do
+    (x :* τ₁ :* s) :⊸⋆: (PEnv σ :* τ₂) → do
       mapEnvL contextTypeL ( \ γ → (x ↦ τ₁) ⩌ γ) $ do
         τ₁' ← inferType τ₁
         τ₂' ← inferType τ₂
         σ' ← fixTVs σ
-        freshenSM $ (x :* τ₁') :⊸⋆: (PEnv σ' :* τ₂')
+        freshenSM $ (x :* τ₁' :* s) :⊸⋆: (PEnv σ' :* τ₂')
     ForallT x κ τ → do
       mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
         τ' ← inferType τ
@@ -443,11 +443,11 @@ inferSens eA = case extract eA of
             , pprender τ₁
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             ]
-  PFunSE x τ e → do
+  PFunSE x τ s e → do
     checkType $ extract τ
     let τ' = extract τ
     σ :* τ'' ← smFromPM $ hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferPriv e
-    return $ (x :* τ') :⊸⋆: (PEnv σ :* τ'')
+    return $ (x :* τ' :* s) :⊸⋆: (PEnv σ :* τ'')
   _ → error $ concat
         [ "inferSens unknown expression type: "
         , "\n"
@@ -475,7 +475,7 @@ inferPriv eA = case extract eA of
       True → skip
       False → error $ "provided variables to application which are not in scope: " ⧺ show𝕊 (xsₜₘ ∖ allInScopeₜₘ) ⧺ show𝕊 (xsₜₗ ∖ allInScopeₜₗ)
     case τ₁ of
-      (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ ProgramVar ⇰ Pr p' RNF) :* τ₁₂) | (τ₁₁ ≡ τ₂) ⩓ (joins (values σ₂) ⊑ one) →
+      (x :* τ₁₁ :* s) :⊸⋆: (PEnv (σ' ∷ ProgramVar ⇰ Pr p' RNF) :* τ₁₂) | (τ₁₁ ≡ τ₂) ⩓ (joins (values σ₂) ⊑ s) →
         case eqPRIV (priv @ p) (priv @ p') of
           None → error "not same priv mode"
           Some Refl → do
@@ -533,7 +533,7 @@ substType x₉ τ' τ'' = case τ'' of
   τ₁ :⊗: τ₂ → substType x₉ τ' τ₁ :⊗: substType x₉ τ' τ₂
   τ₁ :&: τ₂ → substType x₉ τ' τ₁ :&: substType x₉ τ' τ₂
   (x' :* τ₁) :⊸: (sσ :* τ₂) → (x' :* substType x₉ τ' τ₁) :⊸: (sσ :* substType x₉ τ' τ₂)
-  (x' :* τ₁) :⊸⋆: (pσ :* τ₂) → (x' :* substType x₉ τ' τ₁) :⊸⋆: (pσ :* substType x₉ τ' τ₂)
+  (x' :* τ₁ :* s) :⊸⋆: (pσ :* τ₂) → (x' :* substType x₉ τ' τ₁ :* s) :⊸⋆: (pσ :* substType x₉ τ' τ₂)
   ForallT x' κ τ → ForallT x' κ $ substType x₉ τ' τ
 
 substMExpR ∷ 𝕏 → RNF → MExp RNF → MExp RNF
@@ -577,7 +577,7 @@ substTypeCxt x' xs τ' = case τ' of
   τ₁ :⊗: τ₂ → substTypeCxt x' xs τ₁ :⊗: substTypeCxt x' xs τ₂
   τ₁ :&: τ₂ → substTypeCxt x' xs τ₁ :&: substTypeCxt x' xs τ₂
   (x :* τ₁) :⊸: (sσ :* τ₂) → (x :* substTypeCxt x' xs τ₁) :⊸: ((spliceCxt x' xs sσ) :* substTypeCxt x' xs τ₂)
-  (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → (x :* substTypeCxt x' xs τ₁) :⊸⋆: (PEnv (spliceCxt x' xs pσ) :* substTypeCxt x' xs τ₂)
+  (x :* τ₁ :* s) :⊸⋆: (PEnv pσ :* τ₂) → (x :* substTypeCxt x' xs τ₁ :* s) :⊸⋆: (PEnv (spliceCxt x' xs pσ) :* substTypeCxt x' xs τ₂)
   ForallT x κ τ → ForallT x κ $ substTypeCxt x' xs τ
 
 spliceCxt ∷ 𝕏 → 𝐿 ProgramVar → ProgramVar ⇰ a → ProgramVar ⇰ a
@@ -611,8 +611,8 @@ substTypeR x' r' τ' = case τ' of
   τ₁ :&: τ₂ → substTypeR x' r' τ₁ :&: substTypeR x' r' τ₂
   (x :* τ₁) :⊸: (sσ :* τ₂) →
     (x :* substTypeR x' r' τ₁) :⊸: (assoc (map (\(xₐ :* s) → xₐ :* Sens (substRNF x' r' (unSens s))) (iter sσ)) :* substTypeR x' r' τ₂)
-  (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) →
-    (x :* substTypeR x' r' τ₁) :⊸⋆: ((PEnv (assoc (map (\(xₐ :* p) → xₐ :* substPrivR x' r' p) (iter pσ)))) :* substTypeR x' r' τ₂)
+  (x :* τ₁ :* s) :⊸⋆: (PEnv pσ :* τ₂) →
+    (x :* substTypeR x' r' τ₁ :* map (substRNF x' r') s) :⊸⋆: ((PEnv (assoc (map (\(xₐ :* p) → xₐ :* substPrivR x' r' p) (iter pσ)))) :* substTypeR x' r' τ₂)
   ForallT x κ τ → ForallT x κ $ substTypeR x' r' τ
   _ → error $ "error in substTypeR: " ⧺ pprender τ'
 
@@ -650,12 +650,13 @@ freshenSTerm ρ β eA nInit = do
           let xsO' = mapp (\x → freshenRef ρ β x) xsO
           let e₂' :* n'' = freshenSTerm ρ β e₂ n'
           (AppSE e₁' xsO' e₂' :* n'')
-        PFunSE x τ e → do
+        PFunSE x τ s e → do
           let tcxt = annotatedTag τ
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
           let τ' :* n' = freshenType ρ β (extract τ) np1
+          let s' = map (substAlphaRNF (list ρ)) s
           let e' :* n'' = freshenPTerm ρ ((x↦ xⁿ) ⩌ β) e n'
-          (PFunSE xⁿ (Annotated tcxt τ') e' :* n'')
+          (PFunSE xⁿ (Annotated tcxt τ') s' e' :* n'')
   (Annotated ecxt z) :* nFinal
 
 freshenPTerm ∷ ∀ p. (PRIV_C p) ⇒ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → PExpSource p RNF → ℕ → PExpSource p RNF ∧ ℕ
@@ -696,8 +697,8 @@ substGammaSens σ₉ x₉ τ₉ = case τ₉ of
   τ₁ :&: τ₂ → substGammaSens σ₉ x₉ τ₁ :&: substGammaSens σ₉ x₉ τ₂
   (x :* τ₁) :⊸: (sσ :* τ₂) → do
     (x :* substGammaSens σ₉ x₉ τ₁) :⊸: ((substGammaSensEnv σ₉ x₉ sσ) :* substGammaSens σ₉ x₉ τ₂)
-  (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → do
-    (x :* substGammaSens σ₉ x₉ τ₁) :⊸⋆: (PEnv (substGammaPrEnv σ₉ x₉ pσ) :* substGammaSens σ₉ x₉ τ₂)
+  (x :* τ₁ :* s) :⊸⋆: (PEnv pσ :* τ₂) → do
+    (x :* substGammaSens σ₉ x₉ τ₁ :* s) :⊸⋆: (PEnv (substGammaPrEnv σ₉ x₉ pσ) :* substGammaSens σ₉ x₉ τ₂)
   ForallT x κ τ → ForallT x κ $ substGammaSens σ₉ x₉ τ
 
 substGammaPr ∷ (ProgramVar ⇰ Sens RNF) → 𝕏 → Type RNF → Type RNF
@@ -718,8 +719,8 @@ substGammaPr σ₉ x₉ τ₉ = case τ₉ of
   τ₁ :&: τ₂ → substGammaPr σ₉ x₉ τ₁ :&: substGammaPr σ₉ x₉ τ₂
   (x :* τ₁) :⊸: (sσ :* τ₂) → do
     (x :* substGammaPr σ₉ x₉ τ₁) :⊸: (sσ :* substGammaPr σ₉ x₉ τ₂)
-  (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → do
-    (x :* substGammaPr σ₉ x₉ τ₁) :⊸⋆: (PEnv (substGammaPrEnv σ₉ x₉ pσ) :* substGammaPr σ₉ x₉ τ₂)
+  (x :* τ₁ :* s) :⊸⋆: (PEnv pσ :* τ₂) → do
+    (x :* substGammaPr σ₉ x₉ τ₁ :* s) :⊸⋆: (PEnv (substGammaPrEnv σ₉ x₉ pσ) :* substGammaPr σ₉ x₉ τ₂)
   ForallT x κ τ → ForallT x κ $ substGammaPr σ₉ x₉ τ
 
 substGammaSensEnv ∷ (ProgramVar ⇰ Sens RNF) → 𝕏 → (ProgramVar ⇰ Sens RNF) → (ProgramVar ⇰ Sens RNF)

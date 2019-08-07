@@ -244,7 +244,7 @@ data Type r =
   | Type r :⊗: Type r
   | Type r :&: Type r
   | (𝕏 ∧ Type r) :⊸: ((ProgramVar ⇰ Sens r) ∧ Type r)
-  | (𝕏 ∧ Type r) :⊸⋆: (PEnv r ∧ Type r)
+  | (𝕏 ∧ Type r ∧ Sens r) :⊸⋆: (PEnv r ∧ Type r)
   | ForallT 𝕏 Kind (Type r)
   | CxtT (𝑃 ProgramVar)
   | BoxedT (𝕏 ⇰ Sens r) (Type r)
@@ -269,7 +269,7 @@ instance Functor Type where
     τ₁ :⊗: τ₂ → map f τ₁ :⊗: map f τ₂
     τ₁ :&: τ₂ → map f τ₁ :&: map f τ₂
     (x :* τ₁) :⊸: (s :* τ₂) → (x :* map f τ₁) :⊸: (mapp f s :*  map f τ₂)
-    (x :* τ₁) :⊸⋆: (PEnv pσ :* τ₂) → (x :* map f τ₁) :⊸⋆: (PEnv (map (map f) pσ) :* map f τ₂)
+    (x :* τ₁ :* s) :⊸⋆: (PEnv pσ :* τ₂) → (x :* map f τ₁ :* map f s) :⊸⋆: (PEnv (map (map f) pσ) :* map f τ₂)
     ForallT α κ τ → ForallT α κ $ map f τ
     CxtT xs → CxtT xs
     BoxedT σ τ → BoxedT (map (map f) σ) (map f τ)
@@ -293,7 +293,7 @@ data TLExpPre r =
   | TLExp r :⊗♭: TLExp r
   | TLExp r :&♭: TLExp r
   | (𝕏 ∧ TLExp r) :⊸♭: ((ProgramVar ⇰ Sens r) ∧ TLExp r)
-  | (𝕏 ∧ TLExp r) :⊸⋆♭: (PEnv r ∧ TLExp r)
+  | (𝕏 ∧ TLExp r ∧ Sens r) :⊸⋆♭: (PEnv r ∧ TLExp r)
   | ForallTE 𝕏 Kind (TLExp r)
   | CxtTE (𝑃 ProgramVar)
   | BoxedTE (𝕏 ⇰ Sens r) (TLExp r)
@@ -347,10 +347,10 @@ instance Functor TLExpPre where
       let tag₁ = annotatedTag τ₁
       let tag₂ = annotatedTag τ₂
       (x :* (Annotated tag₁ (map f (extract τ₁)))) :⊸♭: (mapp f s :* (Annotated tag₁ (map f (extract τ₂))))
-    (x :* τ₁) :⊸⋆♭: (PEnv pσ :* τ₂) → do
+    (x :* τ₁ :* s) :⊸⋆♭: (PEnv pσ :* τ₂) → do
       let tag₁ = annotatedTag τ₁
       let tag₂ = annotatedTag τ₂
-      (x :* (Annotated tag₁ (map f (extract τ₁)))) :⊸⋆♭: (PEnv (map (map f) pσ) :* (Annotated tag₁ (map f (extract τ₂))))
+      (x :* (Annotated tag₁ (map f (extract τ₁))) :* map f s) :⊸⋆♭: (PEnv (map (map f) pσ) :* (Annotated tag₁ (map f (extract τ₂))))
     ForallTE α κ τ → do
       let tag = annotatedTag τ
       ForallTE α κ $ (Annotated tag (map f (extract τ)))
@@ -429,13 +429,14 @@ freshenTL ρ β τ''' n =
           let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁) in
           let sσ₁'' ∷ (ProgramVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ ((x₁↦ x₁ⁿ) ⩌ β) x :* s) $ list sσ₁' in
           ((x₁ⁿ :* τ₁') :⊸♭: (sσ₁'' :* τ₂') :* n'')
-        (x₁ :* τ₁) :⊸⋆♭: (PEnv pσ₁ :* τ₂) →
+        (x₁ :* τ₁ :* s) :⊸⋆♭: (PEnv pσ₁ :* τ₂) →
           let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some n} in
           let (τ₁' :* n') = freshenTL ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₁ nplusone in
           let (τ₂' :* n'') = freshenTL ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₂ n' in
+          let s' = map (substAlphaRNF (list ρ)) s in
           let pσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) pσ₁) in
           let pσ₁'' = assoc $ map (\(x :* p) → freshenRef ρ ((x₁↦ x₁ⁿ) ⩌ β) x :* p) $ list pσ₁' in
-          ((x₁ⁿ :* τ₁') :⊸⋆♭: (PEnv pσ₁'' :* τ₂') :* n'')
+          ((x₁ⁿ :* τ₁' :* s') :⊸⋆♭: (PEnv pσ₁'' :* τ₂') :* n'')
         ForallTE x κ τ →
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some n} in
           let (τ' :* n') = freshenTL ((x↦ xⁿ) ⩌ ρ) β τ nplusone in
@@ -516,13 +517,14 @@ freshenType ρ β τ''' n = let nplusone = n + one in
       let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁) in
       let sσ₁'' ∷ (ProgramVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ ((x₁↦ x₁ⁿ) ⩌ β) x :* s) $ list sσ₁' in
       ((x₁ⁿ :* τ₁') :⊸: (sσ₁'' :* τ₂') :* n'')
-    (x₁ :* τ₁) :⊸⋆: (PEnv (pσ₁ ∷ ProgramVar ⇰ Pr p RNF) :* τ₂) →
+    (x₁ :* τ₁ :* s) :⊸⋆: (PEnv (pσ₁ ∷ ProgramVar ⇰ Pr p RNF) :* τ₂) →
       let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some n} in
       let (τ₁' :* n') = freshenType ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₁ nplusone in
+      let s' = map (substAlphaRNF (list ρ)) s in
       let (τ₂' :* n'') = freshenType ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₂ n' in
       let pσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) pσ₁) in
       let pσ₁'' = assoc $ map (\(x :* p) → freshenRef ρ ((x₁↦ x₁ⁿ) ⩌ β) x :* p) $ list pσ₁' in
-      ((x₁ⁿ :* τ₁') :⊸⋆: (PEnv pσ₁'' :* τ₂') :* n'')
+      ((x₁ⁿ :* τ₁' :* s') :⊸⋆: (PEnv pσ₁'' :* τ₂') :* n'')
     ForallT x κ τ →
       let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some n} in
       let (τ' :* n') = freshenType ((x↦ xⁿ) ⩌ ρ) β τ nplusone in
@@ -606,16 +608,18 @@ alphaEquiv ρ β τ₁' τ₂' =
       let c₂ = (alphaEquiv ρ ((x₁ ↦ x₂) ⩌ β) τ₁₂ τ₂₂)
       let c₃ = (sσ₁'' ≡ sσ₂)
       c₁ ⩓ c₂ ⩓ c₃
-    ((x₁ :* τ₁₁) :⊸⋆: (PEnv (pσ₁ ∷ ProgramVar ⇰ Pr p RNF) :* τ₁₂),(x₂ :* τ₂₁) :⊸⋆: (PEnv (pσ₂ ∷ ProgramVar ⇰ Pr p' RNF) :* τ₂₂)) →
+    ((x₁ :* τ₁₁ :* s₁) :⊸⋆: (PEnv (pσ₁ ∷ ProgramVar ⇰ Pr p RNF) :* τ₁₂),(x₂ :* τ₂₁ :* s₂) :⊸⋆: (PEnv (pσ₂ ∷ ProgramVar ⇰ Pr p' RNF) :* τ₂₂)) →
       case eqPRIV (priv @ p) (priv @ p') of
         None → False
         Some Refl →
           let pσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) pσ₁) in
           let pσ₁'' ∷ (ProgramVar ⇰ _) = assoc $ map (\(x :* p) → freshenRef ρ ((x₁↦ x₂) ⩌ β) x :* p) $ list pσ₁' in
+          let s₁' = map (substAlphaRNF (list ρ)) s₁ in
           let c₁ = (alphaEquiv ρ ((x₁ ↦ x₂) ⩌ β) τ₁₁ τ₂₁) in
           let c₂ = (alphaEquiv ρ ((x₁ ↦ x₂) ⩌ β) τ₁₂ τ₂₂) in
           let c₃ = (pσ₁'' ≡ pσ₂) in
-          c₁ ⩓ c₂ ⩓ c₃
+          let c₄ = (s₁' ≡ s₂) in
+          c₁ ⩓ c₂ ⩓ c₃ ⩓ c₄
     (ForallT x₁ κ₁ τ₁,ForallT x₂ κ₂ τ₂) → case (κ₁ ≡ κ₂) of
       True → alphaEquiv ((x₁↦x₂) ⩌ ρ) β τ₁ τ₂
       False → False
@@ -658,7 +662,7 @@ data SExp (p ∷ PRIV) r where
   LetSE ∷ 𝕏  → SExpSource p r → SExpSource p r → SExp p r
   SFunSE ∷ 𝕏  → TypeSource r → SExpSource p r → SExp p r
   AppSE ∷ SExpSource p r → 𝑂 (𝐿 ProgramVar) → SExpSource p r → SExp p r
-  PFunSE ∷ 𝕏 → TypeSource r → PExpSource p r → SExp p r
+  PFunSE ∷ 𝕏 → TypeSource r → Sens r → PExpSource p r → SExp p r
   TAbsSE ∷ 𝕏 → Kind → SExpSource p r → SExp p r
   TAppSE ∷ SExpSource p r → TLExp r → SExp p r
   deriving (Eq,Ord,Show)
@@ -674,7 +678,7 @@ instance Functor (SExp p) where
   map f (LetSE x e₁ e₂) = (LetSE x (mapp f e₁) (mapp f e₂))
   map f (SFunSE x τ e) = (SFunSE x (mapp f τ) (mapp f e))
   map f (AppSE e₁ xs e₂) = (AppSE (mapp f e₁) xs (mapp f e₂))
-  map f (PFunSE x τ e) = (PFunSE x (mapp f τ) (mapp f e))
+  map f (PFunSE x τ s e) = (PFunSE x (mapp f τ) (map f s) (mapp f e))
   map f (TAbsSE x κ e) = (TAbsSE x κ (mapp f e))
   map f (TAppSE e τ) = (TAppSE (mapp f e) (mapp f τ))
 

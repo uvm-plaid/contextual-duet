@@ -1,7 +1,7 @@
 let f =
-  ∀ m : ℕ . pλ m : ℕ[ m ] ⇒
-    return ∀ n : ℕ . pλ n : ℕ[ n ] ⇒
+  ∀ m : ℕ . pλ m : ℕ[ m ] ⋅ 1.0 ⇒
+    return ∀ n : ℕ . pλ n : ℕ[ n ] ⋅ 1.0⇒
       return (plus₄ @ m @ n m n)
-in pλ x : ℕ ⇒
+in pλ x : ℕ ⋅ 1.0 ⇒
   f' ← f @ ℕ[1.0] ℕ[1] ;
   f' @ ℕ[2.0] ℕ[2]
