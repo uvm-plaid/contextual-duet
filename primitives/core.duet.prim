@@ -1,7 +1,5 @@
 -- PRIMITIVES
 
---TODO: kind-checking
-
 primitive dyn₁ : ∀ a : ℕ .
 (x : ℕ[a])
 ⊸ [x⋅0.0] ℕ ,
