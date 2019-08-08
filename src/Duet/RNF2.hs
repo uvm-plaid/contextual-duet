@@ -983,7 +983,7 @@ logRNFSums ∷ RNFSums → AddTop RNFSums
 logRNFSums γ̇ = case γ̇ of
   RNFSums Bot (stream → (uncons𝑆 → Some ((δ̇ :* d) :* (uncons𝑆 → None)))) → do
     d' ← d
-    return $ RNFSums (AddBot d') $ logRNFProds δ̇
+    return $ RNFSums (AddBot $ log d') $ logRNFProds δ̇
   _ → return $ RNFSums Bot $ RNFProds dø (LogRA γ̇ ↦ one) ↦ one
 
 -- ┌────┐
@@ -1006,7 +1006,8 @@ logRNFProds (RNFProds δ̂ δ̌) =
 logRNFAtom ∷ RNFAtom → RNFProds
 logRNFAtom = \case
   EfnRA δ̇ → δ̇
-  α → oneAtom α
+  VarRA x → oneAtom $ LogRA $ oneProd $ oneAtom $ VarRA x
+  LogRA x → oneAtom $ LogRA $ oneProd $ oneAtom $ LogRA x
 
 -- ┌────┐
 -- │㏒ e│
@@ -1019,7 +1020,7 @@ logRNF e =
   -- ㏒ ⊤ ≜ ⊤
   ConstantRNF TopBT → ConstantRNF TopBT
   -- ㏒ c ≜ ㏒^ c
-  ConstantRNF (AddBT c) → ConstantRNF $ AddBT $ exp c
+  ConstantRNF (AddBT c) → ConstantRNF $ AddBT $ log c
   -- (c ⊔̇ α) ^̃ q ≜ (c ^ q) ⊔̇ (α ^̃ q)
   SymRNF α̇ → elimAddTop (ConstantRNF TopBT) SymRNF $ logRNFMaxs α̇
 
@@ -1099,6 +1100,9 @@ plusRE = Annotated null ∘∘ PlusRE
 timesRE ∷ RExp → RExp → RExp
 timesRE = Annotated null ∘∘ TimesRE
 
+divRE ∷ RExp → RExp → RExp
+divRE = Annotated null ∘∘ DivRE
+
 powRE ∷ ℚ → RExp → RExp
 powRE = Annotated null ∘∘ PowRE
 
@@ -1160,6 +1164,9 @@ e3' = normalizeRNF $
     `plusRE`
     (powRE (rat 1 / rat 2) (varRE (var "b")))
 
+e4 ∷ RNF
+e4 = normalizeRNF $ (logRE (divRE (constRE (AddTop 1.0)) (varRE (var "δ"))))
+
 -- Substitution --
 
 e1subst ∷ RNF
@@ -1190,10 +1197,6 @@ substRExPre x rSub rTarget = case rTarget of
   PowRE c η → PowRE c $ substRExp x rSub η
   EfnRE η → EfnRE $ substRExp x rSub η
   LogRE η → LogRE $ substRExp x rSub η
-
---
--- truncateRNF ∷ RNF → RNF
--- truncateRNF r = r
 
 truncateRNF ∷ RNF → RNF
 truncateRNF = \case
