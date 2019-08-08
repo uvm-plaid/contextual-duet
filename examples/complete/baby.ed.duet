@@ -3,11 +3,11 @@ let main = ∀  ε   : ℝ⁺,
               m   : ℕ,
               n   : ℕ
               .
-          pλ  ε   : ℝ⁺[ε],
-              δ   : ℝ⁺[δ],
-              df :  𝕄 [L∞,U | m , n↦ℝ]
+          pλ  ε   : ℝ⁺[ε] ⋅ 1.0,
+              δ   : ℝ⁺[δ] ⋅ 1.0,
+              df :  𝕄 [L∞,U | m , n↦ℝ] ⋅ 1.0
               ⇒
-  result ← gauss @ ε @ δ <df> ε <df> δ <df> (real₂ @ m (mrows @ m @ n @ ℝ df));
+  result ← gauss @ ε @ δ @ ℝ⁺[1.0] <df> ε <df> δ <df> ℝ⁺[1.0] <df> (real₂ @ m (mrows @ m @ n @ ℝ df));
   return result
 in main
 
