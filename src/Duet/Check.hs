@@ -257,19 +257,19 @@ freshenPM τ = do
   let τ' :* n' = freshenType dø dø τ n
   put n'
   return τ'
-
-fixTVs ∷ ∀ p a. (PRIV_C p) ⇒ (ProgramVar ⇰ a) → SM p (ProgramVar ⇰ a)
-fixTVs tvs = do
-  δ ← askL contextKindL
-  return $ assoc $ map (\(tv :* a) → (fixTV δ tv :* a)) $ list tvs
-
-fixTV ∷ (𝕏 ⇰ a) → ProgramVar → ProgramVar
-fixTV δ tv = case tv of
-  TMVar x → case δ ⋕? x of
-    None → TMVar x
-    Some x' → TLVar x
-  -- should not happen
-  TLVar x → error "fixTVs error"
+--
+-- fixTVs ∷ ∀ p a. (PRIV_C p) ⇒ (ProgramVar ⇰ a) → SM p (ProgramVar ⇰ a)
+-- fixTVs tvs = do
+--   δ ← askL contextKindL
+--   return $ assoc $ map (\(tv :* a) → (fixTV δ tv :* a)) $ list tvs
+--
+-- fixTV ∷ (𝕏 ⇰ a) → ProgramVar → ProgramVar
+-- fixTV δ tv = case tv of
+--   TMVar x → case δ ⋕? x of
+--     None → TMVar x
+--     Some x' → TLVar x
+--   -- should not happen
+--   TLVar x → error "fixTVs error"
 
 instance FunctorM ((⇰) 𝕏) where mapM = mapMDict
 
@@ -320,14 +320,14 @@ inferType τinit = do
       mapEnvL contextTypeL ( \ γ → (x ↦ τ₁) ⩌ γ) $ do
         τ₁' ← inferType τ₁
         τ₂' ← inferType τ₂
-        σ' ← fixTVs σ
-        freshenSM $ (x :* τ₁') :⊸: (σ' :* τ₂')
+        -- σ' ← fixTVs σ
+        freshenSM $ (x :* τ₁') :⊸: (σ :* τ₂')
     (x :* τ₁ :* s) :⊸⋆: (PEnv σ :* τ₂) → do
       mapEnvL contextTypeL ( \ γ → (x ↦ τ₁) ⩌ γ) $ do
         τ₁' ← inferType τ₁
         τ₂' ← inferType τ₂
-        σ' ← fixTVs σ
-        freshenSM $ (x :* τ₁' :* s) :⊸⋆: (PEnv σ' :* τ₂')
+        -- σ' ← fixTVs σ
+        freshenSM $ (x :* τ₁' :* s) :⊸⋆: (PEnv σ :* τ₂')
     ForallT x κ τ → do
       mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
         τ' ← inferType τ

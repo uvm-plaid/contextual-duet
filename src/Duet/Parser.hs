@@ -135,10 +135,10 @@ parPEnv mode = tries
   [ do
       parLit "["
       xprs ← pManySepBy (parLit ",") $ do
-        x ← parVar
+        x ← parProgramVar
         parLit "⋅"
         pr ← parPriv mode
-        return (TMVar x :* pr)
+        return (x :* pr)
       parLit "]"
       return $ PEnv $ assoc xprs
   ]
@@ -148,10 +148,10 @@ parSEnv = tries
   [ do
       parLit "["
       xsens ← pManySepBy (parLit ",") $ do
-        x ← parVar
+        x ← parProgramVar
         parLit "⋅"
         sens ← parSens
-        return (TMVar x :* sens)
+        return (x :* sens)
       parLit "]"
       return $ assoc xsens
   ]
