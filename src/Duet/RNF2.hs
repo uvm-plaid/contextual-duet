@@ -1164,6 +1164,7 @@ e3' = normalizeRNF $
     `plusRE`
     (powRE (rat 1 / rat 2) (varRE (var "b")))
 
+-- log(1/δ)
 e4 ∷ RNF
 e4 = normalizeRNF $ (logRE (divRE (constRE (AddTop 1.0)) (varRE (var "δ"))))
 

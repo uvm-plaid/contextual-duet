@@ -1,101 +1,104 @@
 -- hyperparameter tuning
-let mzeros = sλ m : ℕ,
+let mzeros = ∀  m : ℕ,
                 n : ℕ
                 .
-                nr : ℕ[m],
+            sλ  nr : ℕ[m],
                 nc : ℕ[n]
                 ⇒
-  mcreate[ L∞ | nr , nc ] { i , j ⇒ 0.0 }
+  mcreate₁ @ ℕ[m] @ ℕ[n] @ ℝ nr nc (sλ i : 𝕀[m] , j : 𝕀[n] ⇒ 0.0)
 in
 
-let predictOne = sλ n : ℕ .
-                    θ : 𝕄 [L∞, U|1, n⋅ℝ]
+let predictOne = ∀ n : ℕ .
+                    sλ θ : 𝕄 [L∞, U|1.0, n↦ℝ]
                     ⇒
-                    sλ .
-                       x : 𝕄 [L∞, U|1, n⋅𝔻]
-                       ⇒
-  let prediction = (mmap x { e ⇒ conv e }) × (tr θ) in
-  sign (prediction#[idx ℕ[0], idx ℕ[0]])
+                    sλ x : 𝕄 [L∞, U|1.0, n↦𝔻]
+                    ⇒
+  let prediction = mtimes @ ℕ[1.0] @ ℕ[n] @ ℝ @ ℕ[n]
+                    (mmap @ ℕ[1.0] @ ℕ[n] @ 𝔻 @ ℝ x (sλ e : 𝔻 ⇒ conv @ ℝ e))
+                    (mtranspose @ ℝ⁺[1.0] @ ℝ⁺[n] @ ℝ θ) in
+  sign (mindex @ ℝ⁺[1.0] @ n @ ℝ prediction (idx @ ℕ[0.0] ℕ[0]) (idx @ ℕ[0.0] ℕ[0]))
 in
 
-let predict = sλ m : ℕ, n : ℕ .
-                 xs : 𝕄 [L∞, U|m, n⋅𝔻],
-                 θ : 𝕄 [L∞, U|1, n⋅ℝ]
+let predict = ∀ m : ℕ, n : ℕ .
+              sλ
+                 xs : 𝕄 [L∞, U|m, n↦𝔻],
+                 θ : 𝕄 [L∞, U|1.0, n↦ℝ]
                  ⇒
-  let po = discf (predictOne@[n] θ) in
-  mmap-row xs { row ⇒ po row }
+  let po = discf @ 𝕄 [L∞, U|1.0, n↦𝔻] (predictOne @ n θ) in
+  mmaprow @ m @ n @ 𝕄 [L∞, U|1.0, n↦𝔻] @ 𝔻 xs (sλ row : 𝕄 [L∞, U|1.0, n↦𝔻] ⇒ po row)
 in
 
-let correct = sλ m : ℕ, n : ℕ .
-                 xs : 𝕄 [L∞, U|m, n⋅𝔻],
-                 ys : 𝕄 [L∞, U|m, 1⋅𝔻],
-                 θ : 𝕄 [L∞, U|1, n⋅ℝ]
+let correct = ∀ m : ℕ, n : ℕ .
+              sλ
+                 xs : 𝕄 [L∞, U|m, n↦𝔻],
+                 ys : 𝕄 [L∞, U|m, 1.0↦𝔻],
+                 θ : 𝕄 [L∞, U|1.0, n↦ℝ]
                  ⇒
-  count (mmap ys, (predict@[m, n] xs θ) { y₁, y₂ ⇒ y₁ ≡ y₂ })
+  count @ m @ n @ 𝔻 (mmap2 @ m @ n @ 𝔻 @ 𝔹 ys (predict @ m @ n xs θ) (sλ y₁ : 𝔻, y₂ : 𝔻 ⇒ equal @ 𝔻 y₁ y₂))
 in
 
-let noisy_sgd = pλ m  : ℕ,
+let noisy_sgd =  ∀ m  : ℕ,
                    n  : ℕ,
                    o  : ℕ,
                    k  : ℕ,
                    ε  : ℝ⁺,
                    δ  : ℝ⁺
                    .
-                   xs : 𝕄 [L∞, U|m, n⋅𝔻 ] ,
-                   ys : 𝕄 [L∞, U|m, 1⋅𝔻 ] ,
-                   k  : ℕ[k],
-                   ε  : ℝ⁺[ε],
-                   δ  : ℝ⁺[δ],
-                   η  : ℝ
+                pλ xs : 𝕄 [L∞, U|m, n↦𝔻 ] ⋅ 1.0 ,
+                   ys : 𝕄 [L∞, U|m, 1.0↦𝔻 ] ⋅ 1.0 ,
+                   k  : ℕ[k] ⋅ 1.0,
+                   ε  : ℝ⁺[ε] ⋅ 1.0,
+                   δ  : ℝ⁺[δ] ⋅ 1.0,
+                   η  : ℝ ⋅ 1.0
                    ⇒
-  let m₀ = mzeros@[1, n] ℕ[1] (cols xs) in
-  let c = box (mclip[L2] xs) in
-  aloop[ δ ] k on m₀ <xs,ys> { a, θ ⇒
-    let s = ℝ⁺[1.0] / real (rows xs) in
-    g ← mgauss[ s , ε , δ ] <xs,ys> { ∇[ LR | θ ; unbox c , ys ] } ;
-    return matsub @ m @ n θ (mscale @ m @ n η g)
-  }
+  let m₀ = mzeros @ ℕ[1.0] @ ℕ[n] ℕ[1] (cols xs) in
+  aloop @ ε @ δ @ δ @ k @ n @ <xs,ys> @ <matsub,mgauss,ε,δ,mLipGrad,mclip>
+    (pλ θ : 𝕄 [L∞, U|1.0, n↦𝔻 ] ⋅ 1.0 ⇒
+      g ← mgauss @ ε @ δ @ ℕ[1.0] @ n <xs,ys> ε <xs,ys> δ <xs,ys>
+          (mLipGrad @ m @ n θ (mclip @ m @ n @ 𝔻 xs) ys)  ;
+      return matsub @ m @ n θ (mscale @ m @ n η g))
+    m₀
+    δ
 in
 
-let pick_η = pλ m  : ℕ,
+let pick_η = ∀  m  : ℕ,
                 n  : ℕ,
                 o  : ℕ,
                 k  : ℕ,
                 ε  : ℝ⁺,
                 δ  : ℝ⁺
                 .
-                xs : 𝕄 [L∞, U|m, n⋅𝔻 ] ,
-                ys : 𝕄 [L∞, U|m, 1⋅𝔻 ] ,
-                k  : ℕ[k],
-                ε  : ℝ⁺[ε],
-                δ  : ℝ⁺[δ],
-                ηs : 𝕄 [L∞, U|1, o⋅ℝ ]
+            pλ  xs : 𝕄 [L∞, U|m, n↦𝔻 ] ⋅ 1.0 ,
+                ys : 𝕄 [L∞, U|m, 1.0↦𝔻 ] ⋅ 1.0 ,
+                k  : ℕ[k] ⋅ 1.0,
+                ε  : ℝ⁺[ε] ⋅ 1.0,
+                δ  : ℝ⁺[δ] ⋅ 1.0,
+                ηs : 𝕄 [L∞, U|1.0, o↦ℝ ] ⋅ 1.0
                 ⇒
-  θs ← mmapp ηs { η ⇒ noisy_sgd@[m, n, o, k, ε, δ. xs, ys, k, ε, δ, η] };
-  η ← exponential[ℝ⁺[1.0], ε] θs <xs, ys> { θ ⇒
-    correct@[m, n] xs ys θ
-  };
-  return ηs#[idx ℕ[0], η]
+  θs ← mmapp @ ℕ[1.0] @ o @ ℝ @ ℝ ηs (sλ η: ℝ ⇒ noisy_sgd @ m @ n @ o @ k @ ε @ δ xs ys k ε δ η);
+  η ← exponential ℝ⁺[1.0] ε θs <xs, ys>
+      (pλ θ : 𝕄 [L∞, U|1.0, n↦ℝ] ⋅ 1.0 ⇒ correct @ m @ n xs ys θ);
+  return mindex @ m @ n @ ℝ ηs (idx ℕ[0]) η
 
 in
 
 
-let main = pλ m  : ℕ,
+let main = ∀  m  : ℕ,
               n  : ℕ,
               o  : ℕ,
               k  : ℕ,
               ε  : ℝ⁺,
               δ  : ℝ⁺
               .
-              xs : 𝕄 [L∞, U|m, n⋅𝔻 ] ,
-              ys : 𝕄 [L∞, U|m, 1⋅𝔻 ] ,
-              k  : ℕ[k],
-              ε  : ℝ⁺[ε],
-              δ  : ℝ⁺[δ],
-              ηs : 𝕄 [L∞, U|1, o⋅ℝ ]
+           pλ xs : 𝕄 [L∞, U|m, n↦𝔻 ] ⋅ 1.0,
+              ys : 𝕄 [L∞, U|m, 1.0↦𝔻 ] ⋅ 1.0 ,
+              k  : ℕ[k] ⋅ 1.0,
+              ε  : ℝ⁺[ε] ⋅ 1.0,
+              δ  : ℝ⁺[δ] ⋅ 1.0,
+              ηs : 𝕄 [L∞, U|1.0, o↦ℝ ] ⋅ 1.0
               ⇒
-  η ← pick_η@[m, n, o, k, ε, δ. xs, ys, k, ε, δ, ηs];
-  θ ← noisy_sgd@[m, n, o, k, ε, δ. xs, ys, k, ε, δ, η];
+  η ← pick_η @ m @ n @ o @ k @ ε @ δ xs ys k ε δ ηs;
+  θ ← noisy_sgd @ m @ n @ o @ k @ ε @ δ xs ys k ε δ η;
   return θ
 
 in main
