@@ -243,6 +243,8 @@ data Type r =
   | Type r :⊕: Type r
   | Type r :⊗: Type r
   | Type r :&: Type r
+  | (Type r ∧ (ProgramVar ⇰ Sens r)) :⊞: ((ProgramVar ⇰ Sens r) ∧ Type r)
+  | (Type r ∧ (ProgramVar ⇰ Sens r)) :⊠: ((ProgramVar ⇰ Sens r) ∧ Type r)
   | (𝕏 ∧ Type r) :⊸: ((ProgramVar ⇰ Sens r) ∧ Type r)
   | (𝕏 ∧ Type r ∧ Sens r) :⊸⋆: (PEnv r ∧ Type r)
   | ForallT 𝕏 Kind (Type r)
@@ -268,7 +270,9 @@ instance Functor Type where
     τ₁ :⊕: τ₂ → map f τ₁ :⊕: map f τ₂
     τ₁ :⊗: τ₂ → map f τ₁ :⊗: map f τ₂
     τ₁ :&: τ₂ → map f τ₁ :&: map f τ₂
-    (x :* τ₁) :⊸: (s :* τ₂) → (x :* map f τ₁) :⊸: (mapp f s :*  map f τ₂)
+    (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (map f τ₁ :* mapp f σ₁) :⊞: (mapp f σ₂ :* map f τ₂)
+    (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (map f τ₁ :* mapp f σ₁) :⊠: (mapp f σ₂ :* map f τ₂)
+    (x :* τ₁) :⊸: (σ :* τ₂) → (x :* map f τ₁) :⊸: (mapp f σ :*  map f τ₂)
     (x :* τ₁ :* s) :⊸⋆: (PEnv pσ :* τ₂) → (x :* map f τ₁ :* map f s) :⊸⋆: (PEnv (map (map f) pσ) :* map f τ₂)
     ForallT α κ τ → ForallT α κ $ map f τ
     CxtT xs → CxtT xs
@@ -292,6 +296,8 @@ data TLExpPre r =
   | TLExp r :⊕♭: TLExp r
   | TLExp r :⊗♭: TLExp r
   | TLExp r :&♭: TLExp r
+  | (TLExp r ∧ (ProgramVar ⇰ Sens r)) :⊞♭: ((ProgramVar ⇰ Sens r) ∧ TLExp r)
+  | (TLExp r ∧ (ProgramVar ⇰ Sens r)) :⊠♭: ((ProgramVar ⇰ Sens r) ∧ TLExp r)
   | (𝕏 ∧ TLExp r) :⊸♭: ((ProgramVar ⇰ Sens r) ∧ TLExp r)
   | (𝕏 ∧ TLExp r ∧ Sens r) :⊸⋆♭: (PEnv r ∧ TLExp r)
   | ForallTE 𝕏 Kind (TLExp r)
@@ -343,14 +349,22 @@ instance Functor TLExpPre where
       let tag₁ = annotatedTag τ₁
       let tag₂ = annotatedTag τ₂
       (Annotated tag₁ (map f (extract τ₁))) :&♭: (Annotated tag₂ (map f (extract τ₂)))
-    (x :* τ₁) :⊸♭: (s :* τ₂) → do
+    (τ₁ :* σ₁) :⊞♭: (σ₂ :* τ₂) → do
       let tag₁ = annotatedTag τ₁
       let tag₂ = annotatedTag τ₂
-      (x :* (Annotated tag₁ (map f (extract τ₁)))) :⊸♭: (mapp f s :* (Annotated tag₁ (map f (extract τ₂))))
+      ((Annotated tag₁ (map f (extract τ₁))) :* mapp f σ₁) :⊞♭: (mapp f σ₂ :* (Annotated tag₂ (map f (extract τ₂))))
+    (τ₁ :* σ₁) :⊠♭: (σ₂ :* τ₂) → do
+      let tag₁ = annotatedTag τ₁
+      let tag₂ = annotatedTag τ₂
+      ((Annotated tag₁ (map f (extract τ₁))) :* mapp f σ₁) :⊠♭: (mapp f σ₂ :* (Annotated tag₂ (map f (extract τ₂))))
+    (x :* τ₁) :⊸♭: (σ :* τ₂) → do
+      let tag₁ = annotatedTag τ₁
+      let tag₂ = annotatedTag τ₂
+      (x :* (Annotated tag₁ (map f (extract τ₁)))) :⊸♭: (mapp f σ :* (Annotated tag₂ (map f (extract τ₂))))
     (x :* τ₁ :* s) :⊸⋆♭: (PEnv pσ :* τ₂) → do
       let tag₁ = annotatedTag τ₁
       let tag₂ = annotatedTag τ₂
-      (x :* (Annotated tag₁ (map f (extract τ₁))) :* map f s) :⊸⋆♭: (PEnv (map (map f) pσ) :* (Annotated tag₁ (map f (extract τ₂))))
+      (x :* (Annotated tag₁ (map f (extract τ₁))) :* map f s) :⊸⋆♭: (PEnv (map (map f) pσ) :* (Annotated tag₂ (map f (extract τ₂))))
     ForallTE α κ τ → do
       let tag = annotatedTag τ
       ForallTE α κ $ (Annotated tag (map f (extract τ)))
@@ -361,23 +375,23 @@ instance Functor TLExpPre where
     MaxTE τ₁ τ₂ → do
       let tag₁ = annotatedTag τ₁
       let tag₂ = annotatedTag τ₂
-      MaxTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₁ (map f (extract τ₂)))
+      MaxTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₂ (map f (extract τ₂)))
     MinTE τ₁ τ₂ → do
       let tag₁ = annotatedTag τ₁
       let tag₂ = annotatedTag τ₂
-      MinTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₁ (map f (extract τ₂)))
+      MinTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₂ (map f (extract τ₂)))
     PlusTE τ₁ τ₂ → do
       let tag₁ = annotatedTag τ₁
       let tag₂ = annotatedTag τ₂
-      PlusTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₁ (map f (extract τ₂)))
+      PlusTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₂ (map f (extract τ₂)))
     TimesTE τ₁ τ₂ → do
       let tag₁ = annotatedTag τ₁
       let tag₂ = annotatedTag τ₂
-      TimesTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₁ (map f (extract τ₂)))
+      TimesTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₂ (map f (extract τ₂)))
     DivTE τ₁ τ₂ → do
       let tag₁ = annotatedTag τ₁
       let tag₂ = annotatedTag τ₂
-      DivTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₁ (map f (extract τ₂)))
+      DivTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₂ (map f (extract τ₂)))
     RootTE τ →  do
       let tag = annotatedTag τ
       RootTE (Annotated tag (map f (extract τ)))
@@ -422,6 +436,22 @@ freshenTL ρ β τ''' n =
           let (τ₁' :* n') = freshenTL ρ β τ₁ n in
           let (τ₂' :* n'') = freshenTL ρ β τ₂ n' in
           (τ₁' :&♭: τ₂') :* n''
+        (τ₁ :* σ₁) :⊞♭: (σ₂ :* τ₂) →
+          let (τ₁' :* n') = freshenTL ρ β τ₁ n in
+          let σ₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁) in
+          let σ₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁' in
+          let (τ₂' :* n'') = freshenTL ρ β τ₂ n' in
+          let σ₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₂) in
+          let σ₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₂' in
+          ((τ₁' :* σ₁'') :⊞♭: (σ₂'' :* τ₂')) :* n''
+        (τ₁ :* σ₁) :⊠♭: (σ₂ :* τ₂) →
+          let (τ₁' :* n') = freshenTL ρ β τ₁ n in
+          let σ₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁) in
+          let σ₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁' in
+          let (τ₂' :* n'') = freshenTL ρ β τ₂ n' in
+          let σ₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₂) in
+          let σ₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₂' in
+          ((τ₁' :* σ₁'') :⊠♭: (σ₂'' :* τ₂')) :* n''
         (x₁ :* τ₁) :⊸♭: (sσ₁ :* τ₂) →
           let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some n} in
           let (τ₁' :* n') = freshenTL ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₁ nplusone in
@@ -510,6 +540,22 @@ freshenType ρ β τ''' n = let nplusone = n + one in
       let (τ₁' :* n') = freshenType ρ β τ₁ n in
       let (τ₂' :* n'') = freshenType ρ β τ₂ n' in
       (τ₁' :&: τ₂') :* n''
+    (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) →
+      let (τ₁' :* n') = freshenType ρ β τ₁ n in
+      let σ₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁) in
+      let σ₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁' in
+      let (τ₂' :* n'') = freshenType ρ β τ₂ n' in
+      let σ₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₂) in
+      let σ₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₂' in
+      ((τ₁' :* σ₁'') :⊞: (σ₂'' :* τ₂')) :* n''
+    (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) →
+      let (τ₁' :* n') = freshenType ρ β τ₁ n in
+      let σ₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁) in
+      let σ₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁' in
+      let (τ₂' :* n'') = freshenType ρ β τ₂ n' in
+      let σ₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₂) in
+      let σ₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₂' in
+      ((τ₁' :* σ₁'') :⊠: (σ₂'' :* τ₂')) :* n''
     (x₁ :* τ₁) :⊸: (sσ₁ :* τ₂) →
       let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some n} in
       let (τ₁' :* n') = freshenType ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₁ nplusone in
@@ -601,6 +647,24 @@ alphaEquiv ρ β τ₁' τ₂' =
     (τ₁₁ :⊕: τ₁₂,τ₂₁ :⊕: τ₂₂) → (alphaEquiv ρ β τ₁₁ τ₂₁) ⩓ (alphaEquiv ρ β τ₁₂ τ₂₂)
     (τ₁₁ :⊗: τ₁₂,τ₂₁ :⊗: τ₂₂) → (alphaEquiv ρ β τ₁₁ τ₂₁) ⩓ (alphaEquiv ρ β τ₁₂ τ₂₂)
     (τ₁₁ :&: τ₁₂,τ₂₁ :&: τ₂₂) → (alphaEquiv ρ β τ₁₁ τ₂₁) ⩓ (alphaEquiv ρ β τ₁₂ τ₂₂)
+    ((τ₁₁ :* σ₁₁) :⊞: (σ₁₂ :* τ₁₂),(τ₂₁ :* σ₂₁) :⊞: (σ₂₂ :* τ₂₂)) → do
+      let c₁ = (alphaEquiv ρ β τ₁₁ τ₂₁) ⩓ (alphaEquiv ρ β τ₁₂ τ₂₂)
+      let σ₁₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₁)
+      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₁'
+      let σ₁₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₂)
+      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₂'
+      let c₂ = (σ₁₁'' ≡ σ₂₁)
+      let c₃ = (σ₁₂'' ≡ σ₂₂)
+      c₁ ⩓ c₂ ⩓ c₃
+    ((τ₁₁ :* σ₁₁) :⊠: (σ₁₂ :* τ₁₂),(τ₂₁ :* σ₂₁) :⊠: (σ₂₂ :* τ₂₂)) → do
+      let c₁ = (alphaEquiv ρ β τ₁₁ τ₂₁) ⩓ (alphaEquiv ρ β τ₁₂ τ₂₂)
+      let σ₁₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₁)
+      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₁'
+      let σ₁₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₂)
+      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₂'
+      let c₂ = (σ₁₁'' ≡ σ₂₁)
+      let c₃ = (σ₁₂'' ≡ σ₂₂)
+      c₁ ⩓ c₂ ⩓ c₃
     ((x₁ :* τ₁₁) :⊸: (sσ₁ :* τ₁₂),(x₂ :* τ₂₁) :⊸: (sσ₂ :* τ₂₂)) → do
       let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁)
       let sσ₁'' ∷ (ProgramVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ ((x₁↦ x₂) ⩌ β) x :* s) $ list sσ₁'

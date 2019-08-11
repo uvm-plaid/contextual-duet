@@ -99,6 +99,14 @@ checkTypeLang e₀ = case (extract e₀) of
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
     return $ τ₁ :&: τ₂
+  (e₁ :* σ₁) :⊞♭: (σ₂ :* e₂) → do
+    τ₁ ← checkTypeLang e₁
+    τ₂ ← checkTypeLang e₂
+    return $ (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂)
+  (e₁ :* σ₁) :⊠♭: (σ₂ :* e₂) → do
+    τ₁ ← checkTypeLang e₁
+    τ₂ ← checkTypeLang e₂
+    return $ (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂)
   (x :* e₁) :⊸♭: (sσ :* e₂) → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
@@ -191,11 +199,11 @@ checkTypeMExp me'' = case me'' of
 -- kind checking
 checkType ∷ ∀ p. (PRIV_C p) ⇒ Type RNF → SM p ()
 checkType τA = case τA of
-  ℕˢT η → skip
-  ℝˢT η → skip
+  ℕˢT _η → skip
+  ℝˢT _η → skip
   ℕT → skip
   ℝT → skip
-  𝕀T η → skip
+  𝕀T _η → skip
   𝔹T → skip
   𝕊T → skip
   SetT τ → checkType τ
@@ -214,21 +222,31 @@ checkType τA = case τA of
   τ₁ :&: τ₂ → do
     checkType τ₁
     checkType τ₂
+  (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → do
+    checkType τ₁
+    checkType τ₂
+    eachWith σ₁ $ \ (x' :* _) → do
+      void $ checkProgramVar x'
+    eachWith σ₂ $ \ (x' :* _) → do
+      void $ checkProgramVar x'
+  (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → do
+    checkType τ₁
+    checkType τ₂
+    eachWith σ₁ $ \ (x' :* _) → do
+      void $ checkProgramVar x'
+    eachWith σ₂ $ \ (x' :* _) → do
+      void $ checkProgramVar x'
   (x :* τ₁) :⊸: (sσ :* τ₂) → do
     checkType τ₁
     mapEnvL contextTypeL ( \ γ → (x ↦ τ₁) ⩌ γ) $ do
       eachWith sσ $ \ (x' :* s) → do
-        -- TODO
         void $ checkProgramVar x'
-        -- checkSens $ map extract s
       checkType τ₂
   (x :* τ₁ :* s) :⊸⋆: (PEnv (pσ ∷ ProgramVar ⇰ Pr p' RNF) :* τ₂) → do
     checkType τ₁
     mapEnvL contextTypeL ( \ γ → (x ↦ τ₁) ⩌ γ) $ do
       eachWith pσ $ \ (x' :* p) → do
-        -- TODO
         void $ checkProgramVar x'
-        -- checkPriv $ map extract p
       checkType τ₂
   VarT x → do
     δ ← askL contextKindL
@@ -257,19 +275,6 @@ freshenPM τ = do
   let τ' :* n' = freshenType dø dø τ n
   put n'
   return τ'
---
--- fixTVs ∷ ∀ p a. (PRIV_C p) ⇒ (ProgramVar ⇰ a) → SM p (ProgramVar ⇰ a)
--- fixTVs tvs = do
---   δ ← askL contextKindL
---   return $ assoc $ map (\(tv :* a) → (fixTV δ tv :* a)) $ list tvs
---
--- fixTV ∷ (𝕏 ⇰ a) → ProgramVar → ProgramVar
--- fixTV δ tv = case tv of
---   TMVar x → case δ ⋕? x of
---     None → TMVar x
---     Some x' → TLVar x
---   -- should not happen
---   TLVar x → error "fixTVs error"
 
 instance FunctorM ((⇰) 𝕏) where mapM = mapMDict
 
@@ -316,17 +321,23 @@ inferType τinit = do
       τ₁' ← inferType τ₁
       τ₂' ← inferType τ₂
       return $ τ₁' :&: τ₂'
+    (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → do
+      τ₁' ← inferType τ₁
+      τ₂' ← inferType τ₂
+      return $ (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂)
+    (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → do
+      τ₁' ← inferType τ₁
+      τ₂' ← inferType τ₂
+      return $ (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂)
     (x :* τ₁) :⊸: (σ :* τ₂) → do
       mapEnvL contextTypeL ( \ γ → (x ↦ τ₁) ⩌ γ) $ do
         τ₁' ← inferType τ₁
         τ₂' ← inferType τ₂
-        -- σ' ← fixTVs σ
         freshenSM $ (x :* τ₁') :⊸: (σ :* τ₂')
     (x :* τ₁ :* s) :⊸⋆: (PEnv σ :* τ₂) → do
       mapEnvL contextTypeL ( \ γ → (x ↦ τ₁) ⩌ γ) $ do
         τ₁' ← inferType τ₁
         τ₂' ← inferType τ₂
-        -- σ' ← fixTVs σ
         freshenSM $ (x :* τ₁' :* s) :⊸⋆: (PEnv σ :* τ₂')
     ForallT x κ τ → do
       mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
@@ -532,6 +543,8 @@ substType x₉ τ' τ'' = case τ'' of
   τ₁ :⊕: τ₂ → substType x₉ τ' τ₁ :⊕: substType x₉ τ' τ₂
   τ₁ :⊗: τ₂ → substType x₉ τ' τ₁ :⊗: substType x₉ τ' τ₂
   τ₁ :&: τ₂ → substType x₉ τ' τ₁ :&: substType x₉ τ' τ₂
+  (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (substType x₉ τ' τ₁ :* σ₁) :⊞: (σ₂ :* substType x₉ τ' τ₂)
+  (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (substType x₉ τ' τ₁ :* σ₁) :⊠: (σ₂ :* substType x₉ τ' τ₂)
   (x' :* τ₁) :⊸: (sσ :* τ₂) → (x' :* substType x₉ τ' τ₁) :⊸: (sσ :* substType x₉ τ' τ₂)
   (x' :* τ₁ :* s) :⊸⋆: (pσ :* τ₂) → (x' :* substType x₉ τ' τ₁ :* s) :⊸⋆: (pσ :* substType x₉ τ' τ₂)
   ForallT x' κ τ → ForallT x' κ $ substType x₉ τ' τ
@@ -576,6 +589,8 @@ substTypeCxt x' xs τ' = case τ' of
   τ₁ :⊕: τ₂ → substTypeCxt x' xs τ₁ :⊕: substTypeCxt x' xs τ₂
   τ₁ :⊗: τ₂ → substTypeCxt x' xs τ₁ :⊗: substTypeCxt x' xs τ₂
   τ₁ :&: τ₂ → substTypeCxt x' xs τ₁ :&: substTypeCxt x' xs τ₂
+  (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (substTypeCxt x' xs τ₁ :* σ₁) :⊞: (σ₂ :* substTypeCxt x' xs τ₂)
+  (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (substTypeCxt x' xs τ₁ :* σ₁) :⊠: (σ₂ :* substTypeCxt x' xs τ₂)
   (x :* τ₁) :⊸: (sσ :* τ₂) → (x :* substTypeCxt x' xs τ₁) :⊸: ((spliceCxt x' xs sσ) :* substTypeCxt x' xs τ₂)
   (x :* τ₁ :* s) :⊸⋆: (PEnv pσ :* τ₂) → (x :* substTypeCxt x' xs τ₁ :* s) :⊸⋆: (PEnv (spliceCxt x' xs pσ) :* substTypeCxt x' xs τ₂)
   ForallT x κ τ → ForallT x κ $ substTypeCxt x' xs τ
@@ -609,6 +624,8 @@ substTypeR x' r' τ' = case τ' of
   τ₁ :⊕: τ₂ → substTypeR x' r' τ₁ :⊕: substTypeR x' r' τ₂
   τ₁ :⊗: τ₂ → substTypeR x' r' τ₁ :⊗: substTypeR x' r' τ₂
   τ₁ :&: τ₂ → substTypeR x' r' τ₁ :&: substTypeR x' r' τ₂
+  (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (substTypeR x' r' τ₁ :* σ₁) :⊞: (σ₂ :* substTypeR x' r' τ₂)
+  (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (substTypeR x' r' τ₁ :* σ₁) :⊠: (σ₂ :* substTypeR x' r' τ₂)
   (x :* τ₁) :⊸: (sσ :* τ₂) →
     (x :* substTypeR x' r' τ₁) :⊸: (assoc (map (\(xₐ :* s) → xₐ :* Sens (substRNF x' r' (unSens s))) (iter sσ)) :* substTypeR x' r' τ₂)
   (x :* τ₁ :* s) :⊸⋆: (PEnv pσ :* τ₂) →
@@ -695,6 +712,8 @@ substGammaSens σ₉ x₉ τ₉ = case τ₉ of
   τ₁ :⊕: τ₂ → substGammaSens σ₉ x₉ τ₁ :⊕: substGammaSens σ₉ x₉ τ₂
   τ₁ :⊗: τ₂ → substGammaSens σ₉ x₉ τ₁ :⊗: substGammaSens σ₉ x₉ τ₂
   τ₁ :&: τ₂ → substGammaSens σ₉ x₉ τ₁ :&: substGammaSens σ₉ x₉ τ₂
+  (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (substGammaSens σ₉ x₉ τ₁ :* substGammaSensEnv σ₉ x₉ σ₁) :⊞: (substGammaSensEnv σ₉ x₉ σ₂ :* substGammaSens σ₉ x₉ τ₂)
+  (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (substGammaSens σ₉ x₉ τ₁ :* substGammaSensEnv σ₉ x₉ σ₁) :⊠: (substGammaSensEnv σ₉ x₉ σ₂ :* substGammaSens σ₉ x₉ τ₂)
   (x :* τ₁) :⊸: (sσ :* τ₂) → do
     (x :* substGammaSens σ₉ x₉ τ₁) :⊸: ((substGammaSensEnv σ₉ x₉ sσ) :* substGammaSens σ₉ x₉ τ₂)
   (x :* τ₁ :* s) :⊸⋆: (PEnv pσ :* τ₂) → do
@@ -717,6 +736,8 @@ substGammaPr σ₉ x₉ τ₉ = case τ₉ of
   τ₁ :⊕: τ₂ → substGammaPr σ₉ x₉ τ₁ :⊕: substGammaPr σ₉ x₉ τ₂
   τ₁ :⊗: τ₂ → substGammaPr σ₉ x₉ τ₁ :⊗: substGammaPr σ₉ x₉ τ₂
   τ₁ :&: τ₂ → substGammaPr σ₉ x₉ τ₁ :&: substGammaPr σ₉ x₉ τ₂
+  (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (substGammaPr σ₉ x₉ τ₁ :* σ₁) :⊞: (σ₂ :* substGammaPr σ₉ x₉ τ₂)
+  (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (substGammaPr σ₉ x₉ τ₁ :* σ₁) :⊠: (σ₂ :* substGammaPr σ₉ x₉ τ₂)
   (x :* τ₁) :⊸: (sσ :* τ₂) → do
     (x :* substGammaPr σ₉ x₉ τ₁) :⊸: (sσ :* substGammaPr σ₉ x₉ τ₂)
   (x :* τ₁ :* s) :⊸⋆: (PEnv pσ :* τ₂) → do
