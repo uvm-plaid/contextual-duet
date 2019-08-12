@@ -1,7 +1,7 @@
 let f =
-  ∀ m : ℕ . sλ m : ℕ[ m ] ⇒
-    ∀ n : ℕ . sλ n : ℕ[ n ] ⇒
-      let z = ⟨plus₄ @ m @ n m n,plus₄ @ m @ n m n⟩ in
+  sλ m : ℕ ⇒
+    sλ n : ℕ ⇒
+      let z = ⟨plus₁ m n,plus₁ m m⟩ in z
       -- fst z
-      snd z
-in (f @ ℕ[1.0] ℕ[1]) @ ℕ[2.0] ℕ[2]
+      -- snd z
+in f

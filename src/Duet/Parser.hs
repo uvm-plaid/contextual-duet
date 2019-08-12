@@ -127,6 +127,7 @@ parKind = pNew "kind" $ tries
   , do parLit "ℝ⁺" ; return ℝK
   , do parLit "☆" ; return TypeK
   , do parLit "cxt" ; return CxtK
+  , do parLit "schema" ; return SchemaK
   ]
 
 parPEnv ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (PEnv RExp)
@@ -371,6 +372,16 @@ parPriv p = tries
         δ ← parRExp
         parLit "⟩"
         return $ EDPriv ϵ δ
+      _ → abort
+  , case p of
+      ED_W → do
+        parLit "⊥"
+        return $ EDPriv (Annotated null $ ConstRE (AddTop 0.0)) (Annotated null $ ConstRE (AddTop 0.0))
+      _ → abort
+  , case p of
+      ED_W → do
+        parLit "⊤"
+        return $ EDPriv (Annotated null $ ConstRE Top) (Annotated null $ ConstRE Top)
       _ → abort
   ]
 
@@ -674,6 +685,33 @@ parPExp p = pWithContext "pexp" $ tries
          AppSE e₁ xs e₂ → do
            return $ AppPE e₁ xs e₂
          _ → abort
+  , case p of
+       ED_W → tries
+         [ do parLit "ZCDP"
+              parLit "["
+              e₁ ← parSExp ED_W
+              parLit "]"
+              parLit "{"
+              e₂ ← parPExp ZC_W
+              parLit "}"
+              return $ ConvertZCEDPE e₁ e₂
+         , do parLit "RENYI"
+              parLit "["
+              e₁ ← parSExp ED_W
+              parLit "]"
+              parLit "{"
+              e₂ ← parPExp RENYI_W
+              parLit "}"
+              return $ ConvertRENYIEDPE e₁ e₂
+         ]
+       ZC_W → tries
+         [ do parLit "EPSDP"
+              parLit "{"
+              e₁ ← parPExp EPS_W
+              parLit "}"
+              return $ ConvertEPSZCPE e₁
+         ]
+       _ → abort
   ]
 
 tokSkip ∷ Token → 𝔹

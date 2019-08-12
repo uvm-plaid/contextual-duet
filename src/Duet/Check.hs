@@ -70,6 +70,25 @@ pmFromSM' xM = mkPM $ \ δ γ ᴍ n →
 mapPPM ∷ (Pr p₁ RNF → Pr p₂ RNF) → PM p₁ a → PM p₂ a
 mapPPM f xM = mkPM $ \ δ γ ᴍ n → mapInr (mapFst $ mapSnd $ map f) $ runPM δ γ ᴍ n xM
 
+
+checkMExpLang ∷ TLExp RNF → 𝑂 (MExp RNF)
+checkMExpLang e₀ = case (extract e₀) of
+  VarTE x → return $ VarME x
+  EmptyTE → return $ EmptyME
+  ConsTE τ me → do
+    τ' ← checkTypeLang τ
+    me' ← checkMExpLang me
+    return $ ConsME τ' me'
+  AppendTE me₁ me₂ → do
+    me₁' ← checkMExpLang me₁
+    me₂' ← checkMExpLang me₂
+    return $ AppendME me₁' me₂'
+  RexpTE r τ → do
+    r' ← checkRExpLang r
+    τ' ← checkTypeLang τ
+    return $ RexpME r' τ'
+  _ → None
+
 checkTypeLang ∷ TLExp RNF → 𝑂 (Type RNF)
 checkTypeLang e₀ = case (extract e₀) of
   VarTE x → return $ VarT x
@@ -410,6 +429,7 @@ inferSens eA = case extract eA of
               CxtK → case extract tl' of
                 CxtTE xs → substTypeCxt x (list $ iter $ xs) τ
               TypeK → substType x (checkOption $ checkTypeLang $ tl') τ
+              SchemaK → substTypeM x (checkOption $ checkMExpLang tl') τ
         return τ''
       _ → error $ "expected ForallT, got: " ⧺ pprender τ
   SFunSE x τ e → do
@@ -492,7 +512,7 @@ inferSens eA = case extract eA of
     σ :* τ₂ ← hijack $ inferSens e
     return $ ((extract τ₁) :* dø) :⊞: (σ :* τ₂)
   CaseSE e₁ x e₂ y e₃ → do
-    τ₁ ← inferSens e₁
+    σ₁ :* τ₁ ← hijack $ inferSens e₁
     case τ₁ of
       (τ₁₁ :* σ₁₁) :⊞: (σ₁₂ :* τ₁₂) → do
         σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁₁) ⩌ γ) $ inferSens e₂
@@ -501,6 +521,7 @@ inferSens eA = case extract eA of
         let (ς₃ :* σ₃') = ifNone (zero :* σ₃) $ dview (TMVar x) σ₃
         let σf = ((ς₂ ⨵ σ₁₁) + σ₂) ⊔ ((ς₃ ⨵ σ₁₂) + σ₃)
         tell σf
+        tell $ assoc $ map (\(x :* s)→ x :* top) $ list σ₁
         let τf = tyJoin dø dø (substGammaSens σ₁₁ x τ₂) (substGammaSens σ₁₂ y τ₃)
         case τf of
           None → error "tyJoin failed in CaseSE"
@@ -561,6 +582,20 @@ inferPriv eA = case extract eA of
             , "\nhas max sensitivity GT one"
             ]
       _ → error $ "AppPE expected pλ, got: " ⧺ pprender τ₁
+  -- ConvertZCEDPE e₁ e₂ → do
+  --   τ₁ ← pmFromSM $ inferSens e₁
+  --   case τ₁ of
+  --     ℝˢT ηᵟ → do
+  --       mapPPM (convertZCEDPr ηᵟ) $ inferPriv e₂
+  --     _ → error "type error: ConvertZCEDPE"
+  -- ConvertRENYIEDPE e₁ e₂ → do
+  --   τ₁ ← pmFromSM $ inferSens e₁
+  --   case τ₁ of
+  --     ℝˢT ηᵟ → do
+  --       mapPPM (convertRENYIEDPr ηᵟ) $ inferPriv e₂
+  --     _ → error "type error: ConvertRENYIEDPE"
+  -- ConvertEPSZCPE e₁ → do
+  --   mapPPM (convertEPSZCPr) $ inferPriv e₁
   _ → error $ concat
         [ "inferPriv unknown expression type: "
         , "\n"
@@ -599,6 +634,39 @@ substType x₉ τ' τ'' = case τ'' of
   (x' :* τ₁) :⊸: (sσ :* τ₂) → (x' :* substType x₉ τ' τ₁) :⊸: (sσ :* substType x₉ τ' τ₂)
   (x' :* τ₁ :* s) :⊸⋆: (pσ :* τ₂) → (x' :* substType x₉ τ' τ₁ :* s) :⊸⋆: (pσ :* substType x₉ τ' τ₂)
   ForallT x' κ τ → ForallT x' κ $ substType x₉ τ' τ
+
+substMExp ∷ 𝕏 → MExp RNF → MExp RNF → MExp RNF
+substMExp x₉ me₉ = \case
+  EmptyME → EmptyME
+  VarME x' → case x' ≡ x₉ of
+    True → me₉
+    False → VarME x'
+  ConsME τ me →
+    ConsME (substTypeM x₉ me₉ τ) (substMExp x₉ me₉ me)
+  AppendME me₁ me₂ → AppendME (substMExp x₉ me₉ me₁) (substMExp x₉ me₉ me₂)
+  RexpME r τ → RexpME r $ substTypeM x₉ me₉ τ
+
+substTypeM ∷ 𝕏 → MExp RNF → Type RNF → Type RNF
+substTypeM x₉ me' τ'' = case τ'' of
+  VarT x → VarT x
+  ℕˢT r → ℕˢT r
+  ℝˢT r → ℝˢT r
+  ℕT → ℕT
+  ℝT → ℝT
+  𝕀T r → 𝕀T r
+  𝔹T → 𝔹T
+  𝕊T → 𝕊T
+  SetT τ → SetT $ substTypeM x₉ me' τ
+  𝕄T ℓ c rows cols → 𝕄T ℓ c rows $ substMExp x₉ me' cols
+  𝔻T τ → 𝔻T $ substTypeM x₉ me' τ
+  τ₁ :⊕: τ₂ → substTypeM x₉ me' τ₁ :⊕: substTypeM x₉ me' τ₂
+  τ₁ :⊗: τ₂ → substTypeM x₉ me' τ₁ :⊗: substTypeM x₉ me' τ₂
+  τ₁ :&: τ₂ → substTypeM x₉ me' τ₁ :&: substTypeM x₉ me' τ₂
+  (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (substTypeM x₉ me' τ₁ :* σ₁) :⊞: (σ₂ :* substTypeM x₉ me' τ₂)
+  (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (substTypeM x₉ me' τ₁ :* σ₁) :⊠: (σ₂ :* substTypeM x₉ me' τ₂)
+  (x' :* τ₁) :⊸: (sσ :* τ₂) → (x' :* substTypeM x₉ me' τ₁) :⊸: (sσ :* substTypeM x₉ me' τ₂)
+  (x' :* τ₁ :* s) :⊸⋆: (pσ :* τ₂) → (x' :* substTypeM x₉ me' τ₁ :* s) :⊸⋆: (pσ :* substTypeM x₉ me' τ₂)
+  ForallT x' κ τ → ForallT x' κ $ substTypeM x₉ me' τ
 
 substMExpR ∷ 𝕏 → RNF → MExp RNF → MExp RNF
 substMExpR x r' = \case
@@ -772,6 +840,17 @@ freshenPTerm ρ β eA nInit = do
           let xsO' = mapp (\x → freshenRef ρ β x) xsO
           let e₂' :* n'' = freshenSTerm ρ β e₂ n'
           (AppPE e₁' xsO' e₂' :* n'')
+        ConvertZCEDPE e₁ e₂ → do
+          let e₁' :* n' = freshenSTerm ρ β e₁ nInit
+          let e₂' :* n'' = freshenPTerm ρ β e₂ n'
+          (ConvertZCEDPE e₁' e₂' :* n'')
+        ConvertEPSZCPE e₁ → do
+          let e₁' :* n' = freshenPTerm ρ β e₁ nInit
+          (ConvertEPSZCPE e₁' :* n')
+        ConvertRENYIEDPE e₁ e₂ → do
+          let e₁' :* n' = freshenSTerm ρ β e₁ nInit
+          let e₂' :* n'' = freshenPTerm ρ β e₂ n'
+          (ConvertRENYIEDPE e₁' e₂' :* n'')
   (Annotated ecxt $ z) :* nFinal
 
 substGammaSens ∷ (ProgramVar ⇰ Sens RNF) → 𝕏 → Type RNF → Type RNF
