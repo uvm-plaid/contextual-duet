@@ -127,6 +127,16 @@ instance (Pretty r, Eq r) ⇒ Pretty (Type r) where
       , ppPun "&"
       , ppBump $ pretty τ₂
       ]
+    (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → ppAtLevel 6 $ ppSeparated $ list
+      [ pretty (τ₁ :* σ₁)
+      , ppPun ":⊠:"
+      , ppBump $ pretty (σ₂ :* τ₂)
+      ]
+    (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → ppAtLevel 6 $ ppSeparated $ list
+      [ pretty (τ₁ :* σ₁)
+      , ppPun ":⊞:"
+      , ppBump $ pretty (σ₂ :* τ₂)
+      ]
     τ₁ :⊸: (ς :* τ₂) → ppAtLevel 2 $ ppSeparated $ list
       [ pretty τ₁
       , case ς ≡ dø of

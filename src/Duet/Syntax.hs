@@ -97,6 +97,13 @@ instance (Join r,Meet r) ⇒ Join (Pr p r) where
   RenyiPriv α₁ ε₁ ⊔ RenyiPriv α₂ ε₂ = RenyiPriv (α₁ ⊓ α₂) (ε₁ ⊔ ε₂)
   ZCPriv ρ₁ ⊔ ZCPriv ρ₂ = ZCPriv $ ρ₁ ⊔ ρ₂
   TCPriv ρ₁ ω₁ ⊔ TCPriv ρ₂ ω₂ = TCPriv (ρ₁ ⊔ ρ₂) (ω₁ ⊓ ω₂)
+instance (Join r,Meet r) ⇒ Meet (Pr p r) where
+  EpsPriv ε₁ ⊓ EpsPriv ε₂ = EpsPriv $ ε₁ ⊓ ε₂
+  EDPriv ε₁ δ₁ ⊓ EDPriv ε₂ δ₂ = EDPriv (ε₁ ⊓ ε₂) (δ₁ ⊓ δ₂)
+  -- QUESTION,TODO
+  -- RenyiPriv α₁ ε₁ ⊔ RenyiPriv α₂ ε₂ = RenyiPriv (α₁ ⊓ α₂) (ε₁ ⊔ ε₂)
+  -- ZCPriv ρ₁ ⊔ ZCPriv ρ₂ = ZCPriv $ ρ₁ ⊔ ρ₂
+  -- TCPriv ρ₁ ω₁ ⊔ TCPriv ρ₂ ω₂ = TCPriv (ρ₁ ⊔ ρ₂) (ω₁ ⊓ ω₂)
 
 iteratePr ∷ (Times r) ⇒ r → Pr p r → Pr p r
 iteratePr x = \case
@@ -705,6 +712,223 @@ alphaEquivRows ρ rows₁ rows₂ = case (rows₁,rows₂) of
   (RexpRT r₁, RexpRT r₂) → (substAlphaRNF (list ρ) r₁) ≡ r₂
   _ → False
 
+tyJoinMExp ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → MExp RNF → MExp RNF → 𝑂 (MExp RNF)
+tyJoinMExp ρ β me₁' me₂' = case (me₁',me₂') of
+  (EmptyME,EmptyME) → return EmptyME
+  (VarME x₁,VarME x₂) | x₁ ≡ x₂ → return $ VarME x₁
+  (ConsME τ₁ me₁,ConsME τ₂ me₂) → do
+    τa ← tyJoin ρ β τ₁ τ₂
+    mea ← tyJoinMExp ρ β me₁ me₂
+    return $ ConsME τa mea
+  (AppendME me₁₁ me₁₂,AppendME me₂₁ me₂₂) → do
+    mea ← tyJoinMExp ρ β me₁₁ me₂₁
+    meb ← tyJoinMExp ρ β me₁₂ me₂₂
+    return $ AppendME mea meb
+  (RexpME r₁ τ₁,RexpME r₂ τ₂) | r₁ ≡ r₂ → do
+    τa ← tyJoin ρ β τ₁ τ₂
+    return $ RexpME r₁ τa
+  _ → None
+
+tyJoinRows ∷ (𝕏 ⇰ 𝕏) → RowsT RNF → RowsT RNF → 𝑂 (RowsT RNF)
+tyJoinRows ρ rows₁ rows₂ = case (rows₁,rows₂) of
+  (StarRT, StarRT) → return StarRT
+  (RexpRT r₁, RexpRT r₂) | (substAlphaRNF (list ρ) r₁) ≡ r₂ → return $ RexpRT r₂
+  _ → None
+
+tyJoin ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → Type RNF → Type RNF → 𝑂(Type RNF)
+tyJoin ρ β τ₁' τ₂' =
+  case (τ₁',τ₂') of
+    (VarT x₁,VarT x₂)→ case ρ ⋕? x₁ of
+      Some x₁' → case x₁' ≡ x₂ of
+        False → None
+        True → return $ VarT x₂
+      None → case x₁ ≡ x₂ of
+        False → None
+        True → return $ VarT x₂
+    (ℕˢT r₁,ℕˢT r₂) | (substAlphaRNF (list ρ) r₁) ≡ r₂ → do
+      return $ ℕˢT r₂
+    (ℝˢT r₁,ℝˢT r₂) | (substAlphaRNF (list ρ) r₁) ≡ r₂ → return $ ℝˢT r₂
+    (ℕT,ℕT) → return $ ℕT
+    (ℝT,ℝT) → return $ ℝT
+    (𝕀T r₁,𝕀T r₂) | (substAlphaRNF (list ρ) r₁) ≡ r₂ → return $ 𝕀T r₂
+    (𝔹T,𝔹T) → return $ 𝔹T
+    (𝕊T,𝕊T) → return $ 𝕊T
+    (SetT τ₁,SetT τ₂) → do
+      τa ← tyJoin ρ β τ₁ τ₂
+      return $ SetT τa
+    --TODO: rows, cols
+    (𝕄T l₁ c₁ rows₁ cols₁,𝕄T l₂ c₂ rows₂ cols₂) | (l₁≡l₂) ⩓ (c₁≡c₂) ⩓ (c₁≡c₂) → do
+      rowsa ← tyJoinRows ρ rows₁ rows₂
+      colsa ← tyJoinMExp ρ β cols₁ cols₂
+      return $ (𝕄T l₁ c₁ rowsa colsa)
+    (𝔻T τ₁,𝔻T τ₂) → do
+      τa ← tyJoin ρ β τ₁ τ₂
+      return $ 𝔻T τa
+    (τ₁₁ :⊕: τ₁₂,τ₂₁ :⊕: τ₂₂) → do
+      τa ← tyJoin ρ β τ₁₁ τ₂₁
+      τb ← tyJoin ρ β τ₁₂ τ₂₂
+      return $ τa :⊕: τb
+    (τ₁₁ :⊗: τ₁₂,τ₂₁ :⊗: τ₂₂) → do
+      τa ← tyJoin ρ β τ₁₁ τ₂₁
+      τb ← tyJoin ρ β τ₁₂ τ₂₂
+      return $ τa :⊗: τb
+    (τ₁₁ :&: τ₁₂,τ₂₁ :&: τ₂₂) → do
+      τa ← tyJoin ρ β τ₁₁ τ₂₁
+      τb ← tyJoin ρ β τ₁₂ τ₂₂
+      return $ τa :&: τb
+    ((τ₁₁ :* σ₁₁) :⊞: (σ₁₂ :* τ₁₂),(τ₂₁ :* σ₂₁) :⊞: (σ₂₂ :* τ₂₂)) → do
+      τa ← tyJoin ρ β τ₁₁ τ₂₁
+      τb ← tyJoin ρ β τ₁₂ τ₂₂
+      let σ₁₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₁)
+      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₁'
+      let σ₁₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₂)
+      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₂'
+      let σa = σ₁₁'' ⊔ σ₂₁
+      let σb = σ₁₂'' ⊔ σ₂₂
+      return $ (τa :* σa) :⊞: (σb :* τb)
+    ((τ₁₁ :* σ₁₁) :⊠: (σ₁₂ :* τ₁₂),(τ₂₁ :* σ₂₁) :⊠: (σ₂₂ :* τ₂₂)) → do
+      τa ← tyJoin ρ β τ₁₁ τ₂₁
+      τb ← tyJoin ρ β τ₁₂ τ₂₂
+      let σ₁₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₁)
+      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₁'
+      let σ₁₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₂)
+      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₂'
+      let σa = σ₁₁'' ⊔ σ₂₁
+      let σb = σ₁₂'' ⊔ σ₂₂
+      return $ (τa :* σa) :⊠: (σb :* τb)
+    ((x₁ :* τ₁₁) :⊸: (sσ₁ :* τ₁₂),(x₂ :* τ₂₁) :⊸: (sσ₂ :* τ₂₂)) → do
+      τa ← tyMeet ρ ((x₁ ↦ x₂) ⩌ β) τ₁₁ τ₂₁
+      τb ← tyJoin ρ ((x₁ ↦ x₂) ⩌ β) τ₁₂ τ₂₂
+      let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁)
+      let sσ₁'' ∷ (ProgramVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ ((x₁↦ x₂) ⩌ β) x :* s) $ list sσ₁'
+      let σa = sσ₁'' ⊔ sσ₂
+      return $ (x₁ :* τ₁₁) :⊸: (sσ₁ :* τ₁₂)
+    ((x₁ :* τ₁₁ :* s₁) :⊸⋆: (PEnv (pσ₁ ∷ ProgramVar ⇰ Pr p RNF) :* τ₁₂),(x₂ :* τ₂₁ :* s₂) :⊸⋆: (PEnv (pσ₂ ∷ ProgramVar ⇰ Pr p' RNF) :* τ₂₂)) →
+      case eqPRIV (priv @ p) (priv @ p') of
+        None → None
+        Some Refl → do
+          τa ← tyMeet ρ ((x₁ ↦ x₂) ⩌ β) τ₁₁ τ₂₁
+          τb ← tyJoin ρ ((x₁ ↦ x₂) ⩌ β) τ₁₂ τ₂₂
+          let pσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) pσ₁)
+          let pσ₁'' ∷ (ProgramVar ⇰ _) = assoc $ map (\(x :* p) → freshenRef ρ ((x₁↦ x₂) ⩌ β) x :* p) $ list pσ₁'
+          let s₁' = map (substAlphaRNF (list ρ)) s₁
+          let σa = pσ₁'' ⊔ pσ₂
+          return $ (x₁ :* τa :* s₁') :⊸⋆: (PEnv (σa ∷ ProgramVar ⇰ Pr p RNF) :* τb)
+    (ForallT x₁ κ₁ τ₁,ForallT x₂ κ₂ τ₂) | (κ₁ ≡ κ₂) → do
+      τa ← tyJoin ((x₁↦x₂) ⩌ ρ) β τ₁ τ₂
+      return $ ForallT x₂ κ₂ τa
+    (CxtT xs₁,CxtT xs₂) | xs₁ ≡ xs₂ → return $ CxtT xs₂
+    (BoxedT sσ₁ τ₁,BoxedT sσ₂ τ₂) → undefined
+    _ → None
+
+tyMeetMExp ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → MExp RNF → MExp RNF → 𝑂 (MExp RNF)
+tyMeetMExp ρ β me₁' me₂' = case (me₁',me₂') of
+  (EmptyME,EmptyME) → return EmptyME
+  (VarME x₁,VarME x₂) | x₁ ≡ x₂ → return $ VarME x₁
+  (ConsME τ₁ me₁,ConsME τ₂ me₂) → do
+    τa ← tyMeet ρ β τ₁ τ₂
+    mea ← tyMeetMExp ρ β me₁ me₂
+    return $ ConsME τa mea
+  (AppendME me₁₁ me₁₂,AppendME me₂₁ me₂₂) → do
+    mea ← tyMeetMExp ρ β me₁₁ me₂₁
+    meb ← tyMeetMExp ρ β me₁₂ me₂₂
+    return $ AppendME mea meb
+  (RexpME r₁ τ₁,RexpME r₂ τ₂) | r₁ ≡ r₂ → do
+    τa ← tyMeet ρ β τ₁ τ₂
+    return $ RexpME r₁ τa
+  _ → None
+
+tyMeetRows ∷ (𝕏 ⇰ 𝕏) → RowsT RNF → RowsT RNF → 𝑂 (RowsT RNF)
+tyMeetRows ρ rows₁ rows₂ = case (rows₁,rows₂) of
+  (StarRT, StarRT) → return StarRT
+  (RexpRT r₁, RexpRT r₂) | (substAlphaRNF (list ρ) r₁) ≡ r₂ → return $ RexpRT r₂
+  _ → None
+
+tyMeet ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → Type RNF → Type RNF → 𝑂(Type RNF)
+tyMeet ρ β τ₁' τ₂' =
+  case (τ₁',τ₂') of
+    (VarT x₁,VarT x₂)→ case ρ ⋕? x₁ of
+      Some x₁' → case x₁' ≡ x₂ of
+        False → None
+        True → return $ VarT x₂
+      None → case x₁ ≡ x₂ of
+        False → None
+        True → return $ VarT x₂
+    (ℕˢT r₁,ℕˢT r₂) | (substAlphaRNF (list ρ) r₁) ≡ r₂ → return $ ℕˢT r₂
+    (ℝˢT r₁,ℝˢT r₂) | (substAlphaRNF (list ρ) r₁) ≡ r₂ → return $ ℝˢT r₂
+    (ℕT,ℕT) → return $ ℕT
+    (ℝT,ℝT) → return $ ℝT
+    (𝕀T r₁,𝕀T r₂) | (substAlphaRNF (list ρ) r₁) ≡ r₂ → return $ 𝕀T r₂
+    (𝔹T,𝔹T) → return $ 𝔹T
+    (𝕊T,𝕊T) → return $ 𝕊T
+    (SetT τ₁,SetT τ₂) → do
+      τa ← tyMeet ρ β τ₁ τ₂
+      return $ SetT τa
+    --TODO: rows, cols
+    (𝕄T l₁ c₁ rows₁ cols₁,𝕄T l₂ c₂ rows₂ cols₂) | (l₁≡l₂) ⩓ (c₁≡c₂) ⩓ (c₁≡c₂) → do
+      rowsa ← tyMeetRows ρ rows₁ rows₂
+      colsa ← tyMeetMExp ρ β cols₁ cols₂
+      return $ (𝕄T l₁ c₁ rowsa colsa)
+    (𝔻T τ₁,𝔻T τ₂) → do
+      τa ← tyMeet ρ β τ₁ τ₂
+      return $ 𝔻T τa
+    (τ₁₁ :⊕: τ₁₂,τ₂₁ :⊕: τ₂₂) → do
+      τa ← tyMeet ρ β τ₁₁ τ₂₁
+      τb ← tyMeet ρ β τ₁₂ τ₂₂
+      return $ τa :⊕: τb
+    (τ₁₁ :⊗: τ₁₂,τ₂₁ :⊗: τ₂₂) → do
+      τa ← tyMeet ρ β τ₁₁ τ₂₁
+      τb ← tyMeet ρ β τ₁₂ τ₂₂
+      return $ τa :⊗: τb
+    (τ₁₁ :&: τ₁₂,τ₂₁ :&: τ₂₂) → do
+      τa ← tyMeet ρ β τ₁₁ τ₂₁
+      τb ← tyMeet ρ β τ₁₂ τ₂₂
+      return $ τa :&: τb
+    ((τ₁₁ :* σ₁₁) :⊞: (σ₁₂ :* τ₁₂),(τ₂₁ :* σ₂₁) :⊞: (σ₂₂ :* τ₂₂)) → do
+      τa ← tyMeet ρ β τ₁₁ τ₂₁
+      τb ← tyMeet ρ β τ₁₂ τ₂₂
+      let σ₁₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₁)
+      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₁'
+      let σ₁₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₂)
+      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₂'
+      let σa = σ₁₁'' ⊓ σ₂₁
+      let σb = σ₁₂'' ⊓ σ₂₂
+      return $ (τa :* σa) :⊞: (σb :* τb)
+    ((τ₁₁ :* σ₁₁) :⊠: (σ₁₂ :* τ₁₂),(τ₂₁ :* σ₂₁) :⊠: (σ₂₂ :* τ₂₂)) → do
+      τa ← tyMeet ρ β τ₁₁ τ₂₁
+      τb ← tyMeet ρ β τ₁₂ τ₂₂
+      let σ₁₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₁)
+      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₁'
+      let σ₁₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₂)
+      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₂'
+      let σa = σ₁₁'' ⊓ σ₂₁
+      let σb = σ₁₂'' ⊓ σ₂₂
+      return $ (τa :* σa) :⊠: (σb :* τb)
+    ((x₁ :* τ₁₁) :⊸: (sσ₁ :* τ₁₂),(x₂ :* τ₂₁) :⊸: (sσ₂ :* τ₂₂)) → do
+      τa ← tyJoin ρ ((x₁ ↦ x₂) ⩌ β) τ₁₁ τ₂₁
+      τb ← tyMeet ρ ((x₁ ↦ x₂) ⩌ β) τ₁₂ τ₂₂
+      let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁)
+      let sσ₁'' ∷ (ProgramVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ ((x₁↦ x₂) ⩌ β) x :* s) $ list sσ₁'
+      let σa = sσ₁'' ⊓ sσ₂
+      return $ (x₁ :* τ₁₁) :⊸: (sσ₁ :* τ₁₂)
+    ((x₁ :* τ₁₁ :* s₁) :⊸⋆: (PEnv (pσ₁ ∷ ProgramVar ⇰ Pr p RNF) :* τ₁₂),(x₂ :* τ₂₁ :* s₂) :⊸⋆: (PEnv (pσ₂ ∷ ProgramVar ⇰ Pr p' RNF) :* τ₂₂)) →
+      case eqPRIV (priv @ p) (priv @ p') of
+        None → None
+        Some Refl → do
+          τa ← tyJoin ρ ((x₁ ↦ x₂) ⩌ β) τ₁₁ τ₂₁
+          τb ← tyMeet ρ ((x₁ ↦ x₂) ⩌ β) τ₁₂ τ₂₂
+          let pσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) pσ₁)
+          let pσ₁'' ∷ (ProgramVar ⇰ _) = assoc $ map (\(x :* p) → freshenRef ρ ((x₁↦ x₂) ⩌ β) x :* p) $ list pσ₁'
+          let s₁' = map (substAlphaRNF (list ρ)) s₁
+          let σa = pσ₁'' ⊓ pσ₂
+          return $ (x₁ :* τa :* s₁') :⊸⋆: (PEnv (σa ∷ ProgramVar ⇰ Pr p RNF) :* τb)
+    (ForallT x₁ κ₁ τ₁,ForallT x₂ κ₂ τ₂) | (κ₁ ≡ κ₂) → do
+      τa ← tyMeet ((x₁↦x₂) ⩌ ρ) β τ₁ τ₂
+      return $ ForallT x₂ κ₂ τa
+    (CxtT xs₁,CxtT xs₂) | xs₁ ≡ xs₂ → return $ CxtT xs₂
+    (BoxedT sσ₁ τ₁,BoxedT sσ₂ τ₂) → undefined
+    _ → None
+
 -----------------
 -- Expressions --
 -----------------
@@ -729,6 +953,12 @@ data SExp (p ∷ PRIV) r where
   PFunSE ∷ 𝕏 → TypeSource r → Sens r → PExpSource p r → SExp p r
   TAbsSE ∷ 𝕏 → Kind → SExpSource p r → SExp p r
   TAppSE ∷ SExpSource p r → TLExp r → SExp p r
+  InlSE ∷  TypeSource r → SExpSource p r → SExp p r
+  InrSE ∷  TypeSource r → SExpSource p r → SExp p r
+  CaseSE ∷ SExpSource p r → 𝕏 → SExpSource p r → 𝕏 → SExpSource p r → SExp p r
+  PairSE ∷ SExpSource p r → SExpSource p r → SExp p r
+  FstSE ∷ SExpSource p r → SExp p r
+  SndSE ∷ SExpSource p r → SExp p r
   deriving (Eq,Ord,Show)
 
 instance Functor (SExp p) where
@@ -745,6 +975,12 @@ instance Functor (SExp p) where
   map f (PFunSE x τ s e) = (PFunSE x (mapp f τ) (map f s) (mapp f e))
   map f (TAbsSE x κ e) = (TAbsSE x κ (mapp f e))
   map f (TAppSE e τ) = (TAppSE (mapp f e) (mapp f τ))
+  map f (PairSE e₁ e₂) = (PairSE (mapp f e₁) (mapp f e₂))
+  map f (FstSE e) = (FstSE (mapp f e))
+  map f (SndSE e) = (SndSE (mapp f e))
+  map f (InlSE τ₂ e) = (InlSE (mapp f τ₂) (mapp f e))
+  map f (InrSE τ₁ e) = (InrSE (mapp f τ₁) (mapp f e))
+  map f (CaseSE e₁ x e₂ y e₃) = (CaseSE (mapp f e₁) x (mapp f e₂) y (mapp f e₃))
 
 type PExpSource (p ∷ PRIV) r = Annotated FullContext (PExp p r)
 data PExp (p ∷ PRIV) r where

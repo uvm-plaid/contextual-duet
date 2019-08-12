@@ -459,6 +459,57 @@ inferSens eA = case extract eA of
     let τ' = extract τ
     σ :* τ'' ← smFromPM $ hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferPriv e
     return $ (x :* τ' :* s) :⊸⋆: (PEnv σ :* τ'')
+  PairSE e₁ e₂ → do
+    σ₁ :* τ₁ ← hijack $ inferSens e₁
+    σ₂ :* τ₂ ← hijack $ inferSens e₂
+    return $ (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂)
+  FstSE e → do
+    τ ← inferSens e
+    case τ of
+      (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → do
+        tell σ₁
+        return τ₁
+      _ →  error $ concat
+            [ "FstSE error (tried to apply a non pair): "
+            , pprender τ
+            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+            ]
+  SndSE e → do
+    τ ← inferSens e
+    case τ of
+      (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → do
+        tell σ₂
+        return τ₂
+      _ → error $ concat
+            [ "FstSE error (tried to apply a non pair): "
+            , pprender τ
+            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+            ]
+  InlSE τ₂ e → do
+    σ :* τ₁ ← hijack $ inferSens e
+    return $ (τ₁ :* σ) :⊞: (dø :* (extract τ₂))
+  InrSE τ₁ e → do
+    σ :* τ₂ ← hijack $ inferSens e
+    return $ ((extract τ₁) :* dø) :⊞: (σ :* τ₂)
+  CaseSE e₁ x e₂ y e₃ → do
+    τ₁ ← inferSens e₁
+    case τ₁ of
+      (τ₁₁ :* σ₁₁) :⊞: (σ₁₂ :* τ₁₂) → do
+        σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁₁) ⩌ γ) $ inferSens e₂
+        let (ς₂ :* σ₂') = ifNone (zero :* σ₂) $ dview (TMVar x) σ₂
+        σ₃ :* τ₃ ← hijack $ mapEnvL contextTypeL (\ γ → (y ↦ τ₁₂) ⩌ γ) $ inferSens e₃
+        let (ς₃ :* σ₃') = ifNone (zero :* σ₃) $ dview (TMVar x) σ₃
+        let σf = ((ς₂ ⨵ σ₁₁) + σ₂) ⊔ ((ς₃ ⨵ σ₁₂) + σ₃)
+        tell σf
+        let τf = tyJoin dø dø (substGammaSens σ₁₁ x τ₂) (substGammaSens σ₁₂ y τ₃)
+        case τf of
+          None → error "tyJoin failed in CaseSE"
+          Some τf' → return τf'
+      _ → error $ concat
+            [ "CaseSE error (tried to apply a non sum): "
+            , pprender τ₁
+            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+            ]
   _ → error $ concat
         [ "inferSens unknown expression type: "
         , "\n"
@@ -674,6 +725,33 @@ freshenSTerm ρ β eA nInit = do
           let s' = map (substAlphaRNF (list ρ)) s
           let e' :* n'' = freshenPTerm ρ ((x↦ xⁿ) ⩌ β) e n'
           (PFunSE xⁿ (Annotated tcxt τ') s' e' :* n'')
+        InlSE τ e → do
+          let tcxt = annotatedTag τ
+          let e' :* n' = freshenSTerm ρ β e nInit
+          let τ' :* n'' = freshenType ρ β (extract τ) n'
+          (InlSE (Annotated tcxt τ') e' :* n'')
+        InrSE τ e → do
+          let tcxt = annotatedTag τ
+          let e' :* n' = freshenSTerm ρ β e nInit
+          let τ' :* n'' = freshenType ρ β (extract τ) n'
+          (InrSE (Annotated tcxt τ') e' :* n'')
+        CaseSE e₁ x₁ e₂ x₂ e₃ → do
+          let e₁' :* n' = freshenSTerm ρ β e₁ nInit
+          let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some n'}
+          let e₂' :* n'' = freshenSTerm ρ ((x₁↦ x₁ⁿ) ⩌ β) e₂ n'
+          let x₂ⁿ = 𝕏 {𝕩name=(𝕩name x₂), 𝕩Gen=Some n''}
+          let e₃' :* n''' = freshenSTerm ρ ((x₂↦ x₂ⁿ) ⩌ β) e₃ n''
+          (CaseSE e₁' x₁ⁿ e₂' x₂ⁿ e₃' :* n''')
+        PairSE e₁ e₂ → do
+          let e₁' :* n' = freshenSTerm ρ β e₁ nInit
+          let e₂' :* n'' = freshenSTerm ρ β e₂ n'
+          (PairSE e₁' e₂' :* n')
+        FstSE e → do
+          let e' :* n' = freshenSTerm ρ β e nInit
+          (FstSE e' :* n')
+        SndSE e →  do
+          let e' :* n' = freshenSTerm ρ β e nInit
+          (SndSE e' :* n')
   (Annotated ecxt z) :* nFinal
 
 freshenPTerm ∷ ∀ p. (PRIV_C p) ⇒ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → PExpSource p RNF → ℕ → PExpSource p RNF ∧ ℕ

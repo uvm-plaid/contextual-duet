@@ -22,17 +22,17 @@ tokKeywords = list
   ,"ℕ","ℝ","ℝ⁺","𝔻","𝕀","𝕄","𝔻𝔽","𝔹","𝕊","★","∷","⋅","[]","⧺","☆"
   ,"∀","⊥","⊤","sens","priv","∞","cxt"
   ,"LR","L2","U"
-  ,"real","bag","set","record", "unionAll"
+  ,"real","set"
   ,"matrix","℘","𝐝","∈"
   ,"sample","rand-nat"
   ,"L1","L2","L∞","U"
-  ,"real"
   ,"ZCDP","RENYI","EPSDP"
   ,"box","unbox","boxed"
   ,"if","then","else"
   ,"true","false"
   ,"primitive"
   ,"CSVtoMatrix"
+  ,"fst","snd","inl","inr","case","of"
   ]
 
 tokPunctuation ∷ 𝐿 𝕊
@@ -439,6 +439,16 @@ parType mode = mixfixParser $ concat
   , mix $ MixInfixL 3 $ const (:⊕:) ^$ parLit "+"
   , mix $ MixInfixL 4 $ const (:⊗:) ^$ parLit "×"
   , mix $ MixInfixL 4 $ const (:&:) ^$ parLit "&"
+  , mix $ MixInfixL 3 $ do
+      σ₁ ← parSEnv
+      parLit "⊞"
+      σ₂ ← parSEnv
+      return $ \ τ₁ τ₂ → (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂)
+  , mix $ MixInfixL 3 $ do
+      σ₁ ← parSEnv
+      parLit "⊠"
+      σ₂ ← parSEnv
+      return $ \ τ₁ τ₂ → (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂)
   , mix $ MixPrefix 2 $ do
       parLit "("
       x ← parVar
@@ -514,6 +524,50 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       d ← parNNDbl
       parLit "]"
       return $ ℝˢSE d
+  , mixF $ MixFTerminal $ do
+      parLit "⟨"
+      e₁ ← parSExp p
+      parLit ","
+      e₂ ← parSExp p
+      parLit "⟩"
+      return $ PairSE e₁ e₂
+  , mixF $ MixFTerminal $ do
+      parLit "fst"
+      e ← parSExp p
+      return $ FstSE e
+  , mixF $ MixFTerminal $ do
+      parLit "snd"
+      e ← parSExp p
+      return $ SndSE e
+  , mixF $ MixFTerminal $ do
+      parLit "inl"
+      parLit "["
+      τ ← parTypeSource p
+      parLit "]"
+      e ← parSExp p
+      return $ InlSE τ e
+  , mixF $ MixFTerminal $ do
+      parLit "inr"
+      parLit "["
+      τ ← parTypeSource p
+      parLit "]"
+      e ← parSExp p
+      return $ InrSE τ e
+  , mixF $ MixFTerminal $ do
+      parLit "case"
+      e₁ ← parSExp p
+      parLit "of"
+      parLit "{"
+      x₁ ← parVar
+      parLit "⇒"
+      e₂ ← parSExp p
+      parLit "}"
+      parLit "{"
+      x₂ ← parVar
+      parLit "⇒"
+      e₃ ← parSExp p
+      parLit "}"
+      return $ CaseSE e₁ x₁ e₂ x₂ e₃
   , mixF $ MixFTerminal $ do
       parLit "true"
       return $ TrueSE
