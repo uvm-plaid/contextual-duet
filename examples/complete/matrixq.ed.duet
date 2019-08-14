@@ -1,0 +1,4 @@
+let z = ∀ c : ℝ⁺, ə : schema . sλ c : ℝ⁺[c] ⇒
+  ∀  m : ℕ , n : ℕ . sλ xs : 𝕄 [L∞,U | m , ə] ⇒
+    mscale @ m @ n @ c xs c
+in z @ ℝ⁺[1.0] @ n↦ℝ

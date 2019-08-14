@@ -953,9 +953,9 @@ data SExp (p ∷ PRIV) r where
   FalseSE ∷ SExp p r
   VarSE ∷ 𝕏 → SExp p r
   LetSE ∷ 𝕏  → SExpSource p r → SExpSource p r → SExp p r
-  SFunSE ∷ 𝕏  → TypeSource r → SExpSource p r → SExp p r
+  SFunSE ∷ 𝑂 (𝐿 ProgramVar) → 𝕏  → TypeSource r → SExpSource p r → SExp p r
   AppSE ∷ SExpSource p r → 𝑂 (𝐿 ProgramVar) → SExpSource p r → SExp p r
-  PFunSE ∷ 𝕏 → TypeSource r → Sens r → PExpSource p r → SExp p r
+  PFunSE ∷ 𝑂 (𝐿 ProgramVar) → 𝕏 → TypeSource r → Sens r → PExpSource p r → SExp p r
   TAbsSE ∷ 𝕏 → Kind → SExpSource p r → SExp p r
   TAppSE ∷ SExpSource p r → TLExp r → SExp p r
   InlSE ∷  TypeSource r → SExpSource p r → SExp p r
@@ -975,9 +975,9 @@ instance Functor (SExp p) where
   map f (FalseSE) = (FalseSE)
   map f (VarSE x) = (VarSE x)
   map f (LetSE x e₁ e₂) = (LetSE x (mapp f e₁) (mapp f e₂))
-  map f (SFunSE x τ e) = (SFunSE x (mapp f τ) (mapp f e))
+  map f (SFunSE xsO x τ e) = (SFunSE xsO x (mapp f τ) (mapp f e))
   map f (AppSE e₁ xs e₂) = (AppSE (mapp f e₁) xs (mapp f e₂))
-  map f (PFunSE x τ s e) = (PFunSE x (mapp f τ) (map f s) (mapp f e))
+  map f (PFunSE xsO x τ s e) = (PFunSE xsO x (mapp f τ) (map f s) (mapp f e))
   map f (TAbsSE x κ e) = (TAbsSE x κ (mapp f e))
   map f (TAppSE e τ) = (TAppSE (mapp f e) (mapp f τ))
   map f (PairSE e₁ e₂) = (PairSE (mapp f e₁) (mapp f e₂))

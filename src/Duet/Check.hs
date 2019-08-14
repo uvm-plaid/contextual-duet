@@ -432,7 +432,7 @@ inferSens eA = case extract eA of
               SchemaK → substTypeM x (checkOption $ checkMExpLang tl') τ
         return τ''
       _ → error $ "expected ForallT, got: " ⧺ pprender τ
-  SFunSE x τ e → do
+  SFunSE xsO x τ e → do
       checkType $ extract τ
       let τ' = extract τ
       σ :* τ'' ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferSens e
@@ -442,7 +442,12 @@ inferSens eA = case extract eA of
       let σ'' = assoc $ map (\(TMVar x' :* s) → (TMVar x' :* s)) $ list σ'
       do
           tell $ snd $ ifNone (zero :* σ') $ dview (TMVar x) σ'
-          return $ (x :* τ') :⊸: (σ'' :* τ'')
+          case xsO of
+            None → return $ (x :* τ') :⊸: (σ'' :* τ'')
+            Some xs → do
+              let σkeep = restrict (pow xs) σ''
+              tell $ without (pow xs) σ
+              return $ (x :* τ') :⊸: (σkeep :* τ'')
   AppSE e₁ xsO e₂ → do
     τ₁ ← inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
@@ -474,11 +479,16 @@ inferSens eA = case extract eA of
             , pprender τ₁
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             ]
-  PFunSE x τ s e → do
+  PFunSE xsO x τ s e → do
     checkType $ extract τ
     let τ' = extract τ
     σ :* τ'' ← smFromPM $ hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferPriv e
-    return $ (x :* τ' :* s) :⊸⋆: (PEnv σ :* τ'')
+    case xsO of
+      None → return $ (x :* τ' :* s) :⊸⋆: (PEnv σ :* τ'')
+      Some xs → do
+        let σkeep = restrict (pow xs) σ
+        tell $ assoc $ map (\(x :* i) → x :* Sens (ConstantRNF TopBT)) $ list (without (pow xs) σ)
+        return $ (x :* τ' :* s) :⊸⋆: (PEnv σkeep :* τ'')
   PairSE e₁ e₂ → do
     σ₁ :* τ₁ ← hijack $ inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
@@ -775,24 +785,26 @@ freshenSTerm ρ β eA nInit = do
           let e' :* n' = freshenSTerm ρ β e nInit
           let τ' :* n'' = freshenTL ρ β τ n'
           (TAppSE e' τ' :* n'')
-        SFunSE x τ e → do
+        SFunSE xsO x τ e → do
+          let xsO' = mapp (\x → freshenRef ρ β x) xsO
           let tcxt = annotatedTag τ
           let τ' :* n' = freshenType ρ β (extract τ) np1
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
           let e' :* n'' = freshenSTerm ρ ((x↦ xⁿ) ⩌ β) e n'
-          (SFunSE xⁿ (Annotated tcxt τ') e' :* n'')
+          (SFunSE xsO' xⁿ (Annotated tcxt τ') e' :* n'')
         AppSE e₁ xsO e₂ → do
           let e₁' :* n' = freshenSTerm ρ β e₁ nInit
           let xsO' = mapp (\x → freshenRef ρ β x) xsO
           let e₂' :* n'' = freshenSTerm ρ β e₂ n'
           (AppSE e₁' xsO' e₂' :* n'')
-        PFunSE x τ s e → do
+        PFunSE xsO x τ s e → do
+          let xsO' = mapp (\x → freshenRef ρ β x) xsO
           let tcxt = annotatedTag τ
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
           let τ' :* n' = freshenType ρ β (extract τ) np1
           let s' = map (substAlphaRNF (list ρ)) s
           let e' :* n'' = freshenPTerm ρ ((x↦ xⁿ) ⩌ β) e n'
-          (PFunSE xⁿ (Annotated tcxt τ') s' e' :* n'')
+          (PFunSE xsO' xⁿ (Annotated tcxt τ') s' e' :* n'')
         InlSE τ e → do
           let tcxt = annotatedTag τ
           let e' :* n' = freshenSTerm ρ β e nInit

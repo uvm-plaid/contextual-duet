@@ -20,7 +20,7 @@ tokKeywords ∷ 𝐿 𝕊
 tokKeywords = list
   ["let","in","sλ","pλ","return","on"
   ,"ℕ","ℝ","ℝ⁺","𝔻","𝕀","𝕄","𝔻𝔽","𝔹","𝕊","★","∷","⋅","[]","⧺","☆"
-  ,"∀","⊥","⊤","sens","priv","∞","cxt"
+  ,"∀","⊥","⊤","sens","priv","∞","cxt","schema"
   ,"LR","L2","U"
   ,"real","set"
   ,"matrix","℘","𝐝","∈"
@@ -314,6 +314,20 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
   , mixF $ MixFInfixL 6 $ const DivTE ^$ parLit "/"
   , mixF $ MixFPrefix 7 $ const RootTE ^$ parLit "√"
   , mixF $ MixFPrefix 7 $ const LogTE ^$ parLit "㏒"
+  -- Matrix stuff
+  -- , mixF $ MixFTerminal $ const EmptyTE ^$ parLit "[]"
+  -- , mixF $ MixFPrefix 6 $ do
+  --    τ ← parTLExp mode
+  --    parLit "∷"
+  --    return $ \ me → ConsTE τ me
+  -- , mixF $ MixFInfixL 3 $ do
+  --    parLit "⧺"
+  --    return AppendTE
+  -- , mixF $ MixFTerminal $ do
+  --    r ← parTLExp mode
+  --    parLit "↦"
+  --    τ ← parTLExp mode
+  --    return $ RexpTE r τ
   -- Quantity Stuff
   , mixF $ MixFTerminal $ do parLit "∞" ; return TopTE
   -- Privacy Stuff
@@ -607,21 +621,36 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       return $ \ e₁ e₂ → AppSE e₁ xsO e₂
   , mixF $ MixFPrefix 1 $ do
       parLit "sλ"
+      xsO ← pOptional $ do
+        parLit "<"
+        xs ← pManySepBy (parLit ",") $ parProgramVar
+        parLit ">"
+        return xs
       x ← parVar
       parLit ":"
       τ ← parTypeSource p
       xτs ← pMany $ do
         parLit ","
+        xsO' ← pOptional $ do
+          parLit "<"
+          xs ← pManySepBy (parLit ",") $ parProgramVar
+          parLit ">"
+          return xs
         x' ← parVar
         parLit ":"
         τ' ← parTypeSource p
-        return $ x' :* τ'
+        return $ xsO' :* x' :* τ'
       parLit "⇒"
       return $ \ e →
         let ecxt = annotatedTag e
-        in SFunSE x τ $ foldr e (\ (x' :* τ') e' → Annotated ecxt $ SFunSE x' τ' e') xτs
+        in SFunSE xsO x τ $ foldr e (\ (xsO' :* x' :* τ') e' → Annotated ecxt $ SFunSE xsO' x' τ' e') xτs
   , mixF $ MixFTerminal $ do
       parLit "pλ"
+      xsO ← pOptional $ do
+        parLit "<"
+        xs ← pManySepBy (parLit ",") $ parProgramVar
+        parLit ">"
+        return xs
       x ← parVar
       parLit ":"
       τ ← parTypeSource p
@@ -629,17 +658,22 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       s ← parSens
       xτs ← pMany $ do
         parLit ","
+        xsO' ← pOptional $ do
+          parLit "<"
+          xs ← pManySepBy (parLit ",") $ parProgramVar
+          parLit ">"
+          return xs
         x' ← parVar
         parLit ":"
         τ' ← parTypeSource p
         parLit "⋅"
         s' ← parSens
-        return $ x' :* τ' :* s'
+        return $ xsO' :* x' :* τ' :* s'
       parLit "⇒"
       e ← parPExp p
       return $
         let ecxt = annotatedTag e
-        in PFunSE x τ s $ foldr e (\ (x' :* τ' :* s') e' → Annotated ecxt $ ReturnPE $ Annotated ecxt $ PFunSE x' τ' s' e') xτs
+        in PFunSE xsO x τ s $ foldr e (\ (xsO' :* x' :* τ' :* s') e' → Annotated ecxt $ ReturnPE $ Annotated ecxt $ PFunSE xsO' x' τ' s' e') xτs
   , mixF $ MixFPrefix 1 $ do
       parLit "∀"
       x ← parVar
