@@ -129,15 +129,18 @@ indicatorPr = \case
   TCPriv ρ _ω → ρ
 
 -- JOE TODO: put a link here to the paper
-convertRENYIEDPr ∷ (One r,Plus r,Minus r,Divide r,Log r) ⇒ r → Pr 'RENYI r → Pr 'ED r
-convertRENYIEDPr δ (RenyiPriv α ε) = EDPriv (ε + log (one / δ) / (α - one)) δ
+-- TODO: fix this formula when we have minus and divide
+-- convertRENYIEDPr ∷ (One r,Plus r,Minus r,Divide r,Log r) ⇒ r → Pr 'RENYI r → Pr 'ED r
+-- convertRENYIEDPr δ (RenyiPriv α ε) = EDPriv (ε + log (one / δ) / (α - one)) δ
+convertRENYIEDPr ∷ (One r,Plus r,Log r) ⇒ r → Pr 'RENYI r → Pr 'ED r
+convertRENYIEDPr δ (RenyiPriv α ε) = EDPriv ε δ
 
 -- JOE TODO: put a link here to the paper
-convertZCEDPr ∷ (One r,Plus r,Minus r,Times r,Divide r,Root r,Log r) ⇒ r → Pr 'ZC r → Pr 'ED r
+convertZCEDPr ∷ (One r,Plus r,Times r,Divide r,Root r,Log r) ⇒ r → Pr 'ZC r → Pr 'ED r
 convertZCEDPr δ (ZCPriv ρ) = EDPriv (ρ + (one + one) × root (ρ × log (one / δ))) δ
 
 -- JOE TODO: put a link here to the paper
-convertEPSZCPr ∷ (One r,Plus r,Minus r,Times r,Divide r,Root r,Log r) ⇒ Pr 'EPS r → Pr 'ZC r
+convertEPSZCPr ∷ (One r,Plus r,Times r,Divide r,Root r,Log r) ⇒ Pr 'EPS r → Pr 'ZC r
 convertEPSZCPr (EpsPriv ε) = ZCPriv ((one / (one + one)) × ε × ε)
 
 -- JOE TODO: put a link here to the paper

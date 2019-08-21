@@ -587,20 +587,20 @@ inferPriv eA = case extract eA of
             , "\nhas max sensitivity GT one"
             ]
       _ → error $ "AppPE expected pλ, got: " ⧺ pprender τ₁
-  -- ConvertZCEDPE e₁ e₂ → do
-  --   τ₁ ← pmFromSM $ inferSens e₁
-  --   case τ₁ of
-  --     ℝˢT ηᵟ → do
-  --       mapPPM (convertZCEDPr ηᵟ) $ inferPriv e₂
-  --     _ → error "type error: ConvertZCEDPE"
-  -- ConvertRENYIEDPE e₁ e₂ → do
-  --   τ₁ ← pmFromSM $ inferSens e₁
-  --   case τ₁ of
-  --     ℝˢT ηᵟ → do
-  --       mapPPM (convertRENYIEDPr ηᵟ) $ inferPriv e₂
-  --     _ → error "type error: ConvertRENYIEDPE"
-  -- ConvertEPSZCPE e₁ → do
-  --   mapPPM (convertEPSZCPr) $ inferPriv e₁
+  ConvertZCEDPE e₁ e₂ → do
+    τ₁ ← pmFromSM $ inferSens e₁
+    case τ₁ of
+      ℝˢT ηᵟ → do
+        mapPPM (convertZCEDPr ηᵟ) $ inferPriv e₂
+      _ → error "type error: ConvertZCEDPE"
+  ConvertRENYIEDPE e₁ e₂ → do
+    τ₁ ← pmFromSM $ inferSens e₁
+    case τ₁ of
+      ℝˢT ηᵟ → do
+        mapPPM (convertRENYIEDPr ηᵟ) $ inferPriv e₂
+      _ → error "type error: ConvertRENYIEDPE"
+  ConvertEPSZCPE e₁ → do
+    mapPPM (convertEPSZCPr) $ inferPriv e₁
   _ → error $ concat
         [ "inferPriv unknown expression type: "
         , "\n"

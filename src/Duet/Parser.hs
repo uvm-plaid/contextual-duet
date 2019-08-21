@@ -30,7 +30,8 @@ tokKeywords = list
   ,"box","unbox","boxed"
   ,"if","then","else"
   ,"true","false"
-  ,"primitive"
+  ,"primitive","primitive-ed","primitive-eps","primitive-renyi"
+  ,"primitive-zc","primitive-tc"
   ,"CSVtoMatrix"
   ,"fst","snd","inl","inr","case","of"
   ]
@@ -160,12 +161,49 @@ parPrimitives ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (𝕏 ⇰ Type RExp)
 parPrimitives mode = tries
   [ do
       prims ← pManySepBy (parLit ",") $ do
-        parLit "primitive"
-        x ← parVar
-        parLit ":"
-        τ ← parType mode
-        return (x :* τ)
+        prim ← parPrimitive mode
+        return prim
       return $ assoc prims
+  ]
+
+parPrimitive ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (𝕏 ∧ Type RExp)
+parPrimitive mode = mixfixParser $ concat
+  [ mix $ MixTerminal $ do
+      parLit "primitive"
+      x ← parVar
+      parLit ":"
+      τ ← parType ED_W
+      return (x :* τ)
+  , mix $ MixTerminal $ do
+      parLit "primitive-ed"
+      x ← parVar
+      parLit ":"
+      τ ← parType ED_W
+      return (x :* τ)
+  , mix $ MixTerminal $ do
+      parLit "primitive-renyi"
+      x ← parVar
+      parLit ":"
+      τ ← parType RENYI_W
+      return (x :* τ)
+  , mix $ MixTerminal $ do
+      parLit "primitive-eps"
+      x ← parVar
+      parLit ":"
+      τ ← parType EPS_W
+      return (x :* τ)
+  , mix $ MixTerminal $ do
+      parLit "primitive-zc"
+      x ← parVar
+      parLit ":"
+      τ ← parType ZC_W
+      return (x :* τ)
+  , mix $ MixTerminal $ do
+      parLit "primitive-tc"
+      x ← parVar
+      parLit ":"
+      τ ← parType TC_W
+      return (x :* τ)
   ]
 
 
@@ -383,17 +421,62 @@ parPriv p = tries
         δ ← parRExp
         parLit "⟩"
         return $ EDPriv ϵ δ
-      _ → abort
+      EPS_W → do
+        parLit "⟨"
+        ϵ ← parRExp
+        parLit "⟩"
+        return $ EpsPriv ϵ
+      RENYI_W → do
+        parLit "⟨"
+        α ← parRExp
+        parLit ","
+        ϵ ← parRExp
+        parLit "⟩"
+        return $ RenyiPriv α ϵ
+      ZC_W → do
+        parLit "⟨"
+        ρ ← parRExp
+        parLit "⟩"
+        return $ ZCPriv ρ
+      TC_W → do
+        parLit "⟨"
+        ρ ← parRExp
+        parLit ","
+        ω ← parRExp
+        parLit "⟩"
+        return $ TCPriv ρ ω
   , case p of
       ED_W → do
         parLit "⊥"
         return $ EDPriv (Annotated null $ ConstRE (AddTop 0.0)) (Annotated null $ ConstRE (AddTop 0.0))
-      _ → abort
+      EPS_W → do
+        parLit "⊥"
+        return $ EpsPriv (Annotated null $ ConstRE (AddTop 0.0))
+      RENYI_W → do
+        parLit "⊥"
+        return $ RenyiPriv (Annotated null $ ConstRE (AddTop 0.0)) (Annotated null $ ConstRE (AddTop 0.0))
+      ZC_W → do
+        parLit "⊥"
+        return $ ZCPriv (Annotated null $ ConstRE (AddTop 0.0))
+      TC_W → do
+        parLit "⊥"
+        return $ TCPriv (Annotated null $ ConstRE (AddTop 0.0)) (Annotated null $ ConstRE (AddTop 0.0))
   , case p of
       ED_W → do
         parLit "⊤"
         return $ EDPriv (Annotated null $ ConstRE Top) (Annotated null $ ConstRE Top)
-      _ → abort
+      EPS_W → do
+        parLit "⊤"
+        return $ EpsPriv (Annotated null $ ConstRE Top)
+      RENYI_W → do
+        parLit "⊤"
+        return $ RenyiPriv (Annotated null $ ConstRE Top) (Annotated null $ ConstRE Top)
+      ZC_W → do
+        parLit "⊤"
+        return $ ZCPriv (Annotated null $ ConstRE Top)
+      TC_W → do
+        parLit "⊤"
+        return $ TCPriv (Annotated null $ ConstRE Top) (Annotated null $ ConstRE Top)
   ]
 
 parSpace ∷ Parser Token ()
