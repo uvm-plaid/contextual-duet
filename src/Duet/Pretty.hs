@@ -41,6 +41,7 @@ instance Pretty Kind where
     ℝK → ppKeyPun "ℝ⁺"
     TypeK → ppKeyPun "☆"
     CxtK → ppKeyPun "cxt"
+    SchemaK → ppKeyPun "schema"
 
 instance Pretty ProgramVar where
   pretty = \case

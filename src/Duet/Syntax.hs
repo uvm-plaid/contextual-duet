@@ -411,6 +411,19 @@ instance Functor TLExpPre where
       let tag = annotatedTag τ
       LogTE (Annotated tag (map f (extract τ)))
     TopTE → TopTE
+    EmptyTE → EmptyTE
+    ConsTE τ₁ τ₂ → do
+      let tag₁ = annotatedTag τ₁
+      let tag₂ = annotatedTag τ₂
+      ConsTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₂ (map f (extract τ₂)))
+    AppendTE τ₁ τ₂ → do
+      let tag₁ = annotatedTag τ₁
+      let tag₂ = annotatedTag τ₂
+      AppendTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₂ (map f (extract τ₂)))
+    RexpTE τ₁ τ₂ → do
+      let tag₁ = annotatedTag τ₁
+      let tag₂ = annotatedTag τ₂
+      RexpTE (Annotated tag₁ (map f (extract τ₁))) (Annotated tag₂ (map f (extract τ₂)))
 
 freshenTL ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → TLExp RNF → ℕ → (TLExp RNF ∧ ℕ)
 freshenTL ρ β τ''' n =
@@ -451,18 +464,18 @@ freshenTL ρ β τ''' n =
         (τ₁ :* σ₁) :⊞♭: (σ₂ :* τ₂) →
           let (τ₁' :* n') = freshenTL ρ β τ₁ n in
           let σ₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁) in
-          let σ₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁' in
+          let σ₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁' in
           let (τ₂' :* n'') = freshenTL ρ β τ₂ n' in
           let σ₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₂) in
-          let σ₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₂' in
+          let σ₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₂' in
           ((τ₁' :* σ₁'') :⊞♭: (σ₂'' :* τ₂')) :* n''
         (τ₁ :* σ₁) :⊠♭: (σ₂ :* τ₂) →
           let (τ₁' :* n') = freshenTL ρ β τ₁ n in
           let σ₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁) in
-          let σ₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁' in
+          let σ₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁' in
           let (τ₂' :* n'') = freshenTL ρ β τ₂ n' in
           let σ₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₂) in
-          let σ₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₂' in
+          let σ₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₂' in
           ((τ₁' :* σ₁'') :⊠♭: (σ₂'' :* τ₂')) :* n''
         (x₁ :* τ₁) :⊸♭: (sσ₁ :* τ₂) →
           let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some n} in
@@ -516,6 +529,19 @@ freshenTL ρ β τ''' n =
           let (τ' :* n') = freshenTL ρ β τ n in
           (LogTE τ') :* n'
         TopTE → TopTE :* n
+        EmptyTE → EmptyTE :* n
+        ConsTE τ₁ τ₂ →
+          let (τ₁' :* n') = freshenTL ρ β τ₁ n in
+          let (τ₂' :* n'') = freshenTL ρ β τ₂ n' in
+          (ConsTE τ₁' τ₂') :* n''
+        AppendTE τ₁ τ₂ →
+          let (τ₁' :* n') = freshenTL ρ β τ₁ n in
+          let (τ₂' :* n'') = freshenTL ρ β τ₂ n' in
+          (AppendTE τ₁' τ₂') :* n''
+        RexpTE τ₁ τ₂ →
+          let (τ₁' :* n') = freshenTL ρ β τ₁ n in
+          let (τ₂' :* n'') = freshenTL ρ β τ₂ n' in
+          (RexpTE τ₁' τ₂') :* n''
   in
   (Annotated tag z) :* nFinal
 
@@ -555,18 +581,18 @@ freshenType ρ β τ''' n = let nplusone = n + one in
     (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) →
       let (τ₁' :* n') = freshenType ρ β τ₁ n in
       let σ₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁) in
-      let σ₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁' in
+      let σ₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁' in
       let (τ₂' :* n'') = freshenType ρ β τ₂ n' in
       let σ₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₂) in
-      let σ₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₂' in
+      let σ₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₂' in
       ((τ₁' :* σ₁'') :⊞: (σ₂'' :* τ₂')) :* n''
     (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) →
       let (τ₁' :* n') = freshenType ρ β τ₁ n in
       let σ₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁) in
-      let σ₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁' in
+      let σ₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁' in
       let (τ₂' :* n'') = freshenType ρ β τ₂ n' in
       let σ₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₂) in
-      let σ₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₂' in
+      let σ₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₂' in
       ((τ₁' :* σ₁'') :⊠: (σ₂'' :* τ₂')) :* n''
     (x₁ :* τ₁) :⊸: (sσ₁ :* τ₂) →
       let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some n} in
@@ -600,8 +626,8 @@ substAlphaRNF ∷ 𝐿 (𝕏 ∧ 𝕏) → RNF → RNF
 substAlphaRNF Nil r = r
 substAlphaRNF ((x₁:*x₂):&ρ) r = substAlphaRNF ρ $ substRNF x₁ (varRNF x₂) r
 
-freshenTMV ∷ (𝕏 ⇰ 𝕏) → 𝕏 → 𝕏
-freshenTMV β x = case β ⋕? x of
+freshenVar ∷ (𝕏 ⇰ 𝕏) → 𝕏 → 𝕏
+freshenVar β x = case β ⋕? x of
   None → x
   Some x' → x'
 
@@ -625,7 +651,7 @@ getVar (TMVar x) = x
 freshenMExp ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → MExp RNF → ℕ → (MExp RNF ∧ ℕ)
 freshenMExp ρ β meInit n = case meInit of
   EmptyME → EmptyME :* n
-  VarME x → (VarME x) :* n
+  VarME x → (VarME $ freshenVar ρ x) :* n
   ConsME τ me →
     let (τ' :* n') =  (freshenType ρ β τ n) in
     let (me' :* n'') = (freshenMExp ρ β me n')
@@ -662,18 +688,18 @@ alphaEquiv ρ β τ₁' τ₂' =
     ((τ₁₁ :* σ₁₁) :⊞: (σ₁₂ :* τ₁₂),(τ₂₁ :* σ₂₁) :⊞: (σ₂₂ :* τ₂₂)) → do
       let c₁ = (alphaEquiv ρ β τ₁₁ τ₂₁) ⩓ (alphaEquiv ρ β τ₁₂ τ₂₂)
       let σ₁₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₁)
-      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₁'
+      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁₁'
       let σ₁₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₂)
-      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₂'
+      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁₂'
       let c₂ = (σ₁₁'' ≡ σ₂₁)
       let c₃ = (σ₁₂'' ≡ σ₂₂)
       c₁ ⩓ c₂ ⩓ c₃
     ((τ₁₁ :* σ₁₁) :⊠: (σ₁₂ :* τ₁₂),(τ₂₁ :* σ₂₁) :⊠: (σ₂₂ :* τ₂₂)) → do
       let c₁ = (alphaEquiv ρ β τ₁₁ τ₂₁) ⩓ (alphaEquiv ρ β τ₁₂ τ₂₂)
       let σ₁₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₁)
-      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₁'
+      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁₁'
       let σ₁₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₂)
-      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₂'
+      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁₂'
       let c₂ = (σ₁₁'' ≡ σ₂₁)
       let c₃ = (σ₁₂'' ≡ σ₂₂)
       c₁ ⩓ c₂ ⩓ c₃
@@ -710,6 +736,7 @@ alphaEquivMExp ρ β me₁' me₂' = case (me₁',me₂') of
   (ConsME τ₁ me₁,ConsME τ₂ me₂) → (alphaEquiv ρ β τ₁ τ₂) ⩓ (alphaEquivMExp ρ β me₁ me₂)
   (AppendME me₁₁ me₁₂,AppendME me₂₁ me₂₂) → (alphaEquivMExp ρ β me₁₁ me₂₁) ⩓ (alphaEquivMExp ρ β me₁₂ me₂₂)
   (RexpME r₁ τ₁,RexpME r₂ τ₂) → ((substAlphaRNF (list ρ) r₁) ≡ r₂) ⩓ (alphaEquiv ρ β τ₁ τ₂)
+  _ → False
 
 alphaEquivRows ∷ (𝕏 ⇰ 𝕏) → RowsT RNF → RowsT RNF → 𝔹
 alphaEquivRows ρ rows₁ rows₂ = case (rows₁,rows₂) of
@@ -785,9 +812,9 @@ tyJoin ρ β τ₁' τ₂' =
       τa ← tyJoin ρ β τ₁₁ τ₂₁
       τb ← tyJoin ρ β τ₁₂ τ₂₂
       let σ₁₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₁)
-      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₁'
+      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁₁'
       let σ₁₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₂)
-      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₂'
+      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁₂'
       let σa = σ₁₁'' ⊔ σ₂₁
       let σb = σ₁₂'' ⊔ σ₂₂
       return $ (τa :* σa) :⊞: (σb :* τb)
@@ -795,9 +822,9 @@ tyJoin ρ β τ₁' τ₂' =
       τa ← tyJoin ρ β τ₁₁ τ₂₁
       τb ← tyJoin ρ β τ₁₂ τ₂₂
       let σ₁₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₁)
-      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₁'
+      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁₁'
       let σ₁₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₂)
-      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₂'
+      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁₂'
       let σa = σ₁₁'' ⊔ σ₂₁
       let σb = σ₁₂'' ⊔ σ₂₂
       return $ (τa :* σa) :⊠: (σb :* τb)
@@ -893,9 +920,9 @@ tyMeet ρ β τ₁' τ₂' =
       τa ← tyMeet ρ β τ₁₁ τ₂₁
       τb ← tyMeet ρ β τ₁₂ τ₂₂
       let σ₁₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₁)
-      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₁'
+      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁₁'
       let σ₁₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₂)
-      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₂'
+      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁₂'
       let σa = σ₁₁'' ⊓ σ₂₁
       let σb = σ₁₂'' ⊓ σ₂₂
       return $ (τa :* σa) :⊞: (σb :* τb)
@@ -903,9 +930,9 @@ tyMeet ρ β τ₁' τ₂' =
       τa ← tyMeet ρ β τ₁₁ τ₂₁
       τb ← tyMeet ρ β τ₁₂ τ₂₂
       let σ₁₁' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₁)
-      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₁'
+      let σ₁₁'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁₁'
       let σ₁₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₁₂)
-      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenTMV β x) :* s) $ list σ₁₂'
+      let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁₂'
       let σa = σ₁₁'' ⊓ σ₂₁
       let σb = σ₁₂'' ⊓ σ₂₂
       return $ (τa :* σa) :⊠: (σb :* τb)

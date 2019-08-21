@@ -315,19 +315,16 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
   , mixF $ MixFPrefix 7 $ const RootTE ^$ parLit "√"
   , mixF $ MixFPrefix 7 $ const LogTE ^$ parLit "㏒"
   -- Matrix stuff
-  -- , mixF $ MixFTerminal $ const EmptyTE ^$ parLit "[]"
-  -- , mixF $ MixFPrefix 6 $ do
-  --    τ ← parTLExp mode
-  --    parLit "∷"
-  --    return $ \ me → ConsTE τ me
-  -- , mixF $ MixFInfixL 3 $ do
-  --    parLit "⧺"
-  --    return AppendTE
-  -- , mixF $ MixFTerminal $ do
-  --    r ← parTLExp mode
-  --    parLit "↦"
-  --    τ ← parTLExp mode
-  --    return $ RexpTE r τ
+  , mixF $ MixFTerminal $ const EmptyTE ^$ parLit "[]"
+  , mixF $ MixFInfixR 6 $ do
+     parLit "∷"
+     return $ \ τ me → ConsTE τ me
+  , mixF $ MixFInfixL 3 $ do
+     parLit "⧺"
+     return AppendTE
+  , mixF $ MixFInfix 5 $ do
+     parLit "↦"
+     return $ \ r τ → RexpTE r τ
   -- Quantity Stuff
   , mixF $ MixFTerminal $ do parLit "∞" ; return TopTE
   -- Privacy Stuff

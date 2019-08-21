@@ -169,15 +169,15 @@ checkRExpLang e₀ = case (extract e₀) of
     return $ logRNF η
   _ → None
 
-checkSchemaVar ∷ 𝕏 → SM p ()
-checkSchemaVar x = do
-  ᴍ ← askL contextMExpL
-  case ᴍ ⋕? x of
-    Some _m → skip
-    None → error $ concat
-      [ "Schema variable lookup error: failed to find " ⧺ (pprender x) ⧺ " in the environment:\n"
-      , pprender ᴍ
-      ]
+-- checkSchemaVar ∷ 𝕏 → SM p ()
+-- checkSchemaVar x = do
+--   ᴍ ← askL contextMExpL
+--   case ᴍ ⋕? x of
+--     Some _m → skip
+--     None → error $ concat
+--       [ "Schema variable lookup error: failed to find " ⧺ (pprender x) ⧺ " in the environment:\n"
+--       , pprender ᴍ
+--       ]
 
 checkProgramVar ∷ ProgramVar → SM p ()
 checkProgramVar (TMVar x) = do
@@ -191,21 +191,16 @@ checkProgramVar (TMVar x) = do
 checkProgramVar (TLVar x) = do
   δ ← askL contextKindL
   case δ ⋕? x of
-    Some κ → case κ of
-      CxtK → return ()
-      _ → error $ concat
-        [ "checkProgramVar₂: failed on " ⧺ (pprender x) ⧺ " in the environment:\n"
-        , pprender δ
-        ]
+    Some κ → return ()
     None → error $ concat
-      [ "checkProgramVar₃: failed on " ⧺ (pprender x) ⧺ " in the environment:\n"
+      [ "checkProgramVar₂: failed on " ⧺ (pprender x) ⧺ " in the environment:\n"
       , pprender δ
       ]
 
 checkTypeMExp ∷ ∀ p. (PRIV_C p) ⇒ MExp RNF → SM p ()
 checkTypeMExp me'' = case me'' of
   EmptyME → skip
-  VarME x → checkSchemaVar x
+  VarME x → checkProgramVar $ TLVar x
   ConsME (τ ∷ Type RNF) (me ∷ MExp RNF) → do
     checkType τ
     checkTypeMExp me
@@ -771,7 +766,7 @@ freshenSTerm ρ β eA nInit = do
         ℝˢSE d → (ℝˢSE d :* nInit)
         ℕSE n → (ℕSE n :* nInit)
         ℝSE d → (ℝSE d :* nInit)
-        VarSE x → (VarSE (freshenTMV β x) :* nInit)
+        VarSE x → (VarSE (freshenVar β x) :* nInit)
         LetSE x e₁ e₂ → do
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
           let e₁' :* n' = freshenSTerm ρ β e₁ np1
