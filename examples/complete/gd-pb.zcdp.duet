@@ -1,20 +1,26 @@
 -- gradient descent
 -- per-iteration bound
-let main = pλ m  : ℕ,
+
+-- gradient descent
+let main =  ∀ m  : ℕ,
               n  : ℕ,
               ρ  : ℝ⁺,
               k  : ℕ
               .
-              xs : 𝕄 [L∞, U|m, n⋅𝔻 ] ,
-              ys : 𝕄 [L∞, U|m, 1⋅𝔻 ] ,
-              ρ  : ℝ⁺[ρ],
-              k  : ℕ[k],
-              η  : ℝ
+           pλ xs : 𝕄 [L∞, U|m, n↦𝔻 ] ⋅ 1.0 ,
+              ys : 𝕄 [L∞, U|m, 1.0↦𝔻 ] ⋅ 1.0,
+              ρ  : ℝ⁺[ρ] ⋅ 1.0,
+              k  : ℕ[k] ⋅ 1.0,
+              η  : ℝ ⋅ 1.0,
+              m  : ℕ[m] ⋅ 1.0,
+              n  : ℕ[n] ⋅ 1.0
               ⇒
-  let m₀ = mcreate[ L∞ | ℕ[1] , cols xs ] { i , j ⇒ 0.0 } in
-  loop k on m₀ <xs,ys> { a, θ ⇒
-    let s = ℝ⁺[1.0] / real (rows xs) in
-    g ← mgauss[ s , ρ ] <xs,ys> { ∇[ LR | θ ; mclip[L2] xs, ys ] } ;
-    return mmap θ , mmap g { x ⇒ η ⋅ x } { x , y ⇒ x - y }
-  }
+  let colnum = (mcols @ m @ n @ 𝔻 xs) in
+  let m₀ = mcreate @ ℕ[1.0] @ ℕ[n] @ ℝ ℕ[1] colnum (sλ i : 𝕀[1.0] , j : 𝕀[n] ⇒ 0.0) in
+  aloop₂ @ ρ @ k @ n @ <xs,ys>
+    (pλ <xs,ys> θ : 𝕄 [L∞, U|1.0, n↦𝔻 ] ⋅ 1.0 ⇒
+      g ← mgauss₂ @ ρ @ ℕ[1.0] @ n ρ
+            (mLipGrad @ m @ n θ (mclip @ m @ n @ 𝔻 xs) ys) ;
+      return (matsub @ ℕ[1.0] @ n θ g))
+    m₀
 in main
