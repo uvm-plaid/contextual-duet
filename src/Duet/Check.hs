@@ -463,15 +463,17 @@ inferSens eA = case extract eA of
       (x :* τ₁₁) :⊸: (sσ :* τ₁₂) → error $ concat
             [ "AppSE error 1 (argument type mismatch): \n"
             , "expected: " ⧺ pprender τ₁₁
-            , "\n"
+            , "\n\n"
             , "got: " ⧺ pprender τ₂
-            , "\n"
+            , "\n\n"
             , "in the function: " ⧺ (pprender ((x :* τ₁₁) :⊸: (sσ :* τ₁₂)))
+            , "\n\n"
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             ]
       _ →  error $ concat
-            [ "AppSE error 2 (tried to apply a non sλ): "
+            [ "AppSE error 2 (tried to apply a non sλ): \n\n"
             , pprender τ₁
+            , "\n\n"
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             ]
   PFunSE xsO x τ s e → do
@@ -575,18 +577,23 @@ inferPriv eA = case extract eA of
             tell $ σinf
             tell σ''
             return $ substGammaPr σ₂ x τ₁₂
-      (x :* τ₁₁) :⊸⋆: (PEnv (σ' ∷ ProgramVar ⇰ Pr p' RNF) :* τ₁₂) → error $ concat
-            [ "AppPE error 1 (argument type/sensitivity mismatch): "
+      (x :* τ₁₁ :* s) :⊸⋆: (PEnv (σ' ∷ ProgramVar ⇰ Pr p' RNF) :* τ₁₂) → error $ concat
+            [ "AppPE error 1 (argument type/sensitivity mismatch): \n"
             , "expected: " ⧺ pprender τ₁₁
-            , "\n"
+            , "\n\n"
             , "got: " ⧺ pprender τ₂
-            , "\n"
+            , "\n\n"
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             , "\n or sσ: \n"
             , pprender σ₂
             , "\nhas max sensitivity GT one"
             ]
-      _ → error $ "AppPE expected pλ, got: " ⧺ pprender τ₁
+      _ → error $ concat
+            [ "AppPE expected pλ, got: \n"
+            , pprender τ₁
+            , "\n\n"
+            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+            ]
   ConvertZCEDPE e₁ e₂ → do
     τ₁ ← pmFromSM $ inferSens e₁
     case τ₁ of

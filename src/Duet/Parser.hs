@@ -22,7 +22,7 @@ tokKeywords = list
   ,"ℕ","ℝ","ℝ⁺","𝔻","𝕀","𝕄","𝔻𝔽","𝔹","𝕊","★","∷","⋅","[]","⧺","☆"
   ,"∀","⊥","⊤","sens","priv","∞","cxt","schema"
   ,"LR","L2","U"
-  ,"real","set"
+  ,"set"
   ,"matrix","℘","𝐝","∈"
   ,"sample","rand-nat"
   ,"L1","L2","L∞","U"
@@ -45,6 +45,7 @@ tokPunctuation = list
   ,"×","&","⊸","⊸⋆"
   ,"∧","∨"
   ,"?","!"
+  ,"⊠","⊞"
   ]
 
 tokComment ∷ Parser ℂ ()
@@ -300,6 +301,16 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
   , mixF $ MixFInfixL 3 $ const (:⊕♭:) ^$ parLit "+"
   , mixF $ MixFInfixL 4 $ const (:⊗♭:) ^$ parLit "×"
   , mixF $ MixFInfixL 4 $ const (:&♭:) ^$ parLit "&"
+  , mixF $ MixFInfixL 3 $ do
+      σ₁ ← parSEnv
+      parLit "⊞"
+      σ₂ ← parSEnv
+      return $ \ τ₁ τ₂ → (τ₁ :* σ₁) :⊞♭: (σ₂ :* τ₂)
+  , mixF $ MixFInfixL 3 $ do
+      σ₁ ← parSEnv
+      parLit "⊠"
+      σ₂ ← parSEnv
+      return $ \ τ₁ τ₂ → (τ₁ :* σ₁) :⊠♭: (σ₂ :* τ₂)
   , mixF $ MixFPrefix 2 $ do
       parLit "("
       x ← parVar

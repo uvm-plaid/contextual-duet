@@ -1,31 +1,48 @@
 
-let main = pλ m  : ℕ,
+let main = ∀  m  : ℕ,
               n  : ℕ,
               ε  : ℝ⁺,
               δ  : ℝ⁺,
               k  : ℕ
               .
-              xs : 𝕄 [L∞, L∞|m, n⋅𝔻 ] ,
-              ys : 𝕄 [L∞, U|m, 1⋅𝔻 ] ,
-              ε  : ℝ⁺[ε],
-              δ  : ℝ⁺[δ],
-              k  : ℕ[k]
+          pλ  xs : 𝕄 [L∞, U|m, n↦𝔻 ] ⋅ 1.0  ,
+              ys : 𝕄 [L∞, U|m, 1.0↦𝔻 ] ⋅ 1.0  ,
+              ε  : ℝ⁺[ε] ⋅ 1.0 ,
+              δ  : ℝ⁺[δ] ⋅ 1.0 ,
+              k  : ℕ[k] ⋅ 1.0,
+              m  : ℕ[m] ⋅ 1.0,
+              n  : ℕ[n] ⋅ 1.0
               ⇒
-  let d = cols xs in
-  let m₀ = mcreate[ L∞ | ℕ[1] , d ] { i , j ⇒ 0.0 } in
-  let indexes = mcreate[ L∞ | ℕ[1] , ℕ[1]⋅d ] { i , j ⇒
-                 ⟨ j % dyn d, sign (real (dyn j - dyn d)) ⟩ } in
+  let d = mcols @ m @ n @ 𝔻 xs in
+  let m₀ = mcreate @ ℕ[1.0] @ ℕ[n] @ ℝ ℕ[1] d  (sλ i : 𝕀[1.0] , j : 𝕀[n] ⇒ 0.0) in
+  let indexes = mcreate @ ℕ[1.0] @ ℕ[n] @
+  ℕ [d⋅0.0,dyn₁⋅n,j⋅0.0,mod₄⋅1.0] ⊠
+  [d ⋅ 0.0,dyn₁ ⋅ 0.0,dyn₃ ⋅ 0.0,j ⋅ 0.0,minus₁ ⋅ 0.0,real₁ ⋅ 1.0,sign ⋅ 1.0
+  ] ℝ
+ ℕ[1] d (sλ i : 𝕀[1.0] , j : 𝕀[n] ⇒
+                 ⟨ mod₄ @ n j (dyn₁ @ n d), sign (real₁ (minus₁ (dyn₃ @ n j) (dyn₁ @ n d))) ⟩ ) in
 
-  aloop[ δ ] k on m₀ <xs,ys> { t , θ ⇒
-    let μ = 1.0 / ((real t)+2.0) in
-    let s = ℝ⁺[1.0] / real (rows xs) in
-    p ← exponential[s, ε] indexes <xs,ys> { x ⇒
-          let ⟨c, s⟩ = x in let g = ∇[ LR | θ ; xs , ys ] in g#[idx ℕ[0], c] } ;
-    let g₀ = mcreate[ L∞ | ℕ[1] , d ] { i , j ⇒ 0.0 } in
-    let gₚ = (let ⟨i, s⟩ = indexes#[idx ℕ[0], p] in g₀#[idx ℕ[0],i ↦ s ⋅ real 100]) in
+  loop @ ε @ δ @ δ @ k @ n @ <xs,ys>
+    (pλ <xs,ys> t : ℕ ⋅ 1.0,
+        <xs,ys> θ : 𝕄 [L∞, U|1.0, n↦𝔻 ] ⋅ 1.0 ⇒
+      let μ = div₁ 1.0 (plus₁ (real₁ t) 2.0) in
+      let s = div₁ ℝ⁺[1.0] real₁ (rows xs) in
+      p ← exponential @ m @ n @ ℝ @ s @ ε s ε indexes <xs,ys> (pλ <xs,ys> x : 𝕄 [L∞, U|1.0, n↦ℝ] ⋅ 1.0 ⇒
+            let c = fst x in
+            let s = snd x in
+            let g = mLipGrad @ m @ n θ xs ys in
+            mindex g (idx ℕ[0]) c ) ;
 
-    let θ'  = mmap θ  { x ⇒ (1.0-μ) ⋅ x } in
-    let gₚ' = mmap gₚ { x ⇒ μ ⋅ (100.0 ⋅ x) } in
-    return mmap θ', gₚ' { x, y ⇒ x + y }
-  }
+      let g₀ = mcreate @ ℕ[1.0] @ ℕ[n] @ ℝ ℕ[1] d  (sλ i : 𝕀[1.0] , j : 𝕀[n] ⇒ 0.0) in
+      let zz = mindex indexes (idx ℕ[0]) p in
+      let i = fst zz in
+      let s = snd zz in
+      let gₚ = mupdate @ m @ n @ ℝ g₀ (idx ℕ[0]) i (times₁ s (real 100)) in
+
+      let θ'  = mmap @ ℝ⁺[1.0] @ n @ ℝ @ ℝ θ (sλ x : ℝ ⇒ times₁ (minus₁ 1.0 μ) x ) in
+      let gₚ' = mmap @ m @ n @ ℝ @ ℝ gₚ (sλ x : ℝ ⇒ times₁ μ  (times 100.0 x) ) in
+      return mmap2 @ m @ n @ ℝ @ ℝ θ' gₚ' (sλ x : ℝ, y : ℝ ⇒ plus₁ x y )
+    )
+    m₀
+    δ
 in main
