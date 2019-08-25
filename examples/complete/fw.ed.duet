@@ -16,11 +16,9 @@ let main = ∀  m  : ℕ,
   let d = mcols @ m @ n @ 𝔻 xs in
   let m₀ = mcreate @ ℕ[1.0] @ ℕ[n] @ ℝ ℕ[1] d  (sλ i : 𝕀[1.0] , j : 𝕀[n] ⇒ 0.0) in
   let indexes = mcreate @ ℕ[1.0] @ ℕ[n] @
-  ℕ [d⋅0.0,dyn₁⋅n,j⋅0.0,mod₄⋅1.0] ⊠
-  [d ⋅ 0.0,dyn₁ ⋅ 0.0,dyn₃ ⋅ 0.0,j ⋅ 0.0,minus₁ ⋅ 0.0,real₁ ⋅ 1.0,sign ⋅ 1.0
-  ] ℝ
- ℕ[1] d (sλ i : 𝕀[1.0] , j : 𝕀[n] ⇒
-                 ⟨ mod₄ @ n j (dyn₁ @ n d), sign (real₁ (minus₁ (dyn₃ @ n j) (dyn₁ @ n d))) ⟩ ) in
+  ℕ [d⋅0.0,dyn₁⋅n,mod₄⋅1.0] ⊠ [d ⋅ 0.0,dyn₁ ⋅ 0.0,dyn₃ ⋅ 0.0,minus₁ ⋅ 0.0,real₁ ⋅ 1.0,sign ⋅ 1.0] ℝ
+  ℕ[1] d (sλ i : 𝕀[1.0] , j : 𝕀[n] ⇒
+            ⟨ mod₄ @ n j (dyn₁ @ n d) <j>,<j> sign (real₁ (minus₁ (dyn₃ @ n j) (dyn₁ @ n d))) ⟩ ) in
 
   loop @ ε @ δ @ δ @ k @ n @ <xs,ys>
     (pλ <xs,ys> t : ℕ ⋅ 1.0,

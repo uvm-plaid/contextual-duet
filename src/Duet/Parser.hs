@@ -24,7 +24,7 @@ tokKeywords = list
   ,"LR","L2","U"
   ,"set"
   ,"matrix","℘","𝐝","∈"
-  ,"sample","rand-nat"
+  ,"rand-nat"
   ,"L1","L2","L∞","U"
   ,"ZCDP","RENYI","EPSDP"
   ,"box","unbox","boxed"
@@ -643,10 +643,20 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
   , mixF $ MixFTerminal $ do
       parLit "⟨"
       e₁ ← parSExp p
+      xsO₁ ← pOptional $ do
+        parLit "<"
+        xs ← pManySepBy (parLit ",") $ parProgramVar
+        parLit ">"
+        return xs
       parLit ","
+      xsO₂ ← pOptional $ do
+        parLit "<"
+        xs ← pManySepBy (parLit ",") $ parProgramVar
+        parLit ">"
+        return xs
       e₂ ← parSExp p
       parLit "⟩"
-      return $ PairSE e₁ e₂
+      return $ PairSE e₁ xsO₁ xsO₂ e₂
   , mixF $ MixFTerminal $ do
       parLit "fst"
       e ← parSExp p

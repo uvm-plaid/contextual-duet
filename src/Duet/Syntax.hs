@@ -991,7 +991,7 @@ data SExp (p ∷ PRIV) r where
   InlSE ∷  TypeSource r → SExpSource p r → SExp p r
   InrSE ∷  TypeSource r → SExpSource p r → SExp p r
   CaseSE ∷ SExpSource p r → 𝕏 → SExpSource p r → 𝕏 → SExpSource p r → SExp p r
-  PairSE ∷ SExpSource p r → SExpSource p r → SExp p r
+  PairSE ∷ SExpSource p r → 𝑂 (𝐿 ProgramVar) → 𝑂 (𝐿 ProgramVar) → SExpSource p r → SExp p r
   FstSE ∷ SExpSource p r → SExp p r
   SndSE ∷ SExpSource p r → SExp p r
   deriving (Eq,Ord,Show)
@@ -1010,7 +1010,7 @@ instance Functor (SExp p) where
   map f (PFunSE xsO x τ s e) = (PFunSE xsO x (mapp f τ) (map f s) (mapp f e))
   map f (TAbsSE x κ e) = (TAbsSE x κ (mapp f e))
   map f (TAppSE e τ) = (TAppSE (mapp f e) (mapp f τ))
-  map f (PairSE e₁ e₂) = (PairSE (mapp f e₁) (mapp f e₂))
+  map f (PairSE e₁ xsO₁ xsO₂ e₂) = (PairSE (mapp f e₁) xsO₁ xsO₂ (mapp f e₂))
   map f (FstSE e) = (FstSE (mapp f e))
   map f (SndSE e) = (SndSE (mapp f e))
   map f (InlSE τ₂ e) = (InlSE (mapp f τ₂) (mapp f e))

@@ -486,10 +486,16 @@ inferSens eA = case extract eA of
         let σkeep = restrict (pow xs) σ
         tell $ assoc $ map (\(x :* i) → x :* Sens (ConstantRNF TopBT)) $ list (without (pow xs) σ)
         return $ (x :* τ' :* s) :⊸⋆: (PEnv σkeep :* τ'')
-  PairSE e₁ e₂ → do
+  PairSE e₁ xsO₁ xsO₂ e₂ → do
     σ₁ :* τ₁ ← hijack $ inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
-    return $ (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂)
+    let xsO₁' = elim𝑂 pø pow xsO₁
+    let xsO₂' = elim𝑂 pø pow xsO₂
+    let σ₁' = without xsO₁' σ₁
+    let σ₂' = without xsO₂' σ₂
+    tell $ restrict xsO₁' σ₁
+    tell $ restrict xsO₂' σ₂
+    return $ (τ₁ :* σ₁') :⊠: (σ₂' :* τ₂)
   FstSE e → do
     τ ← inferSens e
     case τ of
@@ -824,10 +830,12 @@ freshenSTerm ρ β eA nInit = do
           let x₂ⁿ = 𝕏 {𝕩name=(𝕩name x₂), 𝕩Gen=Some n''}
           let e₃' :* n''' = freshenSTerm ρ ((x₂↦ x₂ⁿ) ⩌ β) e₃ n''
           (CaseSE e₁' x₁ⁿ e₂' x₂ⁿ e₃' :* n''')
-        PairSE e₁ e₂ → do
+        PairSE e₁ xsO₁ xsO₂ e₂ → do
+          let xsO₁' = mapp (\x → freshenRef ρ β x) xsO₁
+          let xsO₂' = mapp (\x → freshenRef ρ β x) xsO₂
           let e₁' :* n' = freshenSTerm ρ β e₁ nInit
           let e₂' :* n'' = freshenSTerm ρ β e₂ n'
-          (PairSE e₁' e₂' :* n')
+          (PairSE e₁' xsO₁' xsO₂' e₂' :* n')
         FstSE e → do
           let e' :* n' = freshenSTerm ρ β e nInit
           (FstSE e' :* n')
