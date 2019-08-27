@@ -260,8 +260,6 @@ data Type r =
   | ForallT 𝕏 Kind (Type r)
   | CxtT (𝑃 ProgramVar)
   | BoxedT (𝕏 ⇰ Sens r) (Type r)
-  -- eventually we want:
-  -- - contextual/lazy function, pair, and sum connectives
   deriving (Eq,Ord,Show)
 
 instance Functor Type where
@@ -282,7 +280,9 @@ instance Functor Type where
     τ₁ :&: τ₂ → map f τ₁ :&: map f τ₂
     (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (map f τ₁ :* mapp f σ₁) :⊞: (mapp f σ₂ :* map f τ₂)
     (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (map f τ₁ :* mapp f σ₁) :⊠: (mapp f σ₂ :* map f τ₂)
+    -- sλ
     (x :* τ₁) :⊸: (σ :* τ₂) → (x :* map f τ₁) :⊸: (mapp f σ :*  map f τ₂)
+    -- pλ
     (x :* τ₁ :* s) :⊸⋆: (PEnv pσ :* τ₂) → (x :* map f τ₁ :* map f s) :⊸⋆: (PEnv (map (map f) pσ) :* map f τ₂)
     ForallT α κ τ → ForallT α κ $ map f τ
     CxtT xs → CxtT xs

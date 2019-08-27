@@ -169,15 +169,6 @@ checkRExpLang e₀ = case (extract e₀) of
     return $ logRNF η
   _ → None
 
--- checkSchemaVar ∷ 𝕏 → SM p ()
--- checkSchemaVar x = do
---   ᴍ ← askL contextMExpL
---   case ᴍ ⋕? x of
---     Some _m → skip
---     None → error $ concat
---       [ "Schema variable lookup error: failed to find " ⧺ (pprender x) ⧺ " in the environment:\n"
---       , pprender ᴍ
---       ]
 
 checkProgramVar ∷ ProgramVar → SM p ()
 checkProgramVar (TMVar x) = do
@@ -415,12 +406,28 @@ inferSens eA = case extract eA of
                 ℕˢTE r → substTypeR x r τ
                 VarTE x' → substTypeR x (varRNF x') τ
                 TopTE →  substTypeR x (ConstantRNF TopBT) τ
-                _ → error $ "in type-level application: expected static nat, got: " ⧺ show𝕊 tl'
+                _ → error $ concat
+                      [ "in type-level application: expected static nat, got: \n\n"
+                      , "\n"
+                      , "got: " ⧺ show𝕊 tl'
+                      , "\n\n"
+                      , "for type level variable: " ⧺ pprender x
+                      , "\n\n"
+                      , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+                      ]
               ℝK → case extract tl' of
                 ℝˢTE r → substTypeR x r τ
                 VarTE x' → substTypeR x (varRNF x') τ
                 TopTE →  substTypeR x (ConstantRNF TopBT) τ
-                _ → error $ "in type-level application: expected static real, got: " ⧺ show𝕊 tl'
+                _ → error $ concat
+                      [ "in type-level application: expected static real, got: \n\n"
+                      , "\n"
+                      , "got: " ⧺ show𝕊 tl'
+                      , "\n\n"
+                      , "for type level variable: " ⧺ pprender x
+                      , "\n\n"
+                      , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+                      ]
               CxtK → case extract tl' of
                 CxtTE xs → substTypeCxt x (list $ iter $ xs) τ
               TypeK → substType x (checkOption $ checkTypeLang $ tl') τ

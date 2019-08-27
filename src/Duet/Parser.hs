@@ -45,7 +45,7 @@ tokPunctuation = list
   ,"×","&","⊸","⊸⋆"
   ,"∧","∨"
   ,"?","!"
-  ,"⊠","⊞"
+  ,"⊠","⊞","ø"
   ]
 
 tokComment ∷ Parser ℂ ()
@@ -132,9 +132,12 @@ parKind = pNew "kind" $ tries
   , do parLit "schema" ; return SchemaK
   ]
 
-parPEnv ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (PEnv RExp)
+parPEnv ∷ ∀ p. (PRIV_C p) ⇒ PRIV_W p → Parser Token (PEnv RExp)
 parPEnv mode = tries
-  [ do
+  [do
+     parLit "ø"
+     return $ PEnv @ p $ dø
+  , do
       parLit "["
       xprs ← pManySepBy (parLit ",") $ do
         x ← parProgramVar
@@ -147,7 +150,10 @@ parPEnv mode = tries
 
 parSEnv ∷ Parser Token (ProgramVar ⇰ Sens RExp)
 parSEnv = tries
-  [ do
+  [do
+     parLit "ø"
+     return $ dø
+  , do
       parLit "["
       xsens ← pManySepBy (parLit ",") $ do
         x ← parProgramVar
@@ -343,6 +349,10 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
       xs ← pManySepBy (parLit ",") parProgramVar
       parLit ">"
       return $ CxtTE $ pow xs
+  -- , mixF $ MixFTerminal $ do
+  --     parLit "<"
+  --     parLit ">"
+  --     return $ CxtTE $ pø
   , mixF $ MixFPrefix 3 $ do
       parLit "box"
       parLit "["
