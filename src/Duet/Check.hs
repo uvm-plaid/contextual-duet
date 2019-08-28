@@ -801,10 +801,10 @@ freshenSTerm ρ β eA nInit = do
           let τ' :* n'' = freshenTL ρ β τ n'
           (TAppSE e' τ' :* n'')
         SFunSE xsO x τ e → do
-          let xsO' = mapp (\x → freshenRef ρ β x) xsO
           let tcxt = annotatedTag τ
-          let τ' :* n' = freshenType ρ β (extract τ) np1
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
+          let xsO' = mapp (\x₁ → freshenRef ρ ((x↦ xⁿ) ⩌ β) x₁) xsO
+          let τ' :* n' = freshenType ρ ((x↦ xⁿ) ⩌ β) (extract τ) np1
           let e' :* n'' = freshenSTerm ρ ((x↦ xⁿ) ⩌ β) e n'
           (SFunSE xsO' xⁿ (Annotated tcxt τ') e' :* n'')
         AppSE e₁ xsO e₂ → do
@@ -813,11 +813,11 @@ freshenSTerm ρ β eA nInit = do
           let e₂' :* n'' = freshenSTerm ρ β e₂ n'
           (AppSE e₁' xsO' e₂' :* n'')
         PFunSE xsO x τ s e → do
-          let xsO' = mapp (\x → freshenRef ρ β x) xsO
           let tcxt = annotatedTag τ
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
           let τ' :* n' = freshenType ρ β (extract τ) np1
           let s' = map (substAlphaRNF (list ρ)) s
+          let xsO' = mapp (\x₁ → freshenRef ρ ((x↦ xⁿ) ⩌ β) x₁) xsO
           let e' :* n'' = freshenPTerm ρ ((x↦ xⁿ) ⩌ β) e n'
           (PFunSE xsO' xⁿ (Annotated tcxt τ') s' e' :* n'')
         InlSE τ e → do

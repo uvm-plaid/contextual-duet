@@ -251,6 +251,11 @@ parMExp mode = mixfixParser $ concat
 parTLExp ∷ (PRIV_C p) ⇒ PRIV_W p → Parser Token (TLExp RExp)
 parTLExp mode = mixfixParserWithContext "tlexp" $ concat
   [ mixF $ MixFTerminal $ VarTE ^$ parVar
+  , mixF $ MixFTerminal $ do
+      parLit "("
+      e ← parTLExp mode
+      parLit ")"
+      return $ extract e
   -- Type Stuff
   , mixF $ MixFTerminal $ do
       parLit "ℕ"
