@@ -463,10 +463,21 @@ inferSens eA = case extract eA of
       False → error $ "provided variables to application which are not in scope: " ⧺ show𝕊 (xsₜₘ ∖ allInScopeₜₘ) ⧺ show𝕊 (xsₜₗ ∖ allInScopeₜₗ)
     case (τ₁) of
       (x :* τ₁₁) :⊸: (sσ :* τ₁₂) | alphaEquiv dø dø τ₁₁ τ₂ → do
-        tell $ (sσ ⋕! (TMVar x)) ⨵ (restrict xs σ₂)
-        tell $ top ⨵ (without xs σ₂)
-        tell $ without (single $ TMVar x) sσ
-        return $ substGammaSens σ₂ x τ₁₂
+        case sσ ⋕? (TMVar x) of
+          None → error $ concat
+                [ "AppSE error 3 (missing binder in SEnv): \n"
+                , "\n\n"
+                , "binder: " ⧺ pprender x
+                , "\n\n"
+                , "in the sσ: " ⧺ pprender sσ
+                , "\n\n"
+                , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+                ]
+          Some s → do
+            tell $ s ⨵ (restrict xs σ₂)
+            tell $ top ⨵ (without xs σ₂)
+            tell $ without (single $ TMVar x) sσ
+            return $ substGammaSens σ₂ x τ₁₂
       (x :* τ₁₁) :⊸: (sσ :* τ₁₂) → error $ concat
             [ "AppSE error 1 (argument type mismatch): \n"
             , "expected: " ⧺ pprender τ₁₁
