@@ -1,0 +1,5 @@
+let f =
+  sλ m : ℕ ⇒
+    sλ n : ℕ ⇒
+      let ⟨z,s⟩ = ⟨⟨plus₁ m n,plus₁ m m⟩⟩ in z
+in f

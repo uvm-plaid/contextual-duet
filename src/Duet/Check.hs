@@ -114,10 +114,10 @@ checkTypeLang e₀ = case (extract e₀) of
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
     return $ τ₁ :⊗: τ₂
-  e₁ :&♭: e₂ → do
+  (e₁ :* σ₁) :&♭: (σ₂ :* e₂) → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
-    return $ τ₁ :&: τ₂
+    return $ (τ₁ :* σ₁) :&: (σ₂ :* τ₂)
   (e₁ :* σ₁) :⊞♭: (σ₂ :* e₂) → do
     τ₁ ← checkTypeLang e₁
     τ₂ ← checkTypeLang e₂
@@ -224,9 +224,13 @@ checkType τA = case τA of
   τ₁ :⊗: τ₂ → do
     checkType τ₁
     checkType τ₂
-  τ₁ :&: τ₂ → do
+  (τ₁ :* σ₁) :&: (σ₂ :* τ₂) → do
     checkType τ₁
     checkType τ₂
+    eachWith σ₁ $ \ (x' :* _) → do
+      void $ checkProgramVar x'
+    eachWith σ₂ $ \ (x' :* _) → do
+      void $ checkProgramVar x'
   (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → do
     checkType τ₁
     checkType τ₂
@@ -322,10 +326,10 @@ inferType τinit = do
       τ₁' ← inferType τ₁
       τ₂' ← inferType τ₂
       return $ τ₁' :⊗: τ₂'
-    τ₁ :&: τ₂ →  do
+    (τ₁ :* σ₁) :&: (σ₂ :* τ₂) → do
       τ₁' ← inferType τ₁
       τ₂' ← inferType τ₂
-      return $ τ₁' :&: τ₂'
+      return $ (τ₁ :* σ₁) :&: (σ₂ :* τ₂)
     (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → do
       τ₁' ← inferType τ₁
       τ₂' ← inferType τ₂
@@ -514,6 +518,28 @@ inferSens eA = case extract eA of
     tell $ restrict xsO₁' σ₁
     tell $ restrict xsO₂' σ₂
     return $ (τ₁ :* σ₁') :⊠: (σ₂' :* τ₂)
+  TupSE e₁ xsO₁ xsO₂ e₂ → do
+    σ₁ :* τ₁ ← hijack $ inferSens e₁
+    σ₂ :* τ₂ ← hijack $ inferSens e₂
+    let xsO₁' = elim𝑂 pø pow xsO₁
+    let xsO₂' = elim𝑂 pø pow xsO₂
+    let σ₁' = without xsO₁' σ₁
+    let σ₂' = without xsO₂' σ₂
+    tell $ (restrict xsO₁' σ₁) ⊔ (restrict xsO₂' σ₂)
+    return $ (τ₁ :* σ₁') :&: (σ₂' :* τ₂)
+  UntupSE x₁ x₂ e₁ e₂ → do
+    σ₀ :* τₜ ← hijack $ inferSens e₁
+    case τₜ of
+      (τ₁ :* σ₁) :&: (σ₂ :* τ₂) → do
+        σ₃ :* τ₃ ← hijack $ mapEnvL contextTypeL (\ γ → (x₁ ↦ τ₁) ⩌ (x₂ ↦ τ₂) ⩌ γ) $ inferSens e₂
+        let (ς₁ :* σ₃') = ifNone (zero :* σ₃) $ dview (TMVar x₁) σ₃
+            (ς₂ :* σ₃'') = ifNone (zero :* σ₃') $ dview (TMVar x₂) σ₃'
+        tell $ (ς₁ ⊔ ς₂) ⨵ σ₀
+        tell σ₃''
+        tell σ₁
+        tell σ₂
+        return τ₃
+      _ → error $ "Untup error: " ⧺ (pprender $ τₜ)
   FstSE e → do
     τ ← inferSens e
     case τ of
@@ -664,7 +690,7 @@ substType x₉ τ' τ'' = case τ'' of
   𝔻T τ → 𝔻T $ substType x₉ τ' τ
   τ₁ :⊕: τ₂ → substType x₉ τ' τ₁ :⊕: substType x₉ τ' τ₂
   τ₁ :⊗: τ₂ → substType x₉ τ' τ₁ :⊗: substType x₉ τ' τ₂
-  τ₁ :&: τ₂ → substType x₉ τ' τ₁ :&: substType x₉ τ' τ₂
+  (τ₁ :* σ₁) :&: (σ₂ :* τ₂) → (substType x₉ τ' τ₁ :* σ₁) :&: (σ₂ :* substType x₉ τ' τ₂)
   (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (substType x₉ τ' τ₁ :* σ₁) :⊞: (σ₂ :* substType x₉ τ' τ₂)
   (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (substType x₉ τ' τ₁ :* σ₁) :⊠: (σ₂ :* substType x₉ τ' τ₂)
   (x' :* τ₁) :⊸: (sσ :* τ₂) → (x' :* substType x₉ τ' τ₁) :⊸: (sσ :* substType x₉ τ' τ₂)
@@ -697,7 +723,7 @@ substTypeM x₉ me' τ'' = case τ'' of
   𝔻T τ → 𝔻T $ substTypeM x₉ me' τ
   τ₁ :⊕: τ₂ → substTypeM x₉ me' τ₁ :⊕: substTypeM x₉ me' τ₂
   τ₁ :⊗: τ₂ → substTypeM x₉ me' τ₁ :⊗: substTypeM x₉ me' τ₂
-  τ₁ :&: τ₂ → substTypeM x₉ me' τ₁ :&: substTypeM x₉ me' τ₂
+  (τ₁ :* σ₁) :&: (σ₂ :* τ₂) → (substTypeM x₉ me' τ₁ :* σ₁) :&: (σ₂ :* substTypeM x₉ me' τ₂)
   (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (substTypeM x₉ me' τ₁ :* σ₁) :⊞: (σ₂ :* substTypeM x₉ me' τ₂)
   (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (substTypeM x₉ me' τ₁ :* σ₁) :⊠: (σ₂ :* substTypeM x₉ me' τ₂)
   (x' :* τ₁) :⊸: (sσ :* τ₂) → (x' :* substTypeM x₉ me' τ₁) :⊸: (sσ :* substTypeM x₉ me' τ₂)
@@ -743,7 +769,7 @@ substTypeCxt x' xs τ' = case τ' of
   𝔻T τ → 𝔻T $ substTypeCxt x' xs τ
   τ₁ :⊕: τ₂ → substTypeCxt x' xs τ₁ :⊕: substTypeCxt x' xs τ₂
   τ₁ :⊗: τ₂ → substTypeCxt x' xs τ₁ :⊗: substTypeCxt x' xs τ₂
-  τ₁ :&: τ₂ → substTypeCxt x' xs τ₁ :&: substTypeCxt x' xs τ₂
+  (τ₁ :* σ₁) :&: (σ₂ :* τ₂) → (substTypeCxt x' xs τ₁ :* σ₁) :&: (σ₂ :* substTypeCxt x' xs τ₂)
   (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (substTypeCxt x' xs τ₁ :* σ₁) :⊞: (σ₂ :* substTypeCxt x' xs τ₂)
   (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (substTypeCxt x' xs τ₁ :* σ₁) :⊠: (σ₂ :* substTypeCxt x' xs τ₂)
   (x :* τ₁) :⊸: (sσ :* τ₂) → (x :* substTypeCxt x' xs τ₁) :⊸: ((spliceCxt x' xs sσ) :* substTypeCxt x' xs τ₂)
@@ -778,7 +804,7 @@ substTypeR x' r' τ' = case τ' of
   𝔻T τ → 𝔻T $ substTypeR x' r' τ
   τ₁ :⊕: τ₂ → substTypeR x' r' τ₁ :⊕: substTypeR x' r' τ₂
   τ₁ :⊗: τ₂ → substTypeR x' r' τ₁ :⊗: substTypeR x' r' τ₂
-  τ₁ :&: τ₂ → substTypeR x' r' τ₁ :&: substTypeR x' r' τ₂
+  (τ₁ :* σ₁) :&: (σ₂ :* τ₂) → (substTypeR x' r' τ₁ :* σ₁) :&: (σ₂ :* substTypeR x' r' τ₂)
   (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (substTypeR x' r' τ₁ :* σ₁) :⊞: (σ₂ :* substTypeR x' r' τ₂)
   (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (substTypeR x' r' τ₁ :* σ₁) :⊠: (σ₂ :* substTypeR x' r' τ₂)
   (x :* τ₁) :⊸: (sσ :* τ₂) →
@@ -854,6 +880,18 @@ freshenSTerm ρ β eA nInit = do
           let e₁' :* n' = freshenSTerm ρ β e₁ nInit
           let e₂' :* n'' = freshenSTerm ρ β e₂ n'
           (PairSE e₁' xsO₁' xsO₂' e₂' :* n')
+        TupSE e₁ xsO₁ xsO₂ e₂ → do
+          let xsO₁' = mapp (\x → freshenRef ρ β x) xsO₁
+          let xsO₂' = mapp (\x → freshenRef ρ β x) xsO₂
+          let e₁' :* n' = freshenSTerm ρ β e₁ nInit
+          let e₂' :* n'' = freshenSTerm ρ β e₂ n'
+          (TupSE e₁' xsO₁' xsO₂' e₂' :* n')
+        UntupSE x₁ x₂ e₁ e₂ → do
+          let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some nInit}
+          let x₂ⁿ = 𝕏 {𝕩name=(𝕩name x₂), 𝕩Gen=Some np1}
+          let e₁' :* n' = freshenSTerm ρ β e₁ (np1+one)
+          let e₂' :* n'' = freshenSTerm ρ ((x₂↦ x₂ⁿ) ⩌ (x₁↦ x₁ⁿ) ⩌ β) e₂ n'
+          (UntupSE x₁ⁿ x₂ⁿ e₁' e₂' :* n')
         FstSE e → do
           let e' :* n' = freshenSTerm ρ β e nInit
           (FstSE e' :* n')
@@ -908,7 +946,7 @@ substGammaSens σ₉ x₉ τ₉ = case τ₉ of
   𝔻T τ → 𝔻T $ substGammaSens σ₉ x₉ τ
   τ₁ :⊕: τ₂ → substGammaSens σ₉ x₉ τ₁ :⊕: substGammaSens σ₉ x₉ τ₂
   τ₁ :⊗: τ₂ → substGammaSens σ₉ x₉ τ₁ :⊗: substGammaSens σ₉ x₉ τ₂
-  τ₁ :&: τ₂ → substGammaSens σ₉ x₉ τ₁ :&: substGammaSens σ₉ x₉ τ₂
+  (τ₁ :* σ₁) :&: (σ₂ :* τ₂) → (substGammaSens σ₉ x₉ τ₁ :* substGammaSensEnv σ₉ x₉ σ₁) :&: (substGammaSensEnv σ₉ x₉ σ₂ :* substGammaSens σ₉ x₉ τ₂)
   (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (substGammaSens σ₉ x₉ τ₁ :* substGammaSensEnv σ₉ x₉ σ₁) :⊞: (substGammaSensEnv σ₉ x₉ σ₂ :* substGammaSens σ₉ x₉ τ₂)
   (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (substGammaSens σ₉ x₉ τ₁ :* substGammaSensEnv σ₉ x₉ σ₁) :⊠: (substGammaSensEnv σ₉ x₉ σ₂ :* substGammaSens σ₉ x₉ τ₂)
   (x :* τ₁) :⊸: (sσ :* τ₂) → do
@@ -932,7 +970,7 @@ substGammaPr σ₉ x₉ τ₉ = case τ₉ of
   𝔻T τ → 𝔻T $ substGammaPr σ₉ x₉ τ
   τ₁ :⊕: τ₂ → substGammaPr σ₉ x₉ τ₁ :⊕: substGammaPr σ₉ x₉ τ₂
   τ₁ :⊗: τ₂ → substGammaPr σ₉ x₉ τ₁ :⊗: substGammaPr σ₉ x₉ τ₂
-  τ₁ :&: τ₂ → substGammaPr σ₉ x₉ τ₁ :&: substGammaPr σ₉ x₉ τ₂
+  (τ₁ :* σ₁) :&: (σ₂ :* τ₂) → (substGammaPr σ₉ x₉ τ₁ :* σ₁) :&: (σ₂ :* substGammaPr σ₉ x₉ τ₂)
   (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (substGammaPr σ₉ x₉ τ₁ :* σ₁) :⊞: (σ₂ :* substGammaPr σ₉ x₉ τ₂)
   (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (substGammaPr σ₉ x₉ τ₁ :* σ₁) :⊠: (σ₂ :* substGammaPr σ₉ x₉ τ₂)
   (x :* τ₁) :⊸: (sσ :* τ₂) → do

@@ -39,7 +39,7 @@ tokKeywords = list
 tokPunctuation ∷ 𝐿 𝕊
 tokPunctuation = list
   ["=",":","@",".","⇒","→","←","#","↦","≡","⧼","⧽"
-  ,"[","]","(",")","{","}","<",">",",",";","|","⟨","⟩"
+  ,"[","]","(",")","{","}","<",">",",",";","|","⟨","⟩","⟨⟨","⟩⟩"
   ,"⊔","⊓","+","⋅","/","√","㏒"
   ,"-","%","≟"
   ,"×","&","⊸","⊸⋆"
@@ -311,7 +311,11 @@ parTLExp mode = mixfixParserWithContext "tlexp" $ concat
   , mixF $ MixFPrefix 6 $ const (𝔻TE) ^$ parLit "𝐝"
   , mixF $ MixFInfixL 3 $ const (:⊕♭:) ^$ parLit "+"
   , mixF $ MixFInfixL 4 $ const (:⊗♭:) ^$ parLit "×"
-  , mixF $ MixFInfixL 4 $ const (:&♭:) ^$ parLit "&"
+  , mixF $ MixFInfixL 3 $ do
+      σ₁ ← parSEnv
+      parLit "&"
+      σ₂ ← parSEnv
+      return $ \ τ₁ τ₂ → (τ₁ :* σ₁) :&♭: (σ₂ :* τ₂)
   , mixF $ MixFInfixL 3 $ do
       σ₁ ← parSEnv
       parLit "⊞"
@@ -569,7 +573,11 @@ parType mode = mixfixParser $ concat
   , mix $ MixPrefix 6 $ const (𝔻T) ^$ parLit "𝐝"
   , mix $ MixInfixL 3 $ const (:⊕:) ^$ parLit "+"
   , mix $ MixInfixL 4 $ const (:⊗:) ^$ parLit "×"
-  , mix $ MixInfixL 4 $ const (:&:) ^$ parLit "&"
+  , mix $ MixInfixL 3 $ do
+      σ₁ ← parSEnv
+      parLit "&"
+      σ₂ ← parSEnv
+      return $ \ τ₁ τ₂ → (τ₁ :* σ₁) :&: (σ₂ :* τ₂)
   , mix $ MixInfixL 3 $ do
       σ₁ ← parSEnv
       parLit "⊞"
@@ -673,6 +681,23 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       parLit "⟩"
       return $ PairSE e₁ xsO₁ xsO₂ e₂
   , mixF $ MixFTerminal $ do
+      parLit "⟨⟨"
+      e₁ ← parSExp p
+      xsO₁ ← pOptional $ do
+        parLit "<"
+        xs ← pManySepBy (parLit ",") $ parProgramVar
+        parLit ">"
+        return xs
+      parLit ","
+      xsO₂ ← pOptional $ do
+        parLit "<"
+        xs ← pManySepBy (parLit ",") $ parProgramVar
+        parLit ">"
+        return xs
+      e₂ ← parSExp p
+      parLit "⟩⟩"
+      return $ TupSE e₁ xsO₁ xsO₂ e₂
+  , mixF $ MixFTerminal $ do
       parLit "fst"
       e ← parSExp p
       return $ FstSE e
@@ -726,6 +751,15 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
              e₁ ← parSExp p
              parLit "in"
              return $ \ e₂ → LetSE x e₁ e₂
+        , do parLit "⟨"
+             x ← parVar
+             parLit ","
+             y ← parVar
+             parLit "⟩"
+             parLit "="
+             e₁ ← parSExp p
+             parLit "in"
+             return $ \ e₂ → UntupSE x y e₁ e₂
         ]
   , mixF $ MixFInfixL 10 $ do
       parSpace
