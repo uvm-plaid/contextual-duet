@@ -259,6 +259,7 @@ data Type r =
   | (𝕏 ∧ Type r ∧ Sens r) :⊸⋆: (PEnv r ∧ Type r)
   | ForallT 𝕏 Kind (Type r)
   | CxtT (𝑃 ProgramVar)
+  | UnitT
   | BoxedT (𝕏 ⇰ Sens r) (Type r)
   deriving (Eq,Ord,Show)
 
@@ -286,6 +287,7 @@ instance Functor Type where
     (x :* τ₁ :* s) :⊸⋆: (PEnv pσ :* τ₂) → (x :* map f τ₁ :* map f s) :⊸⋆: (PEnv (map (map f) pσ) :* map f τ₂)
     ForallT α κ τ → ForallT α κ $ map f τ
     CxtT xs → CxtT xs
+    UnitT → UnitT
     BoxedT σ τ → BoxedT (map (map f) σ) (map f τ)
     VarT x → VarT x
 
@@ -312,6 +314,7 @@ data TLExpPre r =
   | (𝕏 ∧ TLExp r ∧ Sens r) :⊸⋆♭: (PEnv r ∧ TLExp r)
   | ForallTE 𝕏 Kind (TLExp r)
   | CxtTE (𝑃 ProgramVar)
+  | UnitTE
   | BoxedTE (𝕏 ⇰ Sens r) (TLExp r)
   -- RExp Stuff
   | NatTE ℕ
@@ -384,6 +387,7 @@ instance Functor TLExpPre where
       let tag = annotatedTag τ
       ForallTE α κ $ (Annotated tag (map f (extract τ)))
     CxtTE xs → CxtTE xs
+    UnitTE → UnitTE
     VarTE x → VarTE x
     NatTE n → NatTE n
     NNRealTE d → NNRealTE d
@@ -506,6 +510,7 @@ freshenTL ρ β τ''' n =
         CxtTE xs → do
           let xs' = pow $ map (\x → freshenRef ρ β x) $ list xs
           (CxtTE xs' :* n)
+        UnitTE → UnitTE :* n
         VarTE x → (VarTE $ getTLVar $ freshenRef ρ β (TLVar x)) :* n
         NatTE η → NatTE η :* n
         NNRealTE d → NNRealTE d :* n
@@ -628,6 +633,7 @@ freshenType ρ β τ''' n = let nplusone = n + one in
       let xs' = pow $ map (\x → freshenRef ρ β x) $ list xs
       (CxtT xs' :* n)
     BoxedT sσ₁ τ₁ → undefined
+    UnitT → UnitT :* n
 
 substAlphaRExp ∷ 𝐿 (𝕏 ∧ 𝕏) → RExp → RExp
 substAlphaRExp Nil r = r
@@ -745,6 +751,7 @@ alphaEquiv ρ β τ₁' τ₂' =
       True → alphaEquiv ((x₁↦x₂) ⩌ ρ) β τ₁ τ₂
       False → False
     (CxtT xs₁,CxtT xs₂) → xs₁ ≡ xs₂
+    (UnitT, UnitT) → True
     (BoxedT sσ₁ τ₁,BoxedT sσ₂ τ₂) → undefined
     _ → False
 
@@ -875,6 +882,7 @@ tyJoin ρ β τ₁' τ₂' =
       τa ← tyJoin ((x₁↦x₂) ⩌ ρ) β τ₁ τ₂
       return $ ForallT x₂ κ₂ τa
     (CxtT xs₁,CxtT xs₂) | xs₁ ≡ xs₂ → return $ CxtT xs₂
+    (UnitT, UnitT) → return $ UnitT
     (BoxedT sσ₁ τ₁,BoxedT sσ₂ τ₂) → undefined
     _ → None
 
@@ -989,6 +997,7 @@ tyMeet ρ β τ₁' τ₂' =
       τa ← tyMeet ((x₁↦x₂) ⩌ ρ) β τ₁ τ₂
       return $ ForallT x₂ κ₂ τa
     (CxtT xs₁,CxtT xs₂) | xs₁ ≡ xs₂ → return $ CxtT xs₂
+    (UnitT, UnitT) → return $ UnitT
     (BoxedT sσ₁ τ₁,BoxedT sσ₂ τ₂) → undefined
     _ → None
 
@@ -1007,6 +1016,7 @@ data SExp (p ∷ PRIV) r where
   ℝˢSE ∷ 𝔻 → SExp p r
   ℕSE ∷ ℕ → SExp p r
   ℝSE ∷ 𝔻 → SExp p r
+  𝕌SE ∷ SExp p r
   TrueSE ∷ SExp p r
   FalseSE ∷ SExp p r
   VarSE ∷ 𝕏 → SExp p r
@@ -1031,6 +1041,7 @@ instance Functor (SExp p) where
   map f (ℝˢSE d) = (ℝˢSE d)
   map f (ℕSE n) = (ℕSE n)
   map f (ℝSE d) = (ℝSE d)
+  map f 𝕌SE = 𝕌SE
   map f (TrueSE) = (TrueSE)
   map f (FalseSE) = (FalseSE)
   map f (VarSE x) = (VarSE x)
@@ -1048,7 +1059,7 @@ instance Functor (SExp p) where
   map f (InlSE τ₂ e) = (InlSE (mapp f τ₂) (mapp f e))
   map f (InrSE τ₁ e) = (InrSE (mapp f τ₁) (mapp f e))
   map f (CaseSE e₁ x e₂ y e₃) = (CaseSE (mapp f e₁) x (mapp f e₂) y (mapp f e₃))
-  
+
 type PExpSource (p ∷ PRIV) r = Annotated FullContext (PExp p r)
 data PExp (p ∷ PRIV) r where
   ReturnPE ∷ SExpSource p r → PExp p r

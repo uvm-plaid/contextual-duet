@@ -99,6 +99,7 @@ checkTypeLang e₀ = case (extract e₀) of
   𝕀TE r → return $ 𝕀T r
   𝔹TE → return 𝔹T
   𝕊TE → return 𝕊T
+  UnitTE → return UnitT
   SetTE e → do
     τ ← checkTypeLang e
     return $ SetT τ
@@ -211,6 +212,7 @@ checkType τA = case τA of
   𝕀T _η → skip
   𝔹T → skip
   𝕊T → skip
+  UnitT → skip
   SetT τ → checkType τ
   𝕄T _ℓ _c rows me → do
     case rows of
@@ -309,6 +311,7 @@ inferType τinit = do
     𝕀T r → return $ 𝕀T r
     𝔹T → return $ 𝔹T
     𝕊T → return $ 𝕊T
+    UnitT → return $ UnitT
     SetT τ → do
       τ₁ ← inferType τ
       return $ SetT τ₁
@@ -377,6 +380,7 @@ inferSens eA = case extract eA of
   ℝˢSE d → return $ ℝˢT $ ι d
   ℕSE _n → return $ ℕT
   ℝSE _d → return $ ℝT
+  𝕌SE → return $ UnitT
   VarSE x → do
     γ ← askL contextTypeL
     case γ ⋕? x of
@@ -685,6 +689,7 @@ substType x₉ τ' τ'' = case τ'' of
   𝕀T r → 𝕀T r
   𝔹T → 𝔹T
   𝕊T → 𝕊T
+  UnitT → UnitT
   SetT τ → SetT $ substType x₉ τ' τ
   𝕄T ℓ c rows cols → 𝕄T ℓ c rows $ substTMExp x₉ τ' cols
   𝔻T τ → 𝔻T $ substType x₉ τ' τ
@@ -718,6 +723,7 @@ substTypeM x₉ me' τ'' = case τ'' of
   𝕀T r → 𝕀T r
   𝔹T → 𝔹T
   𝕊T → 𝕊T
+  UnitT → UnitT
   SetT τ → SetT $ substTypeM x₉ me' τ
   𝕄T ℓ c rows cols → 𝕄T ℓ c rows $ substMExp x₉ me' cols
   𝔻T τ → 𝔻T $ substTypeM x₉ me' τ
@@ -764,6 +770,7 @@ substTypeCxt x' xs τ' = case τ' of
   𝕀T r → 𝕀T r
   𝔹T → 𝔹T
   𝕊T → 𝕊T
+  UnitT → UnitT
   SetT τ → SetT $ substTypeCxt x' xs τ
   𝕄T ℓ c rs me → 𝕄T ℓ c rs $ substMExpCxt x' xs me
   𝔻T τ → 𝔻T $ substTypeCxt x' xs τ
@@ -795,6 +802,7 @@ substTypeR x' r' τ' = case τ' of
   𝕀T r → 𝕀T $ substRNF x' r' r
   𝔹T → 𝔹T
   𝕊T → 𝕊T
+  UnitT → UnitT
   SetT τ → SetT $ substTypeR x' r' τ
   𝕄T ℓ c rs me →
     let rs' = case rs of
@@ -823,6 +831,7 @@ freshenSTerm ρ β eA nInit = do
         ℝˢSE d → (ℝˢSE d :* nInit)
         ℕSE n → (ℕSE n :* nInit)
         ℝSE d → (ℝSE d :* nInit)
+        𝕌SE → (𝕌SE :* nInit)
         VarSE x → (VarSE (freshenVar β x) :* nInit)
         LetSE x e₁ e₂ → do
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}

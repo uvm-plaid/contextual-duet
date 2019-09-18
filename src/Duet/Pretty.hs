@@ -87,7 +87,8 @@ instance (Pretty r, Eq r) ⇒ Pretty (Type r) where
     ℝT → ppKeyPun "ℝ"
     𝔹T → ppKeyPun "𝔹"
     𝕊T → ppKeyPun "𝕊"
-    𝔻T ℝT → ppKeyPun "𝔻 "
+    UnitT → ppKeyPun "𝕌"
+    𝔻T ℝT → ppKeyPun "𝔻"
     𝕀T r → concat[ppKeyPun "𝕀",ppPun "[",pretty r,ppPun "]"]
     SetT τ → ppAtLevel 5 $ ppSeparated $ list
       [ ppKeyPun "℘"

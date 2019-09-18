@@ -19,7 +19,7 @@ makePrettyUnion ''Token
 tokKeywords ∷ 𝐿 𝕊
 tokKeywords = list
   ["let","in","sλ","pλ","return","on"
-  ,"ℕ","ℝ","ℝ⁺","𝔻","𝕀","𝕄","𝔻𝔽","𝔹","𝕊","★","∷","⋅","[]","⧺","☆"
+  ,"ℕ","ℝ","ℝ⁺","𝔻","𝕀","𝕄","𝔻𝔽","𝔹","𝕊","★","∷","⋅","[]","⧺","☆","𝕌","•"
   ,"∀","⊥","⊤","sens","priv","∞","cxt","schema"
   ,"LR","L2","U"
   ,"set"
@@ -541,6 +541,7 @@ parType mode = mixfixParser $ concat
   , mix $ MixTerminal $ const ℝT ^$ parLit "ℝ"
   , mix $ MixTerminal $ const 𝔹T ^$ parLit "𝔹"
   , mix $ MixTerminal $ const 𝕊T ^$ parLit "𝕊"
+  , mix $ MixTerminal $ const UnitT ^$ parLit "𝕌"
   , mix $ MixTerminal $ VarT ^$ parVar
   , mix $ MixTerminal $ do
       parLit "𝕀"
@@ -663,6 +664,9 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       d ← parNNDbl
       parLit "]"
       return $ ℝˢSE d
+  , mixF $ MixFTerminal $ do
+      parLit "•"
+      return 𝕌SE
   , mixF $ MixFTerminal $ do
       parLit "⟨"
       e₁ ← parSExp p
