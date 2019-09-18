@@ -1,12 +1,5 @@
 module contextual where
 
--- infix 4 _≡_
---
--- data _≡_ {A : Set} (x : A) : A → Set where
---   ↯ : x ≡ x
---
--- {-# BUILTIN EQUALITY _≡_ #-}
-
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; refl)
 
@@ -27,19 +20,16 @@ _ = primNatToFloat 2
 _ : ℝ
 _ = 2.7
 
---
--- postulate ℝ : Set
--- {-# BUILTIN FLOAT ℝ #-}
-
 _ : ℕ
 _ = 3 + 2
 
--- xx :
--- primNatToFloat
+-- infix 9 #_
+
+-- DeBruijn indices
+open import Data.Empty using (⊥; ⊥-elim)
 
 𝕏 : Set
 𝕏 = ℕ
-
 
 infix 9 𝕤_
 -- sensitivity
@@ -64,11 +54,11 @@ _ ×̂ ∞ = ∞
 𝕤 x ×̂ 𝕤 x₁ = 𝕤 (primFloatTimes x x₁)
 
 -- sensitivity environment
-infixl 5  _,_⦂_
+infixl 5  _,_
 
 data Σ : Set where
   ∅     : Σ
-  _,_⦂_ : Σ → 𝕏 → 𝕊 → Σ
+  _,_ : Σ → 𝕊 → Σ
 
 infix 5 ƛ_⦂_⇒[_]_
 infix 6 _∥_⊗_∥_
@@ -86,11 +76,30 @@ data τ : Set where
 -- type environment
 data Γ : Set where
   ∅     : Γ
-  _,_⦂_ : Γ → 𝕏 → τ → Γ
+  _,_ : Γ → τ → Γ
 
+-- type environment lookup judgement
+infix 4 _∋Γ_
 
-infix 9 ℝ_
-infix 9 𝔹_
+data _∋Γ_ : Γ → τ → Set where
+
+  Z : ∀ {Γ A}
+      ---------
+    → Γ , A ∋Γ A
+
+  S_ : ∀ {Γ A B}
+    → Γ ∋Γ A
+      ---------
+    → Γ , B ∋Γ A
+
+_ : ∅ , 𝔹T , unit ∋Γ unit
+_ = Z
+
+_ : ∅ , 𝔹T , ℝT , unit ∋Γ ℝT
+_ = S Z
+
+infix 9 𝕣_
+infix 9 𝕓_
 infix 7 _⊞_
 infix 8 _·_
 infix 6 _≤_
@@ -109,7 +118,7 @@ infix 6 _←_∥_
 
 data Term : Set where
   -- real numbers
-  ℝ_ : ℝ → Term
+  𝕣_ : ℝ → Term
   _⊞_ : Term → Term → Term
   _·_ : Term → Term → Term
   _≤_ : Term → Term → Term
@@ -130,28 +139,46 @@ data Term : Set where
   -- ascription
   _::_ : Term → τ → Term
   -- booleans
-  𝔹_ : 𝔹 → Term
+  𝕓_ : 𝔹 → Term
   if_∥_∥_ : Term → Term → Term → Term
   -- let
   _←_∥_ : 𝕏 → Term → Term
 
 infix 9 inl_
 infix 9 inr_
+infix 9 𝓇_
+infix 9 𝒷_
 infix 9 _〈_,_〉_
 infix 5 ƛ_⦂_∥_
 
 -- values
 mutual
   data 𝓋 : Set where
-    r : 𝓋
-    b : 𝓋
     tt : 𝓋
     inl_ : 𝓋 → 𝓋
     inr_ : 𝓋 → 𝓋
     _〈_,_〉_ : 𝓋 → 𝓋 → 𝓋
     ƛ_⦂_∥_ : 𝕏 → Term → γ → 𝓋
+    𝒷_ : 𝔹 → 𝓋
+    𝓇_ : ℝ → 𝓋
 
   -- value environment
   data γ : Set where
     ∅     : γ
-    _,_⦂_ : γ → 𝕏 → 𝓋 → γ
+    _,_ : γ → 𝓋 → γ
+
+-- typing judgement
+infix 6 _⊢_⦂_,_
+
+data _⊢_⦂_,_ : Γ → Term → τ → Σ → Set where
+
+  -- RLIT
+  ⊢rlit : ∀ {Γ a}
+      -----------
+    → Γ ⊢ (𝕣 a) ⦂ ℝT , ∅
+
+two : Term
+two = 𝕣 2.0
+
+⊢two : ∀ {Γ} → Γ ⊢ two ⦂ ℝT , ∅
+⊢two = ⊢rlit
