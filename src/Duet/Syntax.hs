@@ -1016,9 +1016,9 @@ data SExp (p ∷ PRIV) r where
   PFunSE ∷ 𝑂 (𝐿 ProgramVar) → 𝕏 → TypeSource r → Sens r → PExpSource p r → SExp p r
   TAbsSE ∷ 𝕏 → Kind → SExpSource p r → SExp p r
   TAppSE ∷ SExpSource p r → TLExp r → SExp p r
+  CaseSE ∷ SExpSource p r → 𝕏 → SExpSource p r → 𝕏 → SExpSource p r → SExp p r
   InlSE ∷  TypeSource r → SExpSource p r → SExp p r
   InrSE ∷  TypeSource r → SExpSource p r → SExp p r
-  CaseSE ∷ SExpSource p r → 𝕏 → SExpSource p r → 𝕏 → SExpSource p r → SExp p r
   PairSE ∷ SExpSource p r → 𝑂 (𝐿 ProgramVar) → 𝑂 (𝐿 ProgramVar) → SExpSource p r → SExp p r
   FstSE ∷ SExpSource p r → SExp p r
   SndSE ∷ SExpSource p r → SExp p r
@@ -1048,7 +1048,7 @@ instance Functor (SExp p) where
   map f (InlSE τ₂ e) = (InlSE (mapp f τ₂) (mapp f e))
   map f (InrSE τ₁ e) = (InrSE (mapp f τ₁) (mapp f e))
   map f (CaseSE e₁ x e₂ y e₃) = (CaseSE (mapp f e₁) x (mapp f e₂) y (mapp f e₃))
-
+  
 type PExpSource (p ∷ PRIV) r = Annotated FullContext (PExp p r)
 data PExp (p ∷ PRIV) r where
   ReturnPE ∷ SExpSource p r → PExp p r
