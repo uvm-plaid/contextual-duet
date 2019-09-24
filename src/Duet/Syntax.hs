@@ -103,6 +103,12 @@ instance (Join r,Meet r) ⇒ Meet (Pr p r) where
   RenyiPriv α₁ ε₁ ⊓ RenyiPriv α₂ ε₂ = RenyiPriv (α₁ ⊔ α₂) (ε₁ ⊓ ε₂)
   ZCPriv ρ₁ ⊓ ZCPriv ρ₂ = ZCPriv $ ρ₁ ⊓ ρ₂
   TCPriv ρ₁ ω₁ ⊓ TCPriv ρ₂ ω₂ = TCPriv (ρ₁ ⊓ ρ₂) (ω₁ ⊔ ω₂)
+instance (Plus r) ⇒ Plus (Pr p r) where
+  EpsPriv ε₁ + EpsPriv ε₂ = EpsPriv $ ε₁ + ε₂
+  EDPriv ε₁ δ₁ + EDPriv ε₂ δ₂ = EDPriv (ε₁ + ε₂) (δ₁ + δ₂)
+  RenyiPriv α₁ ε₁ + RenyiPriv α₂ ε₂ = RenyiPriv (α₁ + α₂) (ε₁ + ε₂)
+  ZCPriv ρ₁ + ZCPriv ρ₂ = ZCPriv $ ρ₁ + ρ₂
+  TCPriv ρ₁ ω₁ + TCPriv ρ₂ ω₂ = TCPriv (ρ₁ + ρ₂) (ω₁ + ω₂)
 
 iteratePr ∷ (Times r) ⇒ r → Pr p r → Pr p r
 iteratePr x = \case
@@ -1026,6 +1032,7 @@ data SExp (p ∷ PRIV) r where
   PFunSE ∷ 𝑂 (𝐿 ProgramVar) → 𝕏 → TypeSource r → Sens r → PExpSource p r → SExp p r
   TAbsSE ∷ 𝕏 → Kind → SExpSource p r → SExp p r
   TAppSE ∷ SExpSource p r → TLExp r → SExp p r
+  IfSE ∷ (SExpSource p r) → (SExpSource p r) → (SExpSource p r) → SExp p r
   CaseSE ∷ SExpSource p r → 𝕏 → SExpSource p r → 𝕏 → SExpSource p r → SExp p r
   InlSE ∷  TypeSource r → SExpSource p r → SExp p r
   InrSE ∷  TypeSource r → SExpSource p r → SExp p r
@@ -1051,6 +1058,7 @@ instance Functor (SExp p) where
   map f (PFunSE xsO x τ s e) = (PFunSE xsO x (mapp f τ) (map f s) (mapp f e))
   map f (TAbsSE x κ e) = (TAbsSE x κ (mapp f e))
   map f (TAppSE e τ) = (TAppSE (mapp f e) (mapp f τ))
+  map f (IfSE e₁ e₂ e₃) = (IfSE (mapp f e₁) (mapp f e₂) (mapp f e₃))
   map f (PairSE e₁ xsO₁ xsO₂ e₂) = (PairSE (mapp f e₁) xsO₁ xsO₂ (mapp f e₂))
   map f (FstSE e) = (FstSE (mapp f e))
   map f (SndSE e) = (SndSE (mapp f e))
@@ -1064,6 +1072,8 @@ type PExpSource (p ∷ PRIV) r = Annotated FullContext (PExp p r)
 data PExp (p ∷ PRIV) r where
   ReturnPE ∷ SExpSource p r → PExp p r
   BindPE ∷ 𝕏 → PExpSource p r → PExpSource p r → PExp p r
+  IfPE ∷ (SExpSource p r) → (PExpSource p r) → (PExpSource p r) → PExp p r
+  CasePE ∷ SExpSource p r → 𝕏 → PExpSource p r → 𝕏 → PExpSource p r → PExp p r
   AppPE ∷ SExpSource p r → 𝑂 (𝐿 ProgramVar) → SExpSource p r → PExp p r
   ConvertZCEDPE ∷ SExpSource 'ED r → PExpSource 'ZC r → PExp 'ED r
   ConvertEPSZCPE ∷ PExpSource 'EPS r → PExp 'ZC r
@@ -1072,6 +1082,8 @@ data PExp (p ∷ PRIV) r where
 instance Functor (PExp p) where
   map f (ReturnPE e) = (ReturnPE (mapp f e))
   map f (BindPE x e₁ e₂) = (BindPE x (mapp f e₁) (mapp f e₂))
+  map f (IfPE e₁ e₂ e₃) = (IfPE (mapp f e₁) (mapp f e₂) (mapp f e₃))
+  map f (CasePE e₁ x e₂ y e₃) = (CasePE (mapp f e₁) x (mapp f e₂) y (mapp f e₃))
   map f (AppPE e₁ xs e₂) = (AppPE (mapp f e₁) xs (mapp f e₂))
   map f (ConvertZCEDPE e₁ e₂ ) = (ConvertZCEDPE (mapp f e₁) (mapp f e₂))
   map f (ConvertEPSZCPE e₁) = (ConvertEPSZCPE (mapp f e₁))

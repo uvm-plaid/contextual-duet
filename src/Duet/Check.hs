@@ -512,6 +512,18 @@ inferSens eA = case extract eA of
         let σkeep = restrict (pow xs) σ
         tell $ assoc $ map (\(x :* i) → x :* Sens (ConstantRNF TopBT)) $ list (without (pow xs) σ)
         return $ (x :* τ' :* s) :⊸⋆: (PEnv σkeep :* τ'')
+  IfSE e₁ e₂ e₃ → do
+    σ₁ :* τ₁ ← hijack  $ inferSens e₁
+    σ₂ :* τ₂ ← hijack $ inferSens e₂
+    σ₃ :* τ₃ ← hijack $ inferSens e₃
+    case (τ₂ ≡ τ₃) of
+      False → error $ "IfSE type mismatch" ⧺ (pprender (τ₂,τ₃))
+      True → case τ₁ of
+        𝔹T → do
+          tell (σ₃ ⊔ σ₂)
+          tell $ assoc $ map (\(x :* s)→ x :* top) $ list σ₁
+          return τ₂
+        _ → error $ "IfSE expected a boolean in the test position" ⧺ pprender τ₁
   PairSE e₁ xsO₁ xsO₂ e₂ → do
     σ₁ :* τ₁ ← hijack $ inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
@@ -648,6 +660,40 @@ inferPriv eA = case extract eA of
             , "\n\n"
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             ]
+  CasePE e₁ x e₂ y e₃ → do
+    σ₁ :* τ₁ ← pmFromSM $ hijack $ inferSens e₁
+    case τ₁ of
+      (τ₁₁ :* σ₁₁) :⊞: (σ₁₂ :* τ₁₂) → do
+        σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁₁) ⩌ γ) $ inferPriv e₂
+        let (ς₂ :* σ₂') = ifNone (makePr zero :* σ₂) $ dview (TMVar x) σ₂
+        σ₃ :* τ₃ ← hijack $ mapEnvL contextTypeL (\ γ → (y ↦ τ₁₂) ⩌ γ) $ inferPriv e₃
+        let (ς₃ :* σ₃') = ifNone (makePr zero :* σ₃) $ dview (TMVar x) σ₃
+        let a = assoc $ map (\(x :* s)→ x :* ς₂) $ list σ₁₁
+        let b = assoc $ map (\(x :* s)→ x :* ς₃) $ list σ₁₂
+
+        let σf = (a + σ₂) ⊔ (b + σ₃)
+        tell σf
+        tell $ assoc $ map (\(x :* s)→ x :* makePr top) $ list σ₁
+        let τf = tyJoin dø dø (substGammaSens σ₁₁ x τ₂) (substGammaSens σ₁₂ y τ₃)
+        case τf of
+          None → error "tyJoin failed in CasePE"
+          Some τf' → return τf'
+      _ → error $ concat
+            [ "CasePE error (tried to apply a non sum): "
+            , pprender τ₁
+            , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
+            ]
+  IfPE e₁ e₂ e₃ → do
+    τ₁ ← pmFromSM $ inferSens e₁
+    σ₂ :* τ₂ ← hijack $ inferPriv e₂
+    σ₃ :* τ₃ ← hijack $ inferPriv e₃
+    case (τ₂ ≡ τ₃) of
+      False → error $ "IfPE type mismatch" ⧺ (pprender (τ₂,τ₃))
+      True → case τ₁ of
+        𝔹T → do
+          tell (σ₃ ⊔ σ₂)
+          return τ₂
+        _ → error $ "IfPE expected a boolean in the test position" ⧺ pprender τ₁
   ConvertZCEDPE e₁ e₂ → do
     τ₁ ← pmFromSM $ inferSens e₁
     case τ₁ of

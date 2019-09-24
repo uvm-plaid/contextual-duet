@@ -28,7 +28,7 @@ tokKeywords = list
   ,"L1","L2","L∞","U"
   ,"ZCDP","RENYI","EPSDP"
   ,"box","unbox","boxed"
-  ,"if","then","else"
+  ,"if","ifs","then","else"
   ,"true","false"
   ,"primitive","primitive-ed","primitive-eps","primitive-renyi"
   ,"primitive-zc","primitive-tc"
@@ -668,6 +668,18 @@ parSExp p = mixfixParserWithContext "sexp" $ concat
       parLit "•"
       return 𝕌SE
   , mixF $ MixFTerminal $ do
+       parLit "ifs"
+       e₁ ← parSExp p
+       parLit "then"
+       parLit "{"
+       e₂ ← parSExp p
+       parLit "}"
+       parLit "else"
+       parLit "{"
+       e₃ ← parSExp p
+       parLit "}"
+       return $ IfSE e₁ e₂ e₃
+  , mixF $ MixFTerminal $ do
       parLit "⟨"
       e₁ ← parSExp p
       xsO₁ ← pOptional $ do
@@ -867,6 +879,17 @@ parPExp p = pWithContext "pexp" $ tries
        parLit ";"
        e₂ ← parPExp p
        return $ BindPE x e₁ e₂
+  , do parLit "if"
+       e₁ ← parSExp p
+       parLit "then"
+       parLit "{"
+       e₂ ← parPExp p
+       parLit "}"
+       parLit "else"
+       parLit "{"
+       e₃ ← parPExp p
+       parLit "}"
+       return $ IfPE e₁ e₂ e₃
   , do e ← parSExp p
        case extract e of
          -- QUESTION: should AppPE have a SExp or PExp as its first argument?

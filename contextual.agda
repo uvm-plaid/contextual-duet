@@ -1,52 +1,39 @@
 module contextual where
 
-import Relation.Binary.PropositionalEquality as Eq
-open Eq using (_≡_; refl)
-
-data 𝔹 : Set where
-  True : 𝔹
-  False : 𝔹
-
-open import Data.Nat using (ℕ; zero; suc; _+_; _*_; _∸_)
-
-open import Agda.Builtin.Float
-
-ℝ : Set
-ℝ = Float
-
-_ : ℝ
-_ = primNatToFloat 2
-
-_ : ℝ
-_ = 2.7
+open import UVMVS.Core public
+open import UVMVS.Lib public
 
 _ : ℕ
-_ = 3 + 2
+_ = 2
 
--- infix 9 #_
+_ : 𝔽
+_ = 2.0
 
--- DeBruijn indices
-open import Data.Empty using (⊥; ⊥-elim)
+_ : 𝔹
+_ = ɪ
+
+_ : 𝔹
+_ = ᴏ
 
 𝕏 : Set
 𝕏 = ℕ
 
 infix 9 𝕤_
 -- sensitivity
-data 𝕊 : Set where
-  ∞  : 𝕊
-  𝕤_ : ℝ → 𝕊
+data Sens : Set where
+  ∞  : Sens
+  𝕤_ : 𝔽 → Sens
 
 infix 7 _+̂_
 
-_+̂_ : 𝕊 → 𝕊 → 𝕊
+_+̂_ : Sens → Sens → Sens
 ∞ +̂ _ = ∞
 _ +̂ ∞ = ∞
 𝕤 x +̂ 𝕤 x₁ = 𝕤 (primFloatPlus x x₁)
 
 infix 8 _×̂_
 
-_×̂_ : 𝕊 → 𝕊 → 𝕊
+_×̂_ : Sens → Sens → Sens
 𝕤 0.0 ×̂ _ = 𝕤 0.0
 _ ×̂ 𝕤 0.0 = 𝕤 0.0
 ∞ ×̂ _ = ∞
@@ -54,58 +41,54 @@ _ ×̂ ∞ = ∞
 𝕤 x ×̂ 𝕤 x₁ = 𝕤 (primFloatTimes x x₁)
 
 -- sensitivity environment
-infixl 5  _,_
-
-data Σ : Set where
-  ∅     : Σ
-  _,_ : Σ → 𝕊 → Σ
+Σ[_] : ℕ → Set
+Σ[ N ] = ⟬ Sens ⟭[ N ]
 
 infix 5 ƛ_⦂_⇒[_]_
 infix 6 _∥_⊗_∥_
 infix 6 _∥_⊕_∥_
 
 -- types
-data τ : Set where
-  ƛ_⦂_⇒[_]_ : 𝕏 → τ → Σ → τ → τ
-  _∥_⊗_∥_ : τ → Σ → Σ → τ → τ
-  _∥_⊕_∥_ : τ → Σ → Σ → τ → τ
-  unit : τ
-  ℝT : τ
-  𝔹T : τ
+data τ : ℕ → Set where
+  ƛ_⦂_⇒[_]_ : ∀ {N} → 𝕏 → τ N → Σ[ N ] → τ N → τ N
+  _∥_⊗_∥_ : ∀ {N} → τ N → Σ[ N ] → Σ[ N ] → τ N → τ N
+  _∥_⊕_∥_ : ∀ {N} → τ N → Σ[ N ] → Σ[ N ] → τ N → τ N
+  unit : ∀ {N} → τ N
+  ℝT : ∀ {N} → τ N
+  𝔹T : ∀ {N} → τ N
 
 -- type environment
-data Γ : Set where
-  ∅     : Γ
-  _,_ : Γ → τ → Γ
+Γ[_] : ℕ → Set
+Γ[ N ] =  ⟬ τ N ⟭[ N ]
 
 -- type environment lookup judgement
-infix 4 _∋Γ_
-
-data _∋Γ_ : Γ → τ → Set where
-
-  Z : ∀ {Γ A}
-      ---------
-    → Γ , A ∋Γ A
-
-  S_ : ∀ {Γ A B}
-    → Γ ∋Γ A
-      ---------
-    → Γ , B ∋Γ A
-
-_ : ∅ , 𝔹T , unit ∋Γ unit
-_ = Z
-
-_ : ∅ , 𝔹T , ℝT , unit ∋Γ ℝT
-_ = S Z
+-- infix 4 _∋Γ⟨_↦_⟩
+-- data _∋Γ⟨_↦_⟩ : ∀ {N : ℕ} → Γ[ N ] → idx N → τ → Set where
+-- -- data _∋Γ_ : Γ → τ → Set where
+--
+--   Z : ∀ {Γ N M A}
+--       ---------
+--     → Γ[ N ] ∋Γ⟨ ⌊ M ⌋ ↦ A ⟩
+--
+--   S_ : ∀ {Γ A B}
+--     → Γ ∋Γ A
+--       ---------
+--     → Γ , B ∋Γ A
+--
+-- _ : ∅ , 𝔹T , unit ∋Γ unit
+-- _ = Z
+--
+-- _ : ∅ , 𝔹T , ℝT , unit ∋Γ ℝT
+-- _ = S Z
 
 infix 9 𝕣_
 infix 9 𝕓_
-infix 7 _⊞_
+infix 7 _⊞̂_
 infix 8 _·_
 infix 6 _≤_
 infix 9 `_
 infix 5 ƛ_⦂_⇒_
-infix 7 _⊚_
+infix 7 _⊚̂_
 infix 6 inl_⦂_
 infix 6 inr_⦂_
 infix 6 case_of_⦂_∥_⦂_
@@ -116,33 +99,33 @@ infix 6 if_∥_∥_
 infix 6 _←_∥_
 
 
-data Term : Set where
+data Term : ℕ → Set where
   -- real numbers
-  𝕣_ : ℝ → Term
-  _⊞_ : Term → Term → Term
-  _·_ : Term → Term → Term
-  _≤_ : Term → Term → Term
+  𝕣_ : ∀ {N} → 𝔽 → Term N
+  _⊞̂_ : ∀ {N} → Term N → Term N → Term N
+  _·_ : ∀ {N} → Term N → Term N → Term N
+  _≤_ : ∀ {N} → Term N → Term N → Term N
   -- variables, functions, application
-  `_ : 𝕏 → Term
-  ƛ_⦂_⇒_ : 𝕏 → τ → Term → Term
-  _⊚_ : Term → Term
+  `_ : ∀ {N} → 𝕏 → Term N
+  ƛ_⦂_⇒_ : ∀ {N} → 𝕏 → τ N → Term N → Term N
+  _⊚̂_ : ∀ {N} → Term N → Term N
   -- unit
-  tt : Term
+  tt : ∀ {N} → Term N
   -- sums
-  inl_⦂_ : τ → Term → Term
-  inr_⦂_ : τ → Term → Term
-  case_of_⦂_∥_⦂_ : Term → 𝕏 → Term → 𝕏 → Term → Term
+  inl_⦂_ : ∀ {N} → τ N → Term N → Term N
+  inr_⦂_ : ∀ {N} → τ N → Term N → Term N
+  case_of_⦂_∥_⦂_ : ∀ {N} → Term N → 𝕏 → Term N → 𝕏 → Term N → Term N
   -- products
-  _〈_,_〉_ : Term → Term → Term
-  fst_ : Term → Term
-  snd_ : Term → Term
+  _〈_,_〉_ : ∀ {N} → Term N → Term N → Term N
+  fst_ : ∀ {N} → Term N → Term N
+  snd_ : ∀ {N} → Term N → Term N
   -- ascription
-  _::_ : Term → τ → Term
+  _::_ : ∀ {N} → Term N → τ N → Term N
   -- booleans
-  𝕓_ : 𝔹 → Term
-  if_∥_∥_ : Term → Term → Term → Term
+  𝕓_ : ∀ {N} → 𝔹 → Term N
+  if_∥_∥_ : ∀ {N} → Term N → Term N → Term N → Term N
   -- let
-  _←_∥_ : 𝕏 → Term → Term
+  _←_∥_ : ∀ {N} → 𝕏 → Term N → Term N
 
 infix 9 inl_
 infix 9 inr_
@@ -153,32 +136,40 @@ infix 5 ƛ_⦂_∥_
 
 -- values
 mutual
-  data 𝓋 : Set where
-    tt : 𝓋
-    inl_ : 𝓋 → 𝓋
-    inr_ : 𝓋 → 𝓋
-    _〈_,_〉_ : 𝓋 → 𝓋 → 𝓋
-    ƛ_⦂_∥_ : 𝕏 → Term → γ → 𝓋
-    𝒷_ : 𝔹 → 𝓋
-    𝓇_ : ℝ → 𝓋
+  data 𝓋 : ℕ → Set where
+    tt : ∀ {N} → 𝓋 N
+    inl_ : ∀ {N} → 𝓋 N → 𝓋 N
+    inr_ : ∀ {N} → 𝓋 N → 𝓋 N
+    _〈_,_〉_ : ∀ {N} → 𝓋 N → 𝓋 N → 𝓋 N
+    ƛ_⦂_∥_ : ∀ {N} → 𝕏 → Term N → γ[ N ] → 𝓋 N
+    𝒷_ : ∀ {N} → 𝔹 → 𝓋 N
+    𝓇_ : ∀ {N} → 𝔽 → 𝓋 N
 
   -- value environment
-  data γ : Set where
-    ∅     : γ
-    _,_ : γ → 𝓋 → γ
+  γ[_] : ℕ → Set
+  γ[ N ] = ⟬ 𝓋 N ⟭[ N ]
 
 -- typing judgement
 infix 6 _⊢_⦂_,_
 
-data _⊢_⦂_,_ : Γ → Term → τ → Σ → Set where
+data _⊢_⦂_,_ : ∀ {N} → Γ[ N ] → Term N → τ N → Σ[ N ] → Set where
 
   -- RLIT
-  ⊢rlit : ∀ {Γ a}
+  ⊢rlit : ∀ {Γ : Γ[ 0 ]} {r : 𝔽}
       -----------
-    → Γ ⊢ (𝕣 a) ⦂ ℝT , ∅
+    → Γ ⊢ (𝕣 r) ⦂ ℝT , []
 
-two : Term
+two : Term 0
 two = 𝕣 2.0
 
-⊢two : ∀ {Γ} → Γ ⊢ two ⦂ ℝT , ∅
+⊢two : ∀ {Γ : Γ[ 0 ]} → Γ ⊢ two ⦂ ℝT , []
 ⊢two = ⊢rlit
+
+_ : ⟬ ℕ ⟭[ 2 ]
+_ = 1 ∷ 0 ∷ []
+
+_ : ⟬ ℕ ⟭[ 2 ]
+_ = 1 ∷ 0 ∷ [] + 1 ∷ 0 ∷ []
+
+_ : (1 ∷ 0 ∷ [] AT ⟬ ℕ ⟭[ 2 ]) + (1 ∷ 0 ∷ [] AT ⟬ ℕ ⟭[ 2 ]) ≡ (2 ∷ 0 ∷ [])
+_ = ↯
