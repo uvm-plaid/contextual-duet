@@ -1,3 +1,8 @@
+-- CITATION: Jacob Wunder's proof of metric space conservation for Duet 1.0
+
+-- QUESTION: how to adjust N soundly
+-- QUESTION: Σ substitution
+
 module contextual where
 
 open import UVMVS.Core public
@@ -15,30 +20,111 @@ _ = ɪ
 _ : 𝔹
 _ = ᴏ
 
-𝕏 : Set
-𝕏 = ℕ
+-- QUANTITIES --
+data qty {ℓ} (A : Set ℓ) : Set ℓ where
+  ⟨_⟩ : A → qty A
+  `∞ : qty A
 
-infix 9 𝕤_
--- sensitivity
-data Sens : Set where
-  ∞  : Sens
-  𝕤_ : 𝔽 → Sens
+module _ {ℓ} {A : Set ℓ} {{_ : has[+] A}} {{_ : cor[+] A}} {{_ : has[≡?] A}} where
+  zero[qty] : qty A
+  zero[qty] = ⟨ zero ⟩
 
-infix 7 _+̂_
+  _+[qty]_ : qty A → qty A → qty A
+  _ +[qty] `∞ = `∞
+  `∞ +[qty] _ = `∞
+  ⟨ x ⟩ +[qty] ⟨ y ⟩ = ⟨ x + y ⟩
 
-_+̂_ : Sens → Sens → Sens
-∞ +̂ _ = ∞
-_ +̂ ∞ = ∞
-𝕤 x +̂ 𝕤 x₁ = 𝕤 (primFloatPlus x x₁)
+  {-# DISPLAY _+[qty]_ = _+_ #-}
 
-infix 8 _×̂_
+  instance
+    has[+][qty] : has[+] (qty A)
+    has[+][qty] = record { zero = zero[qty] ; _+_ = _+[qty]_ }
 
-_×̂_ : Sens → Sens → Sens
-𝕤 0.0 ×̂ _ = 𝕤 0.0
-_ ×̂ 𝕤 0.0 = 𝕤 0.0
-∞ ×̂ _ = ∞
-_ ×̂ ∞ = ∞
-𝕤 x ×̂ 𝕤 x₁ = 𝕤 (primFloatTimes x x₁)
+
+  abstract
+    lunit[+][qty]<_> : ∀ (x : qty A) → zero + x ≡ x
+    lunit[+][qty]< ⟨ x ⟩ > rewrite lunit[+]< x > = ↯
+    lunit[+][qty]< `∞ > = ↯
+
+    runit[+][qty]<_> : ∀ (x : qty A) → x + zero ≡ x
+    runit[+][qty]< ⟨ x ⟩ > rewrite runit[+]< x > = ↯
+    runit[+][qty]< `∞ > = ↯
+
+    commu[+][qty]<_,_> : ∀ (x y : qty A) → x + y ≡ y + x
+    commu[+][qty]< ⟨ x ⟩ , ⟨ y ⟩ > rewrite commu[+]< x , y > = ↯
+    commu[+][qty]< ⟨ x ⟩ , `∞ > = ↯
+    commu[+][qty]< `∞ , ⟨ y ⟩ > = ↯
+    commu[+][qty]< `∞ , `∞ > = ↯
+
+    assoc[+][qty]<_,_,_> : ∀ (x y z : qty A) → x + (y + z) ≡ (x + y) + z
+    assoc[+][qty]< ⟨ x ⟩ , ⟨ y ⟩ , ⟨ z ⟩ > rewrite assoc[+]< x , y , z > = ↯
+    assoc[+][qty]< ⟨ x ⟩ , ⟨ y ⟩ , `∞ > = ↯
+    assoc[+][qty]< ⟨ x ⟩ , `∞ , ⟨ z ⟩ > = ↯
+    assoc[+][qty]< ⟨ x ⟩ , `∞ , `∞ > = ↯
+    assoc[+][qty]< `∞ , ⟨ y ⟩ , ⟨ z ⟩ > = ↯
+    assoc[+][qty]< `∞ , ⟨ y ⟩ , `∞ > = ↯
+    assoc[+][qty]< `∞ , `∞ , ⟨ z ⟩ > = ↯
+    assoc[+][qty]< `∞ , `∞ , `∞ > = ↯
+
+  instance
+    cor[+][qty] : cor[+] (qty A)
+    cor[+][qty] = record
+      { lunit[+]<_> = lunit[+][qty]<_>
+      ; runit[+]<_> = runit[+][qty]<_>
+      ; assoc[+]<_,_,_> = assoc[+][qty]<_,_,_>
+      ; commu[+]<_,_> = commu[+][qty]<_,_>
+      }
+
+  module _ {{_ : has[×] A}} where
+    one[qty] : qty A
+    one[qty] = ⟨ one ⟩
+
+    _×[qty]_ : qty A → qty A → qty A
+    `∞ ×[qty] _ = `∞
+    _ ×[qty] `∞ = `∞
+    ⟨ x ⟩ ×[qty] ⟨ y ⟩ = ⟨ x × y ⟩
+
+    {-# DISPLAY _×[qty]_ = _×_ #-}
+
+    instance
+      has[×][qty] : has[×] (qty A)
+      has[×][qty] = record { one = one[qty] ; _×_ = _×[qty]_ }
+
+    postulate
+      instance
+        cor[×][qty] : cor[×] (qty A)
+
+module _ {ℓ} {A : Set ℓ} {{_ : has[≡?] A}} where
+
+  _≡?[qty]_ : qty A → qty A → ≡!
+  ⟨ x₁ ⟩ ≡?[qty] ⟨ x₂ ⟩ = x₁ ≡? x₂
+  ⟨ x₁ ⟩ ≡?[qty] `∞ = [≢]
+  `∞ ≡?[qty] ⟨ x₁ ⟩ = [≢]
+  `∞ ≡?[qty] `∞ = [≡]
+
+  instance
+    has[≡?][qty] : has[≡?] (qty A)
+    has[≡?][qty] = record { _≡?_ = _≡?[qty]_ }
+
+  module _ {{_ : cor[≡?] A}} where
+    postulate
+      instance
+        cor[≡?][qty] : cor[≡?] (qty A)
+
+⌉_⌈⸢_⸣ : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂}
+  {{_ : has[+] A}} {{_ : has[≡?] A}} {{_ : has[+] B}}
+  → qty A → qty B → qty B
+⌉ x ⌈⸢ y ⸣ with x ≡? ⟨ zero ⟩
+… | [≢] = y
+… | [≡] = ⟨ zero ⟩
+
+[vec]⌉_⌈⸢_⸣ : ∀ {ℓ₁ ℓ₂} {N} {A : Set ℓ₁} {B : Set ℓ₂} {{_ : has[+] A}} {{_ : has[≡?] A}} {{_ : has[+] B}}
+  → ⟬ qty A ⟭[ N ] → qty B → ⟬ qty B ⟭[ N ]
+[vec]⌉ xs ⌈⸢ q ⸣ = mapⱽ (λ x → ⌉ x ⌈⸢ q ⸣) xs
+
+-- SENSITIVITIES --
+Sens : Set
+Sens = qty ℕ
 
 -- sensitivity environment
 Σ[_] : ℕ → Set
@@ -48,9 +134,9 @@ infix 5 ƛ_⦂_⇒[_]_
 infix 6 _∥_⊗_∥_
 infix 6 _∥_⊕_∥_
 
--- types
+-- TYPES --
 data τ : ℕ → Set where
-  ƛ_⦂_⇒[_]_ : ∀ {N} → 𝕏 → τ N → Σ[ N ] → τ N → τ N
+  ƛ_⦂_⇒[_]_ : ∀ {N} → idx N → τ N → Σ[ N ] → τ N → τ N
   _∥_⊗_∥_ : ∀ {N} → τ N → Σ[ N ] → Σ[ N ] → τ N → τ N
   _∥_⊕_∥_ : ∀ {N} → τ N → Σ[ N ] → Σ[ N ] → τ N → τ N
   unit : ∀ {N} → τ N
@@ -61,34 +147,14 @@ data τ : ℕ → Set where
 Γ[_] : ℕ → Set
 Γ[ N ] =  ⟬ τ N ⟭[ N ]
 
--- type environment lookup judgement
--- infix 4 _∋Γ⟨_↦_⟩
--- data _∋Γ⟨_↦_⟩ : ∀ {N : ℕ} → Γ[ N ] → idx N → τ → Set where
--- -- data _∋Γ_ : Γ → τ → Set where
---
---   Z : ∀ {Γ N M A}
---       ---------
---     → Γ[ N ] ∋Γ⟨ ⌊ M ⌋ ↦ A ⟩
---
---   S_ : ∀ {Γ A B}
---     → Γ ∋Γ A
---       ---------
---     → Γ , B ∋Γ A
---
--- _ : ∅ , 𝔹T , unit ∋Γ unit
--- _ = Z
---
--- _ : ∅ , 𝔹T , ℝT , unit ∋Γ ℝT
--- _ = S Z
-
-infix 9 𝕣_
-infix 9 𝕓_
-infix 7 _⊞̂_
-infix 8 _·_
-infix 6 _≤_
+infix 9 `ℝ_
+infix 9 `𝔹_
+infix 7 _`+_
+infix 8 _`×_
+infix 6 _`≤_
 infix 9 `_
 infix 5 ƛ_⦂_⇒_
-infix 7 _⊚̂_
+infix 7 _`·_
 infix 6 inl_⦂_
 infix 6 inr_⦂_
 infix 6 case_of_⦂_∥_⦂_
@@ -98,23 +164,24 @@ infix 4 _::_
 infix 6 if_∥_∥_
 infix 6 _←_∥_
 
+-- TERMS --
 
 data Term : ℕ → Set where
   -- real numbers
-  𝕣_ : ∀ {N} → 𝔽 → Term N
-  _⊞̂_ : ∀ {N} → Term N → Term N → Term N
-  _·_ : ∀ {N} → Term N → Term N → Term N
-  _≤_ : ∀ {N} → Term N → Term N → Term N
+  `ℝ_ : ∀ {N} → 𝔽 → Term N
+  _`+_ : ∀ {N} → Term N → Term N → Term N
+  _`×_ : ∀ {N} → Term N → Term N → Term N
+  _`≤_ : ∀ {N} → Term N → Term N → Term N
   -- variables, functions, application
-  `_ : ∀ {N} → 𝕏 → Term N
-  ƛ_⦂_⇒_ : ∀ {N} → 𝕏 → τ N → Term N → Term N
-  _⊚̂_ : ∀ {N} → Term N → Term N
+  `_ : ∀ {N} → idx N → Term N
+  ƛ_⦂_⇒_ : ∀ {N} → idx N → τ N → Term N → Term N
+  _`·_ : ∀ {N} → Term N → Term N
   -- unit
   tt : ∀ {N} → Term N
   -- sums
   inl_⦂_ : ∀ {N} → τ N → Term N → Term N
   inr_⦂_ : ∀ {N} → τ N → Term N → Term N
-  case_of_⦂_∥_⦂_ : ∀ {N} → Term N → 𝕏 → Term N → 𝕏 → Term N → Term N
+  case_of_⦂_∥_⦂_ : ∀ {N} → Term N → idx N → Term (N + 1) → idx N → Term (N + 1) → Term N
   -- products
   _〈_,_〉_ : ∀ {N} → Term N → Term N → Term N
   fst_ : ∀ {N} → Term N → Term N
@@ -122,10 +189,10 @@ data Term : ℕ → Set where
   -- ascription
   _::_ : ∀ {N} → Term N → τ N → Term N
   -- booleans
-  𝕓_ : ∀ {N} → 𝔹 → Term N
+  `𝔹_ : ∀ {N} → 𝔹 → Term N
   if_∥_∥_ : ∀ {N} → Term N → Term N → Term N → Term N
   -- let
-  _←_∥_ : ∀ {N} → 𝕏 → Term N → Term N
+  _←_∥_ : ∀ {N} → idx N → Term N → Term N
 
 infix 9 inl_
 infix 9 inr_
@@ -134,14 +201,14 @@ infix 9 𝒷_
 infix 9 _〈_,_〉_
 infix 5 ƛ_⦂_∥_
 
--- values
+-- VALUES --
 mutual
   data 𝓋 : ℕ → Set where
     tt : ∀ {N} → 𝓋 N
     inl_ : ∀ {N} → 𝓋 N → 𝓋 N
     inr_ : ∀ {N} → 𝓋 N → 𝓋 N
     _〈_,_〉_ : ∀ {N} → 𝓋 N → 𝓋 N → 𝓋 N
-    ƛ_⦂_∥_ : ∀ {N} → 𝕏 → Term N → γ[ N ] → 𝓋 N
+    ƛ_⦂_∥_ : ∀ {N} → idx N → Term N → γ[ N ] → 𝓋 N
     𝒷_ : ∀ {N} → 𝔹 → 𝓋 N
     𝓇_ : ∀ {N} → 𝔽 → 𝓋 N
 
@@ -149,21 +216,72 @@ mutual
   γ[_] : ℕ → Set
   γ[ N ] = ⟬ 𝓋 N ⟭[ N ]
 
--- typing judgement
+substΣ : ∀ {N N′} →  idx N → Σ[ N ] → τ N → τ N′
+substΣ i Σ (ƛ x ⦂ τ₁ ⇒[ x₁ ] τ₂) = {!   !}
+substΣ i Σ (τ₁ ∥ x ⊗ x₁ ∥ τ₂) = {!   !}
+substΣ i Σ (τ₁ ∥ x ⊕ x₁ ∥ τ₂) = {!   !}
+substΣ i Σ unit = unit
+substΣ i Σ ℝT = ℝT
+substΣ i Σ 𝔹T = 𝔹T
+
+-- TYPING JUDGEMENT --
 infix 6 _⊢_⦂_,_
 
-data _⊢_⦂_,_ : ∀ {N} → Γ[ N ] → Term N → τ N → Σ[ N ] → Set where
+data _⊢_⦂_,_ : ∀ {N N′} → Γ[ N ] → Term N → τ N → Σ[ N′ ] → Set where
 
   -- RLIT
-  ⊢rlit : ∀ {Γ : Γ[ 0 ]} {r : 𝔽}
-      -----------
-    → Γ ⊢ (𝕣 r) ⦂ ℝT , []
+  ⊢`ℝ : ∀ {Γ : Γ[ 0 ]} {r : 𝔽}
+      --------------------------------
+    → Γ ⊢ (`ℝ r) ⦂ ℝT , []
+
+  -- PLUS
+  ⊢_`+_ : ∀ {N} {Γ : Γ[ N ]} {Σ₁ Σ₂ : Σ[ N ]} {e₁ e₂ : Term N}
+      → Γ ⊢ e₁ ⦂ ℝT , Σ₁
+      → Γ ⊢ e₂ ⦂ ℝT , Σ₂
+      --------------------------------
+      → Γ ⊢ e₁ `+ e₂ ⦂ ℝT , Σ₁ + Σ₂
+
+
+  -- TIMES
+  ⊢_`×_ : ∀ {N} {Γ : Γ[ N ]} {Σ₁ Σ₂ : Σ[ N ]} {e₁ e₂ : Term N}
+      → Γ ⊢ e₁ ⦂ ℝT , Σ₁
+      → Γ ⊢ e₂ ⦂ ℝT , Σ₂
+      --------------------------------
+      → Γ ⊢ e₁ `× e₂ ⦂ ℝT , [vec]⌉ (Σ₁ + Σ₂) ⌈⸢ `∞ ⸣
+
+
+  -- LEQ
+  ⊢_`≤_ : ∀ {N} {Γ : Γ[ N ]} {Σ₁ Σ₂ : Σ[ N ]} {e₁ e₂ : Term N}
+      → Γ ⊢ e₁ ⦂ ℝT , Σ₁
+      → Γ ⊢ e₂ ⦂ ℝT , Σ₂
+      --------------------------------
+      → Γ ⊢ e₁ `≤ e₂ ⦂ 𝔹T , [vec]⌉ (Σ₁ + Σ₂) ⌈⸢ `∞ ⸣
+
+  -- VAR
+  ⊢`_ : ∀ {N} {Γ : Γ[ N ]} {Σ : Σ[ N ]} {i : idx N} {τ : τ N}
+    → Γ #[ i ] ≡ τ
+    --------------------------------------------------
+    → Γ ⊢  ` i ⦂ τ , Σ + zero #[ i ↦ ⟨ 1 ⟩ ]
+
+  -- LAM
+  ⊢`λ : ∀ {N} {Γ : Γ[ N ]} {Σ₁ : Σ[ N ]} {i : idx N} {e : Term N} {τ₁ : τ N } {τ₂ : τ N} {σ : Sens}
+    →   Γ ⊢ e ⦂ τ₂ , Σ₁
+    -----------------------------------------------
+    → Γ ⊢ ƛ i ⦂ τ₁ ⇒ e ⦂ ƛ i ⦂ τ₁ ⇒[ Σ₁ ] τ₂ , []
+
+  -- APP
+  -- _`⋅_ : ∀ {N} {Γ : Γ[ N ]} {Σ₁ Σ₂ : Σ[ N ]} {e₁ e₂ : Term N} {τ₁ τ₂ : τ N} {s : sens}
+  --   → Γ ⊢ e₁ ⦂ τ₁ ⊸[ s ] τ₂, Σ₁
+  --   → Γ ⊢ e₂ ⦂ τ₁, Σ₂
+  --   -----------------------------------------------
+  --   → Γ , (Σ₁ + (s ⨵ Σ₂)) [s]⊢ e₁ `⋅ e₂ ⦂ τ₂
+
 
 two : Term 0
-two = 𝕣 2.0
+two = `ℝ 2.0
 
 ⊢two : ∀ {Γ : Γ[ 0 ]} → Γ ⊢ two ⦂ ℝT , []
-⊢two = ⊢rlit
+⊢two = ⊢`ℝ
 
 _ : ⟬ ℕ ⟭[ 2 ]
 _ = 1 ∷ 0 ∷ []
