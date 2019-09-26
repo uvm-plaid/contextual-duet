@@ -396,6 +396,7 @@ inferSens eA = case extract eA of
   LetSE x e₁ e₂ → do
     σ₁ :* τ₁ ← hijack $ inferSens e₁
     σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁) ⩌ γ) $ inferSens e₂
+    --TODO: sigma substitution?
     let (ς :* σ₂') = ifNone (zero :* σ₂) $ dview (TMVar x) σ₂
     do
         tell $ ς ⨵ σ₁
@@ -513,7 +514,7 @@ inferSens eA = case extract eA of
         tell $ assoc $ map (\(x :* i) → x :* Sens (ConstantRNF TopBT)) $ list (without (pow xs) σ)
         return $ (x :* τ' :* s) :⊸⋆: (PEnv σkeep :* τ'')
   IfSE e₁ e₂ e₃ → do
-    σ₁ :* τ₁ ← hijack  $ inferSens e₁
+    τ₁ ← inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
     σ₃ :* τ₃ ← hijack $ inferSens e₃
     case (τ₂ ≡ τ₃) of
@@ -521,7 +522,6 @@ inferSens eA = case extract eA of
       True → case τ₁ of
         𝔹T → do
           tell (σ₃ ⊔ σ₂)
-          tell $ assoc $ map (\(x :* s)→ x :* top) $ list σ₁
           return τ₂
         _ → error $ "IfSE expected a boolean in the test position" ⧺ pprender τ₁
   PairSE e₁ xsO₁ xsO₂ e₂ → do
@@ -550,6 +550,7 @@ inferSens eA = case extract eA of
         σ₃ :* τ₃ ← hijack $ mapEnvL contextTypeL (\ γ → (x₁ ↦ τ₁) ⩌ (x₂ ↦ τ₂) ⩌ γ) $ inferSens e₂
         let (ς₁ :* σ₃') = ifNone (zero :* σ₃) $ dview (TMVar x₁) σ₃
             (ς₂ :* σ₃'') = ifNone (zero :* σ₃') $ dview (TMVar x₂) σ₃'
+        --TODO: sigma substitution?
         tell $ (ς₁ ⊔ ς₂) ⨵ σ₀
         tell σ₃''
         tell σ₁
@@ -884,6 +885,11 @@ freshenSTerm ρ β eA nInit = do
           let e₁' :* n' = freshenSTerm ρ β e₁ np1
           let e₂' :* n'' = freshenSTerm ρ ((x↦ xⁿ) ⩌ β) e₂ n'
           (LetSE xⁿ e₁' e₂' :* n'')
+        IfSE e₁ e₂ e₃ → do
+          let e₁' :* n' = freshenSTerm ρ β e₁ nInit
+          let e₂' :* n'' = freshenSTerm ρ β e₂ n'
+          let e₃' :* n''' = freshenSTerm ρ β e₃ n''
+          (IfSE e₁' e₂' e₃' :* n''')
         TAbsSE x κ e → do
           let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
           let e' :* n' = freshenSTerm ((x↦ xⁿ) ⩌ ρ) β e np1
@@ -968,6 +974,18 @@ freshenPTerm ρ β eA nInit = do
           let e₁' :* n' = freshenPTerm ρ β e₁ np1
           let e₂' :* n'' = freshenPTerm ρ ((x↦ xⁿ) ⩌ β) e₂ n'
           (BindPE xⁿ e₁' e₂' :* n'')
+        IfPE e₁ e₂ e₃ → do
+          let e₁' :* n' = freshenSTerm ρ β e₁ nInit
+          let e₂' :* n'' = freshenPTerm ρ β e₂ n'
+          let e₃' :* n''' = freshenPTerm ρ β e₃ n''
+          (IfPE e₁' e₂' e₃' :* n''')
+        CasePE e₁ x₁ e₂ x₂ e₃ → do
+          let e₁' :* n' = freshenSTerm ρ β e₁ nInit
+          let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some n'}
+          let e₂' :* n'' = freshenPTerm ρ ((x₁↦ x₁ⁿ) ⩌ β) e₂ n'
+          let x₂ⁿ = 𝕏 {𝕩name=(𝕩name x₂), 𝕩Gen=Some n''}
+          let e₃' :* n''' = freshenPTerm ρ ((x₂↦ x₂ⁿ) ⩌ β) e₃ n''
+          (CasePE e₁' x₁ⁿ e₂' x₂ⁿ e₃' :* n''')
         AppPE e₁ xsO e₂ → do
           let e₁' :* n' = freshenSTerm ρ β e₁ nInit
           let xsO' = mapp (\x → freshenRef ρ β x) xsO
