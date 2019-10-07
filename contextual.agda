@@ -153,7 +153,7 @@ infix 8 _`×_
 infix 6 _`≤_
 infix 9 `_
 infix 5 ƛ⦂_⇒_
-infix 7 _`·_
+infix 7 _`app_
 infix 6 inl_⦂_
 infix 6 inr_⦂_
 infix 6 case_of_⦂_∥_⦂_
@@ -174,7 +174,7 @@ data Term : ℕ → Set where
   -- variables, functions, application
   `_ : ∀ {N} → idx N → Term N
   ƛ⦂_⇒_ : ∀ {N} → τ N → Term (ꜱ N) → Term N
-  _`·_ : ∀ {N} → Term N → Term N
+  _`app_ : ∀ {N} → Term N → Term N → Term N
   -- unit
   tt : ∀ {N} → Term N
   -- sums
@@ -240,6 +240,9 @@ wkΣ : ∀ {N} → (ι : idx N) → Σ[ pred N ι ] → Σ[ N ]
 wkΣ ᴢ Σ = zero ∷ Σ
 wkΣ (ꜱ ι) (x ∷ Σ) = x ∷ wkΣ ι Σ
 
+truncΣ : ∀ {N} → Σ[ (ꜱ N) ] → Σ[ N ]
+truncΣ (x ∷ Σ) = Σ
+
 substΣ/τ : ∀ {N} → (ι : idx N) → Σ[ pred N ι ] → τ N → τ (pred N ι)
 substΣ/τ i Σ (ƛ⦂ τ₁ ⇒[ Σ′ ] τ₂) = ƛ⦂ substΣ/τ i Σ τ₁ ⇒[ substΣ/Σ (ꜱ i) (wkΣ ᴢ Σ) Σ′ ] substΣ/τ (ꜱ i) (wkΣ ᴢ Σ) τ₂
 substΣ/τ i Σ (τ₁ ∥ x ⊗ x₁ ∥ τ₂) = substΣ/τ i Σ τ₁ ∥ substΣ/Σ i Σ x ⊗ substΣ/Σ i Σ x₁ ∥ substΣ/τ i Σ τ₂
@@ -284,7 +287,6 @@ data _⊢_⦂_,_ : ∀ {N} → Γ[ N ] → Term N → τ N → Σ[ N ] → Set w
       --------------------------------
       → Γ ⊢ e₁ `+ e₂ ⦂ ℝT , Σ₁ + Σ₂
 
-
   -- TIMES
   ⊢_`×_ : ∀ {N} {Γ : Γ[ N ]} {Σ₁ Σ₂ : Σ[ N ]} {e₁ e₂ : Term N}
       → Γ ⊢ e₁ ⦂ ℝT , Σ₁
@@ -325,18 +327,16 @@ data _⊢_⦂_,_ : ∀ {N} → Γ[ N ] → Term N → τ N → Σ[ N ] → Set w
 
   -- LAM
   ⊢`λ : ∀ {N} {Γ : Γ[ N ]} {Σ₁ : Σ[ ꜱ N ]} {i : idx N} {e : Term (ꜱ N)} {τ₁ : τ N} {τ₂ : τ (ꜱ N)}
-    -- weakenτ ∷ τ N → τ (ꜱ N)
-    -- weakenΓ ∷ Γ[ N ] → Γ[ ꜱ N ]
     →  (mapⱽ ⇧ᵗ (τ₁ ∷ Γ)) ⊢ e ⦂ τ₂ , Σ₁
     -----------------------------------------------
     → Γ ⊢ (ƛ⦂ τ₁ ⇒ e) ⦂ (ƛ⦂ τ₁ ⇒[ Σ₁ ] τ₂) , zero
 
   -- APP
-  -- _`⋅_ : ∀ {N} {Γ : Γ[ N ]} {Σ₁ Σ₂ : Σ[ N ]} {e₁ e₂ : Term N} {τ₁ τ₂ : τ N} {s : sens}
-  --   → Γ ⊢ e₁ ⦂ τ₁ ⊸[ s ] τ₂, Σ₁
-  --   → Γ ⊢ e₂ ⦂ τ₁, Σ₂
-  --   -----------------------------------------------
-  --   → Γ , (Σ₁ + (s ⨵ Σ₂)) ⊢ e₁ `⋅ e₂ ⦂ τ₂
+  _`app_ : ∀ {N} {Γ : Γ[ N ]} {Σ₁ Σ₂ s : Σ[ ꜱ N ]} {i : idx (ꜱ N)} {Σ₂ : Σ[ N ]} {e₁ e₂ : Term N} {τ₁ τ₂ : τ N}
+    → Γ ⊢ e₁ ⦂ (ƛ⦂ τ₁ ⇒[ Σ₁ + s ] ⇧ᵗ τ₂) , zero
+    → Γ ⊢ e₂ ⦂ τ₁ , Σ₂
+    -----------------------------------------------
+    → Γ ⊢ (e₁ `app e₂) ⦂ τ₂ , (truncΣ Σ₁ + (s #[ i ] ⨵ Σ₂))
 
 
 two : Term 0
