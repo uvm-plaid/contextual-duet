@@ -872,7 +872,7 @@ tyJoin ρ β τ₁' τ₂' =
       let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁)
       let sσ₁'' ∷ (ProgramVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ ((x₁↦ x₂) ⩌ β) x :* s) $ list sσ₁'
       let σa = sσ₁'' ⊔ sσ₂
-      return $ (x₁ :* τ₁₁) :⊸: (sσ₁ :* τ₁₂)
+      return $ (x₁ :* τa) :⊸: (σa :* τb)
     ((x₁ :* τ₁₁ :* s₁) :⊸⋆: (PEnv (pσ₁ ∷ ProgramVar ⇰ Pr p RNF) :* τ₁₂),(x₂ :* τ₂₁ :* s₂) :⊸⋆: (PEnv (pσ₂ ∷ ProgramVar ⇰ Pr p' RNF) :* τ₂₂)) →
       case eqPRIV (priv @ p) (priv @ p') of
         None → None
