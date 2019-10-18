@@ -41,18 +41,28 @@ mutual
 
   -- this is for sensitivity, we will need another one for privacy
   ⟨_⊢_,_⊢_⟩∈ℰ⟦_ː_⟧ : ∀ {N} → γ[ N ] → Term N → γ[ N ] → Term N → Sens → 𝓋τ ᴢ → Set
-  ⟨ γ₁ ⊢ e₁ , γ₂ ⊢ e₂ ⟩∈ℰ⟦ s ː τ ⟧ = ∀ v₁ v₂ → (γ₁ ⊢ e₁ ⇓ v₁) ∧ (γ₂ ⊢ e₂ ⇓ v₂) → ⟨ v₁ , v₂ ⟩∈𝒱⟦ s ː τ ⟧
+  ⟨ γ₁ ⊢ e₁ , γ₂ ⊢ e₂ ⟩∈ℰ⟦ s ː τ ⟧ = ∀ v₁ v₂ → (ε₁ : [] ⊢ v₁ ⦂ τ) → (ε₂ : [] ⊢ v₂ ⦂ τ) → (γ₁ ⊢ e₁ ⇓ v₁) ∧ (γ₂ ⊢ e₂ ⇓ v₂) → ⟨ v₁ , v₂ ⟩∈𝒱′⟦ τ ː ε₁ , ε₂ ː s ⟧
 
   ⟨_,_⟩∈𝒢⟦_ː_⟧ : ∀ {N} → γ[ N ] → γ[ N ] → Σ[ N ] → ℾ[ N ] → Set
-  ⟨ γ₁ , γ₂ ⟩∈𝒢⟦ Σ ː ℾ ⟧ = ∀ x → ⟨ γ₁ #[ x ] , γ₂ #[ x ] ⟩∈𝒱⟦ Σ #[ x ] ː ℾ #[ x ] ⟧
+  ⟨ γ₁ , γ₂ ⟩∈𝒢⟦ Σ ː ℾ ⟧ = ∀ x → (ε₁ : [] ⊢ γ₁ #[ x ] ⦂ ℾ #[ x ]) → (ε₂ : [] ⊢ γ₂ #[ x ] ⦂ ℾ #[ x ]) → ⟨ γ₁ #[ x ] , γ₂ #[ x ] ⟩∈𝒱′⟦ ℾ #[ x ] ː ε₁ , ε₂ ː Σ #[ x ] ⟧
 
   ⟨_,_⟩∈𝒱′⟦_ː_,_ː_⟧ : ∀ (v₁ v₂ : 𝓋) (t : 𝓋τ ᴢ) → [] ⊢ v₁ ⦂ t → [] ⊢ v₂ ⦂ t → Sens →  Set
-  ⟨ v₁ , v₂ ⟩∈𝒱′⟦ ƛ⦂ x ⇒[ x₁ ∔ x₂ ] τ₁ ː δ₁ , δ₂ ː s ⟧ = {!   !} -- ∀ s″ v₁ v₂ → {!   !} → {!   !}
+  ⟨ .(ƛ⦂ _ ∥ _) , .(ƛ⦂ _ ∥ _) ⟩∈𝒱′⟦ ƛ⦂ τ₁ ⇒[ s′′ ∔ .([ ⟨ 0 ⟩ ]) ] τ₂
+                                 ː ⊢λ {N = N} {e = e₁} {γ = γ₁}
+                                 , ⊢λ {e = e₂} {γ = γ₂}
+                                 ː s ⟧ =
+    {!(∀ {v₁ v₂ s′′} → ∃ ℾ ⦂ (ℾ[ N ]) ST ⟨ γ₁ , γ₂ ⟩∈𝒢⟦ Σ′ ː ℾ ⟧
+    → ⟨ v₁ , v₂ ⟩∈𝒱′⟦ {!   !} ː {!   !} , {!   !} ː {!   !} ⟧
+    → ⟨ (v₁ ∷ γ₁) ⊢ e₁ , (v₂ ∷ γ₂) ⊢ e₂ ⟩∈ℰ⟦ (s + (Σ ⨰ Σ′) + (s′ × s′′)) ː (substSx/τ s′′ τ₂) ⟧)!}
   ⟨ v₁₁ pair v₁₂ , v₂₁ pair v₂₂ ⟩∈𝒱′⟦ τ₁ ∥ s₁ ∔ [] ⊗ s₂ ∔ [] ∥ τ₂ ː ⊢pair δ₁₁ δ₁₂ , ⊢pair δ₂₁ δ₂₂ ː s ⟧ =
     ⟨ v₁₁ , v₂₁ ⟩∈𝒱′⟦ τ₁ ː δ₁₁ , δ₂₁ ː s + s₁ ⟧
     ∧
     ⟨ v₁₂ , v₂₂ ⟩∈𝒱′⟦ τ₂ ː δ₁₂ , δ₂₂ ː s + s₂ ⟧
-  ⟨ v₁ , v₂ ⟩∈𝒱′⟦ τ₁ ∥ x ∔ x₁ ⊕ x₂ ∔ x₃ ∥ τ₂ ː δ₁ , δ₂ ː s ⟧ = {!!}
+  ⟨ inl v₁ , inl v₂ ⟩∈𝒱′⟦ τ₁ ∥ s₁ ∔ [] ⊕ s₂ ∔ [] ∥ τ₂ ː ⊢inl δ₁ , ⊢inl δ₂ ː s ⟧ = {!   !}
+  ⟨ inl v₁ , inr v₂ ⟩∈𝒱′⟦ τ₁ ∥ s₁ ∔ [] ⊕ s₂ ∔ [] ∥ τ₂ ː ⊢inl δ₁ , ⊢inr δ₂ ː s ⟧ = {!   !}
+  ⟨ inr v₁ , inl v₂ ⟩∈𝒱′⟦ τ₁ ∥ s₁ ∔ [] ⊕ s₂ ∔ [] ∥ τ₂ ː ⊢inr δ₁ , ⊢inl δ₂ ː s ⟧ = {!   !}
+  ⟨ inr v₁ , inr v₂ ⟩∈𝒱′⟦ τ₁ ∥ s₁ ∔ [] ⊕ s₂ ∔ [] ∥ τ₂ ː ⊢inr δ₁ , ⊢inr δ₂ ː s ⟧ =
+    ⟨ v₁ , v₂ ⟩∈𝒱′⟦ τ₂ ː δ₁ , δ₂ ː s + s₁ ⟧
   ⟨ v₁ , v₂ ⟩∈𝒱′⟦ unit ː δ₁ , δ₂ ː s ⟧ = {!!}
   ⟨ v₁ , v₂ ⟩∈𝒱′⟦ ℝT ː δ₁ , δ₂ ː s ⟧ = {!!}
   ⟨ v₁ , v₂ ⟩∈𝒱′⟦ 𝔹T ː δ₁ , δ₂ ː s ⟧ = {!!}
@@ -61,7 +71,7 @@ _⟨⟨_⟩⟩ : ∀ {N} → Σ[ N ] → τ N → 𝓋τ ᴢ
 Σ ⟨⟨ ƛ⦂ τ₁ ⇒[ x ] τ₂ ⟩⟩ = {!!}
 Σ ⟨⟨ τ₁ ∥ x ⊗ x₁ ∥ τ₂ ⟩⟩ = {!!}
 Σ ⟨⟨ τ₁ ∥ x ⊕ x₁ ∥ τ₂ ⟩⟩ = {!!}
-Σ ⟨⟨ unit ⟩⟩ = {!!}
+Σ ⟨⟨ unit ⟩⟩ = ?
 Σ ⟨⟨ ℝT ⟩⟩ = ℝT
 Σ ⟨⟨ 𝔹T ⟩⟩ = {!!}
 
@@ -70,50 +80,53 @@ _⟨⟨_⟩⟩ : ∀ {N} → Σ[ N ] → τ N → 𝓋τ ᴢ
 postulate
   L1 : ∀ (N : ℕ) → ∣ N - N ∣ ≡ 0
 
-fp : ∀ {N} {Γ : Γ[ N ]} {ℾ e τ Σ γ₁ γ₂ Σ′} → Γ ⊢ e ⦂ τ , Σ → ⟨ γ₁ , γ₂ ⟩∈𝒢⟦ Σ′ ː ℾ ⟧ → ⟨ γ₁ ⊢ e , γ₂ ⊢ e ⟩∈ℰ⟦ Σ ⨰ Σ′ ː (Σ′ ⟨⟨ τ ⟩⟩) ⟧
-fp {Σ′ = Σ′} ⊢`ℝ e (𝓇 r₁) (𝓇 r₁) ⟨ ⊢`ℝ , ⊢`ℝ ⟩ rewrite lzero[⨰]< Σ′ > with λ (ε : ⟨ ∣ r₁ - r₁ ∣ ⟩ ≡ ⟨ 0 ⟩) → 𝒱ℝ (xRx[≡] ε)
-… | P rewrite L1 r₁ = P ↯
-fp {Σ′ = Σ′} ⊢`𝔹 e (𝒷 b₁) (𝒷 b₂) ⟨ ⊢`𝔹 , ⊢`𝔹 ⟩ rewrite lzero[⨰]< Σ′ > = {!   !}
-fp (⊢ a `+ a₁) e = {!   !}
-fp (⊢ a `× a₁) e = {!   !}
-fp (⊢ a `≤ a₁) e = {!   !}
-fp (⊢`var x) e = {!   !}
-fp ⊢`tt e = {!   !}
-fp (⊢`inl a) e = {!   !}
-fp (⊢`inr a) e = {!   !}
-fp (⊢`case a a₁ a₂ x) e = {!   !}
-fp (⊢`if a a₁ a₂) e = {!   !}
-fp (⊢`let a a₁) e = {!   !}
-fp (⊢`λ a) e = {!   !}
-fp (⊢`app a a₁) e = {!   !}
-fp (⊢` a pair a₁) e = {!   !}
-fp (⊢`fst a) e = {!   !}
-fp (⊢`snd a) e = {!   !}
+-- fp : ∀ {N} {Γ : Γ[ N ]} {ℾ e τ Σ γ₁ γ₂ Σ′} → Γ ⊢ e ⦂ τ , Σ → ⟨ γ₁ , γ₂ ⟩∈𝒢⟦ Σ′ ː ℾ ⟧ → ⟨ γ₁ ⊢ e , γ₂ ⊢ e ⟩∈ℰ⟦ Σ ⨰ Σ′ ː (Σ′ ⟨⟨ τ ⟩⟩) ⟧
+-- fp e₁ e₂ = ?
+
+-- fp : ∀ {N} {Γ : Γ[ N ]} {ℾ e τ Σ γ₁ γ₂ Σ′} → Γ ⊢ e ⦂ τ , Σ → ⟨ γ₁ , γ₂ ⟩∈𝒢⟦ Σ′ ː ℾ ⟧ → ⟨ γ₁ ⊢ e , γ₂ ⊢ e ⟩∈ℰ⟦ Σ ⨰ Σ′ ː (Σ′ ⟨⟨ τ ⟩⟩) ⟧
+-- fp {Σ′ = Σ′} ⊢`ℝ e (𝓇 r₁) (𝓇 r₁) ⟨ ⊢`ℝ , ⊢`ℝ ⟩ rewrite lzero[⨰]< Σ′ > with λ (ε : ⟨ ∣ r₁ - r₁ ∣ ⟩ ≡ ⟨ 0 ⟩) → 𝒱ℝ (xRx[≡] ε)
+-- … | P rewrite L1 r₁ = P ↯
+-- fp {Σ′ = Σ′} ⊢`𝔹 e (𝒷 b₁) (𝒷 b₂) ⟨ ⊢`𝔹 , ⊢`𝔹 ⟩ rewrite lzero[⨰]< Σ′ > = {!   !}
+-- fp (⊢ a `+ a₁) e = {!   !}
+-- fp (⊢ a `× a₁) e = {!   !}
+-- fp (⊢ a `≤ a₁) e = {!   !}
+-- fp (⊢`var x) e = {!   !}
+-- fp ⊢`tt e = {!   !}
+-- fp (⊢`inl a) e = {!   !}
+-- fp (⊢`inr a) e = {!   !}
+-- fp (⊢`case a a₁ a₂ x) e = {!   !}
+-- fp (⊢`if a a₁ a₂) e = {!   !}
+-- fp (⊢`let a a₁) e = {!   !}
+-- fp (⊢`λ a) e = {!   !}
+-- fp (⊢`app a a₁) e = {!   !}
+-- fp (⊢` a pair a₁) e = {!   !}
+-- fp (⊢`fst a) e = {!   !}
+-- fp (⊢`snd a) e = {!   !}
 
 -- Corrolary 1.1.1 (FP for closed terms).
 
-fpc : ∀ {Γ : Γ[ ᴢ ]} {ø : γ[ ᴢ ]} {e τ} → Γ ⊢ e ⦂ τ , zero → ⟨ ø ⊢ e , ø ⊢ e ⟩∈ℰ⟦ zero ː (zero ⟨⟨ τ ⟩⟩) ⟧
-fpc e₁ = {!   !}
-
-∣_-_|ᶠ : 𝔽 → 𝔽 → 𝔽
-∣_-_|ᶠ a b with (primFloatNumericalLess (primFloatMinus a b) 0.0)
-∣ a - b |ᶠ | ᴏ = primFloatMinus a b
-∣ a - b |ᶠ | ɪ = (primFloatMinus a b) × -1.0
-
-∣_-_|ᶠ≤_ : 𝔽 → 𝔽 → Sens → 𝔹
-∣ a - b |ᶠ≤ ⟨ x ⟩ = let r = ∣ a - b |ᶠ in primFloatNumericalLess r (natToFloat x)
-∣ a - b |ᶠ≤ `∞ = ᴏ
-
-∣_-_∣ᴺ : ℕ → ℕ → ℕ
-∣ ᴢ - ᴢ ∣ᴺ = ᴢ
-∣ ᴢ - ꜱ n ∣ᴺ = ꜱ n
-∣ ꜱ m - ᴢ ∣ᴺ = ꜱ m
-∣ ꜱ m - ꜱ n ∣ᴺ = ∣ m - n ∣ᴺ
-
-∣_-_|ᴺ≤_ : ℕ → ℕ → Sens → Set
-∣ n₁ - n₂ |ᴺ≤ s = ⟨ ∣ n₁ - n₂ ∣ᴺ ⟩ ≤ s
-
--- Theorem 1.2 (Sensitivity Type Soundness at Base Types).
-
-sound : ∀ {Γ : Γ[ ᴢ ]} {ø : γ[ ᴢ ]} {e s s′ r₁ r₂ r′₁ r′₂} → Γ ⊢ e ⦂ (ƛ⦂ ℝT ⇒[ [ s ] ] ℝT) , zero → ∣ r₁ - r₂ |ᴺ≤ s′ → ø ⊢ e `app (`ℝ r₁) ⇓ 𝓇 r′₁ → ø ⊢ e `app (`ℝ r₂) ⇓ 𝓇 r′₂ → ∣ r′₁ - r′₂ |ᴺ≤ (s × s′)
-sound a b c d = {!   !}
+-- fpc : ∀ {Γ : Γ[ ᴢ ]} {ø : γ[ ᴢ ]} {e τ} → Γ ⊢ e ⦂ τ , zero → ⟨ ø ⊢ e , ø ⊢ e ⟩∈ℰ⟦ zero ː (zero ⟨⟨ τ ⟩⟩) ⟧
+-- fpc e₁ = {!   !}
+--
+-- ∣_-_|ᶠ : 𝔽 → 𝔽 → 𝔽
+-- ∣_-_|ᶠ a b with (primFloatNumericalLess (primFloatMinus a b) 0.0)
+-- ∣ a - b |ᶠ | ᴏ = primFloatMinus a b
+-- ∣ a - b |ᶠ | ɪ = (primFloatMinus a b) × -1.0
+--
+-- ∣_-_|ᶠ≤_ : 𝔽 → 𝔽 → Sens → 𝔹
+-- ∣ a - b |ᶠ≤ ⟨ x ⟩ = let r = ∣ a - b |ᶠ in primFloatNumericalLess r (natToFloat x)
+-- ∣ a - b |ᶠ≤ `∞ = ᴏ
+--
+-- ∣_-_∣ᴺ : ℕ → ℕ → ℕ
+-- ∣ ᴢ - ᴢ ∣ᴺ = ᴢ
+-- ∣ ᴢ - ꜱ n ∣ᴺ = ꜱ n
+-- ∣ ꜱ m - ᴢ ∣ᴺ = ꜱ m
+-- ∣ ꜱ m - ꜱ n ∣ᴺ = ∣ m - n ∣ᴺ
+--
+-- ∣_-_|ᴺ≤_ : ℕ → ℕ → Sens → Set
+-- ∣ n₁ - n₂ |ᴺ≤ s = ⟨ ∣ n₁ - n₂ ∣ᴺ ⟩ ≤ s
+--
+-- -- Theorem 1.2 (Sensitivity Type Soundness at Base Types).
+--
+-- sound : ∀ {Γ : Γ[ ᴢ ]} {ø : γ[ ᴢ ]} {e s s′ r₁ r₂ r′₁ r′₂} → Γ ⊢ e ⦂ (ƛ⦂ ℝT ⇒[ [ s ] ] ℝT) , zero → ∣ r₁ - r₂ |ᴺ≤ s′ → ø ⊢ e `app (`ℝ r₁) ⇓ 𝓇 r′₁ → ø ⊢ e `app (`ℝ r₂) ⇓ 𝓇 r′₂ → ∣ r′₁ - r′₂ |ᴺ≤ (s × s′)
+-- sound a b c d = {!   !}
