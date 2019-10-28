@@ -18,7 +18,7 @@ makePrettyUnion ''Token
 
 tokKeywords ∷ 𝐿 𝕊
 tokKeywords = list
-  ["let","in","sλ","pλ","return","on"
+  ["let","letp","in","sλ","pλ","return","on"
   ,"ℕ","ℝ","ℝ⁺","𝔻","𝕀","𝕄","𝔻𝔽","𝔹","𝕊","★","∷","⋅","[]","⧺","☆","𝕌","•"
   ,"∀","⊥","⊤","sens","priv","∞","cxt","schema"
   ,"LR","L2","U"
@@ -870,6 +870,13 @@ parPExp p = pWithContext "pexp" $ tries
        parLit "in"
        e₂ ← parPExp p
        return $ BindPE x (ReturnPE %⋅ e₁) e₂
+  , do parLit "letp"
+       x ← parVar
+       parLit "="
+       e₁ ← parSExp p
+       parLit "in"
+       e₂ ← parPExp p
+       return $ LetPE x e₁ e₂
   , do parLit "return"
        e ← parSExp p
        return $ ReturnPE e

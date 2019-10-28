@@ -1072,6 +1072,7 @@ type PExpSource (p ∷ PRIV) r = Annotated FullContext (PExp p r)
 data PExp (p ∷ PRIV) r where
   ReturnPE ∷ SExpSource p r → PExp p r
   BindPE ∷ 𝕏 → PExpSource p r → PExpSource p r → PExp p r
+  LetPE ∷ 𝕏  → SExpSource p r → PExpSource p r → PExp p r
   IfPE ∷ (SExpSource p r) → (PExpSource p r) → (PExpSource p r) → PExp p r
   CasePE ∷ SExpSource p r → 𝕏 → PExpSource p r → 𝕏 → PExpSource p r → PExp p r
   AppPE ∷ SExpSource p r → 𝑂 (𝐿 ProgramVar) → SExpSource p r → PExp p r
@@ -1082,6 +1083,7 @@ data PExp (p ∷ PRIV) r where
 instance Functor (PExp p) where
   map f (ReturnPE e) = (ReturnPE (mapp f e))
   map f (BindPE x e₁ e₂) = (BindPE x (mapp f e₁) (mapp f e₂))
+  map f (LetPE x e₁ e₂) = (LetPE x (mapp f e₁) (mapp f e₂))
   map f (IfPE e₁ e₂ e₃) = (IfPE (mapp f e₁) (mapp f e₂) (mapp f e₃))
   map f (CasePE e₁ x e₂ y e₃) = (CasePE (mapp f e₁) x (mapp f e₂) y (mapp f e₃))
   map f (AppPE e₁ xs e₂) = (AppPE (mapp f e₁) xs (mapp f e₂))

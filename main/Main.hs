@@ -122,9 +122,9 @@ main = do
         do out $ "(" ⧺ show𝕊 (secondsTimeD tParse) ⧺ "s)" ; flushOut
         do pprint $ ppHeader "TYPE CHECKING" ; flushOut
         -- TODO: universal mode
-        initEnv₂ :* tCheck' ← time (\ () → runSM dø initEnv₁ dø 0 (inferPrimitives @ 'ED initEnv₁)) ()
+        initEnv₂ :* tCheck' ← time (\ () → runSM dø initEnv₁ dø dø dø 0 (inferPrimitives @ 'ED initEnv₁)) ()
         let e₁' :* n = freshenSTerm dø dø (mapp normalizeRNF e) 0
-        r :* tCheck ← time (\ () → runSM dø (getTypeFromSM initEnv₂) dø n (inferSens e₁')) ()
+        r :* tCheck ← time (\ () → runSM dø (getTypeFromSM initEnv₂) dø dø dø n (inferSens e₁')) ()
         do out $ "(" ⧺ show𝕊 (secondsTimeD tCheck) ⧺ "s)" ; flushOut
         _ ← shell $ "echo " ⧺ show𝕊 (secondsTimeD tCheck) ⧺ " >> typecheck-times"
         do pprint $ ppHeader "DONE" ; flushOut

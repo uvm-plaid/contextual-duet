@@ -20,6 +20,8 @@ data Context = Context
   { contextKind ∷ 𝕏 ⇰ Kind
   , contextType ∷ 𝕏 ⇰ Type RNF
   , contextMExp ∷ 𝕏 ⇰ MExp RNF
+  , contextSlam ∷ ProgramVar ⇰ Sens RNF
+  , contextLvar ∷ ProgramVar ⇰ (ProgramVar ⇰ Sens RNF)
   }
 makeLenses ''Context
 makePrettyRecord ''Context
@@ -33,11 +35,11 @@ newtype SM (p ∷ PRIV) a = SM { unSM ∷ RWST Context (ProgramVar ⇰ Sens RNF)
   ,MonadWriter (ProgramVar ⇰ Sens RNF)
   ,MonadState ℕ)
 
-mkSM ∷ (𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → ℕ → TypeError ∨ (ℕ ∧ (ProgramVar ⇰ Sens RNF) ∧ a)) → SM p a
-mkSM f = SM $ mkRWST $ \ (Context δ γ ᴍ) n → ErrorT $ ID $ f δ γ ᴍ n
+mkSM ∷ (𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → ProgramVar ⇰ Sens RNF → ProgramVar ⇰ (ProgramVar ⇰ Sens RNF) → ℕ → TypeError ∨ (ℕ ∧ (ProgramVar ⇰ Sens RNF) ∧ a)) → SM p a
+mkSM f = SM $ mkRWST $ \ (Context δ γ ᴍ σ⁰ ϕ) n → ErrorT $ ID $ f δ γ ᴍ σ⁰ ϕ n
 
-runSM ∷ 𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → ℕ → SM p a → TypeError ∨ (ℕ ∧ (ProgramVar ⇰ Sens RNF) ∧ a)
-runSM δ γ ᴍ n = unID ∘ unErrorT ∘ runRWST (Context δ γ ᴍ) n ∘ unSM
+runSM ∷ 𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → ProgramVar ⇰ Sens RNF → ProgramVar ⇰ (ProgramVar ⇰ Sens RNF) → ℕ → SM p a → TypeError ∨ (ℕ ∧ (ProgramVar ⇰ Sens RNF) ∧ a)
+runSM δ γ ᴍ σ⁰ ϕ n = unID ∘ unErrorT ∘ runRWST (Context δ γ ᴍ σ⁰ ϕ) n ∘ unSM
 
 newtype PM (p ∷ PRIV) a = PM { unPM ∷ RWST Context (ProgramVar ⇰ Pr p RNF) ℕ (ErrorT TypeError ID) a }
   deriving
@@ -48,28 +50,59 @@ newtype PM (p ∷ PRIV) a = PM { unPM ∷ RWST Context (ProgramVar ⇰ Pr p RNF)
   ,MonadWriter (ProgramVar ⇰ Pr p RNF)
   ,MonadState ℕ)
 
-mkPM ∷ (𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → ℕ → TypeError ∨ (ℕ ∧ (ProgramVar ⇰ Pr p RNF) ∧ a)) → PM p a
-mkPM f = PM $ mkRWST $ \ (Context δ γ ᴍ) n → ErrorT $ ID $ f δ γ ᴍ n
+mkPM ∷ (𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → ProgramVar ⇰ Sens RNF → ProgramVar ⇰ (ProgramVar ⇰ Sens RNF) → ℕ → TypeError ∨ (ℕ ∧ (ProgramVar ⇰ Pr p RNF) ∧ a)) → PM p a
+mkPM f = PM $ mkRWST $ \ (Context δ γ ᴍ σ⁰ ϕ) n → ErrorT $ ID $ f δ γ ᴍ σ⁰ ϕ n
 
-runPM ∷ 𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → ℕ → PM p a → TypeError ∨ (ℕ ∧ (ProgramVar ⇰ Pr p RNF) ∧ a)
-runPM δ γ ᴍ n = unID ∘ unErrorT ∘ runRWST (Context δ γ ᴍ) n ∘ unPM
+runPM ∷ 𝕏 ⇰ Kind → 𝕏 ⇰ Type RNF → 𝕏 ⇰ MExp RNF → ProgramVar ⇰ Sens RNF → ProgramVar ⇰ (ProgramVar ⇰ Sens RNF) → ℕ → PM p a → TypeError ∨ (ℕ ∧ (ProgramVar ⇰ Pr p RNF) ∧ a)
+runPM δ γ ᴍ σ⁰ ϕ n = unID ∘ unErrorT ∘ runRWST (Context δ γ ᴍ σ⁰ ϕ) n ∘ unPM
 
 smFromPM ∷ PM p a → SM p a
-smFromPM xM = mkSM $ \ δ γ ᴍ n →
-  mapInr (mapFst $ mapSnd $ map $ Sens ∘ (×) top ∘ truncateRNF ∘ indicatorPr) $ runPM δ γ ᴍ n xM
+smFromPM xM = mkSM $ \ δ γ ᴍ σ⁰ ϕ n →
+  mapInr (mapFst $ mapSnd $ map $ Sens ∘ (×) top ∘ truncateRNF ∘ indicatorPr) $ runPM δ γ ᴍ σ⁰ ϕ n xM
 
 pmFromSM ∷ (PRIV_C p) ⇒ SM p a → PM p a
-pmFromSM xM = mkPM $ \ δ γ ᴍ n →
-  mapInr (mapFst $ mapSnd $ map $ makePr ∘ (×) top ∘ truncateRNF ∘ unSens) $ runSM δ γ ᴍ n xM
+pmFromSM xM = mkPM $ \ δ γ ᴍ σ⁰ ϕ n →
+  mapInr (mapFst $ mapSnd $ map $ makePr ∘ (×) top ∘ truncateRNF ∘ unSens) $ runSM δ γ ᴍ σ⁰ ϕ n xM
 
 
 pmFromSM' ∷ (PRIV_C p) ⇒ SM p a → PM p a
-pmFromSM' xM = mkPM $ \ δ γ ᴍ n →
-  mapInr (mapFst $ mapSnd $ map $ makePr ∘ (×) top ∘ unSens) $ runSM δ γ ᴍ n xM
+pmFromSM' xM = mkPM $ \ δ γ ᴍ σ⁰ ϕ n →
+  mapInr (mapFst $ mapSnd $ map $ makePr ∘ (×) top ∘ unSens) $ runSM δ γ ᴍ σ⁰ ϕ n xM
 
 mapPPM ∷ (Pr p₁ RNF → Pr p₂ RNF) → PM p₁ a → PM p₂ a
-mapPPM f xM = mkPM $ \ δ γ ᴍ n → mapInr (mapFst $ mapSnd $ map f) $ runPM δ γ ᴍ n xM
+mapPPM f xM = mkPM $ \ δ γ ᴍ σ⁰ ϕ n → mapInr (mapFst $ mapSnd $ map f) $ runPM δ γ ᴍ σ⁰ ϕ n xM
 
+mM ∷ ProgramVar ⇰ (ProgramVar ⇰ Sens RNF) → (ProgramVar ⇰ Sens RNF) → (ProgramVar ⇰ Sens RNF)
+mM ϕ σ = map (\v → dot v σ) ϕ
+
+-- assuming a is smaller
+elemDot ∷ (ProgramVar ⇰ Sens RNF) → (ProgramVar ⇰ Sens RNF) → (ProgramVar ⇰ Sens RNF)
+elemDot a b = do
+  let keysa = keys a
+  let keysb = keys b
+  let isct = keysa ∩ keysb
+  let a' = list $ restrict isct a
+  let b' = without isct b
+  let a'' = assoc $ map (\(c:*d) → c :* (d × (b ⋕! c))) a'
+  b' ⩌ a''
+
+dot ∷ (ProgramVar ⇰ Sens RNF) → (ProgramVar ⇰ Sens RNF) → Sens RNF
+dot a b = do
+  let keysa = keys a
+  let keysb = keys b
+  let isct = keysa ∩ keysb
+  let a' = list $ restrict isct a
+  let b' = list $ restrict isct b
+  fold zero (+) $ list $ zipWith (\(_:*c) (_:*d) → c × d) a' b'
+
+splitMm ∷ ProgramVar ⇰ (ProgramVar ⇰ Sens RNF) → (ProgramVar ⇰ Sens RNF) → (ProgramVar ⇰ Sens RNF)
+splitMm ϕ σ = case (ϕ ≡ dø) of
+  True → σ
+  False → do
+    let lvars = keys ϕ
+    let σl = restrict lvars σ
+    let σλ = without lvars σ
+    (mM ϕ σl) ⩌ σλ
 
 checkMExpLang ∷ TLExp RNF → 𝑂 (MExp RNF)
 checkMExpLang e₀ = case (extract e₀) of
@@ -396,12 +429,11 @@ inferSens eA = case extract eA of
   LetSE x e₁ e₂ → do
     σ₁ :* τ₁ ← hijack $ inferSens e₁
     σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁) ⩌ γ) $ inferSens e₂
-    --TODO: sigma substitution?
     let (ς :* σ₂') = ifNone (zero :* σ₂) $ dview (TMVar x) σ₂
     do
         tell $ ς ⨵ σ₁
         tell σ₂'
-        return τ₂
+        return $ substGammaSens σ₁ x τ₂
   TAbsSE x κ e → do
     mapEnvL contextKindL (\ δ → (x ↦ κ) ⩌ δ) $ do
       τ ← inferSens e
@@ -506,7 +538,11 @@ inferSens eA = case extract eA of
   PFunSE xsO x τ s e → do
     checkType $ extract τ
     let τ' = extract τ
-    σ :* τ'' ← smFromPM $ hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $ inferPriv e
+    σ :* τ'' ← smFromPM $
+      hijack $
+      mapEnvL contextTypeL (\ γ → (x ↦ τ') ⩌ γ) $
+      mapEnvL contextSlamL (\ σ⁰ → (TMVar x ↦ s) ⩌ σ⁰) $
+      inferPriv e
     case xsO of
       None → return $ (x :* τ' :* s) :⊸⋆: (PEnv σ :* τ'')
       Some xs → do
@@ -614,15 +650,35 @@ inferSens eA = case extract eA of
 inferPriv ∷ ∀ p. (PRIV_C p) ⇒ PExpSource p RNF → PM p (Type RNF)
 inferPriv eA = case extract eA of
   ReturnPE e → do
-    pmFromSM $ inferSens e
+    σ :* τ ← pmFromSM $ hijack $ inferSens e
+    ϕ ← askL contextLvarL
+    tell $ map (\ i → iteratePr i $ makePr top) $ map unSens $ splitMm ϕ σ
+    return τ
   BindPE x e₁ e₂ → do
     τ₁ ← inferPriv e₁
     σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁) ⩌ γ) $ inferPriv e₂
     tell $ delete (TMVar x) σ₂
     return τ₂
+  LetPE x e₁ e₂ → do
+    ϕ₁ ← askL contextLvarL
+    σ₁ :* τ₁ ← pmFromSM $ hijack $ inferSens e₁
+    σ₂ :* τ₂ ← hijack $
+      mapEnvL contextTypeL (\ γ → (x ↦ τ₁) ⩌ γ) $
+      mapEnvL contextLvarL (\ ϕ → (TMVar x ↦ splitMm ϕ₁ σ₁) ⩌ ϕ) $
+      inferPriv e₂
+    let (_ :* σ₂') = ifNone (makePr bot :* σ₂) $ dview (TMVar x) σ₂
+    do
+        tell $ map (\ i → iteratePr i $ makePr top) $ map unSens $ splitMm ϕ₁ σ₁
+        tell σ₂'
+        return $ substGammaSens (splitMm ϕ₁ σ₁) x τ₂
   AppPE e₁ xsO e₂ → do
-    τ₁ ← pmFromSM $ inferSens e₁
+    ϕ ← askL contextLvarL
+    σ₀ ← askL contextSlamL
+    -- τ₁ ← pmFromSM $ inferSens e₁
+    σ₁ :* τ₁ ← pmFromSM $ hijack $ inferSens e₁
+    tell $ map (\ i → iteratePr i $ makePr top) $ map unSens $ splitMm ϕ σ₁
     σ₂ :* τ₂ ← pmFromSM $ hijack $ inferSens e₂
+    let σ₂' = elemDot σ₀ $ splitMm ϕ σ₂
     allInScopeₜₘ ← map pow $ mapp TMVar $ map list $ map keys $ askL contextTypeL
     allInScopeₜₗ ← map pow $ mapp TLVar $ map list $ map keys $ askL contextKindL
     let xsₜₘ = elim𝑂 allInScopeₜₘ (\xs0' → pow $ getTMVs xs0' Nil) xsO
@@ -632,15 +688,15 @@ inferPriv eA = case extract eA of
       True → skip
       False → error $ "provided variables to application which are not in scope: " ⧺ show𝕊 (xsₜₘ ∖ allInScopeₜₘ) ⧺ show𝕊 (xsₜₗ ∖ allInScopeₜₗ)
     case τ₁ of
-      (x :* τ₁₁ :* s) :⊸⋆: (PEnv (σ' ∷ ProgramVar ⇰ Pr p' RNF) :* τ₁₂) | (τ₁₁ ≡ τ₂) ⩓ (joins (values σ₂) ⊑ s) →
+      (x :* τ₁₁ :* s) :⊸⋆: (PEnv (σ' ∷ ProgramVar ⇰ Pr p' RNF) :* τ₁₂) | (τ₁₁ ≡ τ₂) ⩓ (joins (values σ₂') ⊑ s) →
         case eqPRIV (priv @ p) (priv @ p') of
           None → error "not same priv mode"
           Some Refl → do
             let (pₓ :* σ'') = ifNone (makePr zero :* σ') $ dview (TMVar x) σ'
             -- TODO: change iteratePr to something functionally the same but less hacky
-            let σ₂' = mapOn (restrict xs σ₂) $ (\ i → iteratePr i pₓ) ∘ truncateRNF ∘ unSens
-            let σinf = mapOn (without xs σ₂) $ (\ i → iteratePr i $ makePr top) ∘ truncateRNF ∘ unSens
-            tell $ σ₂'
+            let σ₂'' = mapOn (restrict xs σ₂') $ (\ i → iteratePr i pₓ) ∘ truncateRNF ∘ unSens
+            let σinf = mapOn (without xs σ₂') $ (\ i → iteratePr i $ makePr top) ∘ truncateRNF ∘ unSens
+            tell $ σ₂''
             tell $ σinf
             tell σ''
             return $ substGammaPr σ₂ x τ₁₂
@@ -663,6 +719,7 @@ inferPriv eA = case extract eA of
             ]
   CasePE e₁ x e₂ y e₃ → do
     σ₁ :* τ₁ ← pmFromSM $ hijack $ inferSens e₁
+    ϕ ← askL contextLvarL
     case τ₁ of
       (τ₁₁ :* σ₁₁) :⊞: (σ₁₂ :* τ₁₂) → do
         σ₂ :* τ₂ ← hijack $ mapEnvL contextTypeL (\ γ → (x ↦ τ₁₁) ⩌ γ) $ inferPriv e₂
@@ -671,10 +728,9 @@ inferPriv eA = case extract eA of
         let (ς₃ :* σ₃') = ifNone (makePr zero :* σ₃) $ dview (TMVar x) σ₃
         let a = assoc $ map (\(x :* s)→ x :* ς₂) $ list σ₁₁
         let b = assoc $ map (\(x :* s)→ x :* ς₃) $ list σ₁₂
-
         let σf = (a + σ₂) ⊔ (b + σ₃)
         tell σf
-        tell $ assoc $ map (\(x :* s)→ x :* makePr top) $ list σ₁
+        tell $ map (\ i → iteratePr i $ makePr top) $ map unSens $ splitMm ϕ σ₁
         let τf = tyJoin dø dø (substGammaSens σ₁₁ x τ₂) (substGammaSens σ₁₂ y τ₃)
         case τf of
           None → error "tyJoin failed in CasePE"
@@ -685,7 +741,8 @@ inferPriv eA = case extract eA of
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             ]
   IfPE e₁ e₂ e₃ → do
-    τ₁ ← pmFromSM $ inferSens e₁
+    ϕ ← askL contextLvarL
+    σ₁ :* τ₁ ← pmFromSM $ hijack $ inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferPriv e₂
     σ₃ :* τ₃ ← hijack $ inferPriv e₃
     case (τ₂ ≡ τ₃) of
@@ -693,6 +750,7 @@ inferPriv eA = case extract eA of
       True → case τ₁ of
         𝔹T → do
           tell (σ₃ ⊔ σ₂)
+          tell $ map (\ i → iteratePr i $ makePr top) $ map unSens $ splitMm ϕ σ₁
           return τ₂
         _ → error $ "IfPE expected a boolean in the test position" ⧺ pprender τ₁
   ConvertZCEDPE e₁ e₂ → do
@@ -974,6 +1032,11 @@ freshenPTerm ρ β eA nInit = do
           let e₁' :* n' = freshenPTerm ρ β e₁ np1
           let e₂' :* n'' = freshenPTerm ρ ((x↦ xⁿ) ⩌ β) e₂ n'
           (BindPE xⁿ e₁' e₂' :* n'')
+        LetPE x e₁ e₂ → do
+          let xⁿ = 𝕏 {𝕩name=(𝕩name x), 𝕩Gen=Some nInit}
+          let e₁' :* n' = freshenSTerm ρ β e₁ np1
+          let e₂' :* n'' = freshenPTerm ρ ((x↦ xⁿ) ⩌ β) e₂ n'
+          (LetPE xⁿ e₁' e₂' :* n'')
         IfPE e₁ e₂ e₃ → do
           let e₁' :* n' = freshenSTerm ρ β e₁ nInit
           let e₂' :* n'' = freshenPTerm ρ β e₂ n'
