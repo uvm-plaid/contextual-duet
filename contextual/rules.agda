@@ -273,9 +273,11 @@ substSx/τ s unit = unit
 substSx/τ s ℝT = ℝT
 substSx/τ s 𝔹T = 𝔹T
 
--- value type environment
+-- value type environment (alias)
 ℾ[_] : ℕ → Set
 ℾ[ N ] =  ⟬ τ ᴢ ⟭[ N ]
+-- ℾ[ N ] =  Γ[ N ]
+
 
 -- TYPING JUDGEMENT FOR VALUES --
 infix 6 _⊢_⦂_
@@ -314,3 +316,19 @@ data _⊢_⦂_ : ∀ {N} → ℾ[ N ] → 𝓋 → τ N → Set where
 
       --------------------------------
     → ℾ ⊢ (ƛ⦂ e ∥ γ ) ⦂ ƛ⦂ τ₁ ⇒[ s′ ∔ zero ] τ₂
+
+
+-- TYPING JUDGEMENT FOR VALUE ENVIRONMENT --
+
+infix 6 _⊢_
+
+data _⊢_ : ∀ {N} → ℾ[ N ] → γ[ N ] → Set where
+
+  ⊢z : zero ⊢ zero
+
+
+  ⊢s : ∀ {N} {ℾ : ℾ[ N ]} {ℾ₁ : ℾ[ 0 ]} {γ : γ[ N ]} {𝓋 : 𝓋} {τ : τ 0}
+    → ℾ₁ ⊢ 𝓋 ⦂ τ
+    → ℾ ⊢ γ
+    --------------------------------
+    → (τ ∷ ℾ) ⊢ 𝓋 ∷ γ
