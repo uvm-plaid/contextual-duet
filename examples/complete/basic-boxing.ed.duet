@@ -1,7 +1,15 @@
-let main = pλ . x : ℕ ⇒
-  let y = box (x + x)
-  -- this should fail
-  -- in return y
-  -- this should work
-  in return unbox (y)
+
+
+-- red let
+
+let main = pλ x : ℕ ⋅ 1.0 , z : ℕ ⋅ 1.0  ⇒
+  letp y = (plus₁ x z)
+  in return y
 in main
+
+
+-- let main = sλ x : ℕ ⇒
+--   let z = plus₁ 1 2 in
+--   let y = (plus₁ x z)
+--   in y
+-- in main

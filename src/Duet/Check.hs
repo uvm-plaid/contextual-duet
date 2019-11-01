@@ -688,7 +688,7 @@ inferPriv eA = case extract eA of
       True → skip
       False → error $ "provided variables to application which are not in scope: " ⧺ show𝕊 (xsₜₘ ∖ allInScopeₜₘ) ⧺ show𝕊 (xsₜₗ ∖ allInScopeₜₗ)
     case τ₁ of
-      (x :* τ₁₁ :* s) :⊸⋆: (PEnv (σ' ∷ ProgramVar ⇰ Pr p' RNF) :* τ₁₂) | (τ₁₁ ≡ τ₂) ⩓ (joins (values σ₂') ⊑ s) →
+      (x :* τ₁₁ :* s) :⊸⋆: (PEnv (σ' ∷ ProgramVar ⇰ Pr p' RNF) :* τ₁₂) | (alphaEquiv dø dø τ₁₁ τ₂) ⩓ (joins (values σ₂') ⊑ s) →
         case eqPRIV (priv @ p) (priv @ p') of
           None → error "not same priv mode"
           Some Refl → do
