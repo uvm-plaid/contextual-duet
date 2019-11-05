@@ -7,7 +7,7 @@ let main = ∀  ε   : ℝ⁺,
               δ   : ℝ⁺[δ] ⋅ 1.0,
               df :  𝕄 [L∞,U | m , n↦ℝ] ⋅ 1.0
               ⇒
-  result ← gauss @ ε @ δ @ ℝ⁺[1.0] <df> ε <df> δ <df> ℝ⁺[1.0] <df> (real₂ @ m (mrows @ m @ n @ ℝ df));
+  result ← gauss @ ε @ δ @ ℝ⁺[1.0] <df> ε <df> δ <df> ℝ⁺[1.0] <df> (real₃ @ m (mrows @ m @ n @ ℝ df));
   return result
 in main
 
