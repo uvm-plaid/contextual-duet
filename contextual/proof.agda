@@ -4,22 +4,7 @@ module proof where
 open import rules public
 open import logical-relations public
 
-_⟨⟨_⟩⟩ : ∀ {N} → Σ[ N ] → τ N → τ ᴢ
-Σ ⟨⟨ ƛ⦂ τ₁ ⇒[ a₀ ∔ x ] τ₂ ⟩⟩ = ƛ⦂ (Σ ⟨⟨ τ₁ ⟩⟩) ⇒[ (((⇧ˢ Σ) ⨰ x) + a₀) ∔ zero ] ⇧ᵗ (⇧ˢ Σ ⟨⟨ τ₂ ⟩⟩)
-Σ ⟨⟨ τ₁ ∥ a₀ ∔ x ⊗ b₀ ∔ x₁ ∥ τ₂ ⟩⟩ = (Σ ⟨⟨ τ₁ ⟩⟩) ∥ (a₀ + (Σ ⨰ x)) ∔ zero ⊗ (b₀ + (Σ ⨰ x₁)) ∔ zero ∥  (Σ ⟨⟨ τ₂ ⟩⟩)
-Σ ⟨⟨ τ₁ ∥ a₀ ∔ x ⊕ b₀ ∔ x₁ ∥ τ₂ ⟩⟩ = (Σ ⟨⟨ τ₁ ⟩⟩) ∥ (a₀ + (Σ ⨰ x)) ∔ zero ⊕ (b₀ + (Σ ⨰ x₁)) ∔ zero ∥  (Σ ⟨⟨ τ₂ ⟩⟩)
-Σ ⟨⟨ unit ⟩⟩ = unit
-Σ ⟨⟨ ℝT ⟩⟩ = ℝT
-Σ ⟨⟨ 𝔹T ⟩⟩ = 𝔹T
-
-vGammaEq : ∀ {N} → (a : ℾ[ N ]) → (b : ℾ[ N ]) → a ≡ b
-vGammaEq [] [] = ↯
-vGammaEq (x ∷ a) (x₁ ∷ b) = {!   !}
-
 -- Theorem 1.1 (Fundamental Property / (Metric Preservation in Fuzz)).
-
--- need type safety: ∀ e. Γ ⊢ e ⦂ τ → ⊢ γ ⦂ Γ → γ ⊢ e ⇓ v → ⊢ v ⦂ τ
--- we should also prove L7 directly
 
 postulate
   L1 : ∀ (N : ℕ) → ∣ N - N ∣ ≡ 0
@@ -33,6 +18,10 @@ postulate
     → (ε₁ : ⊢ γ₁ #[ x ] ⦂ ℾ #[ x ])
     → (ε₂ : ⊢ γ₂ #[ x ] ⦂ ℾ #[ x ])
     → ⟨ γ₁ #[ x ] , γ₂ #[ x ] ⟩∈𝒱′⟦ ℾ #[ x ] ː ε₁ , ε₂ ː Σ #[ x ] ⟧
+  typeSafety : ∀ {N} {e : Term N} {Γ ℾ Σ v γ τ} → Γ ⊢ e ⦂ τ , Σ → ℾ ⊢ γ → γ ⊢ e ⇓ v → ⊢ v ⦂ Σ ⟨⟨ τ ⟩⟩
+  L8 : ∀ {N} {s} {Σ : Σ[ N ]} {τ v} → (⊢ v ⦂ (substSx/τ s (⇧ᵗ (⇧ˢ Σ ⟨⟨ τ ⟩⟩)))) → (⊢ v ⦂ ((s ∷ Σ) ⟨⟨ τ ⟩⟩))
+  L9 : ∀ {N} {s} {Σ : Σ[ N ]} {τ v} → (substSx/τ s (⇧ᵗ (⇧ˢ Σ ⟨⟨ τ ⟩⟩))) ≡ ((s ∷ Σ) ⟨⟨ τ ⟩⟩)
+
 
 fp : ∀ {N} {Γ : Γ[ N ]} {ℾ e τ Σ γ₁ γ₂ Σ′} → Γ ⊢ e ⦂ τ , Σ → ⟨ γ₁ , γ₂ ⟩∈𝒢⟦ Σ′ ː ℾ ⟧ → ⟨ γ₁ ⊢ e , γ₂ ⊢ e ⟩∈ℰ⟦ Σ ⨰ Σ′ ː (Σ′ ⟨⟨ τ ⟩⟩) ⟧
 fp {Σ′ = Σ′} ⊢`ℝ e₂ (𝓇 r₁) (𝓇 r₁) ⊢𝓇 ⊢𝓇 ⟨ ⊢`ℝ , ⊢`ℝ ⟩ rewrite lzero[⨰]< Σ′ > = [≡] (L2 r₁)
@@ -45,11 +34,10 @@ fp {Σ′ = Σ′} (⊢_`×_ {Σ₁ = Σ₁} {Σ₂ = Σ₂} e₁ e₂) r[γ₁,
   with fp e₁ r[γ₁,γ₂] (𝓇 r₁₁) (𝓇 r₂₁) ⊢𝓇 ⊢𝓇 ⟨ jr₁₁ , jr₁₂ ⟩
      | fp e₂ r[γ₁,γ₂] (𝓇 r₁₂) (𝓇 r₂₂) ⊢𝓇 ⊢𝓇 ⟨ jr₂₁ , jr₂₂ ⟩
      | L6 (Σ₁ + Σ₂) Σ′
-… | IH₁ | IH₂ | ʟ ε rewrite ε = {!   !}
-… | IH₁ | IH₂ | ʀ ε rewrite ε = {!   !}
+… | IH₁ | IH₂ | ʟ ε rewrite ε = [≡] {!   !}
+… | IH₁ | IH₂ | ʀ ε rewrite ε = [<] `∞
 fp (⊢ e₁ `≤ e₂) r[γ₁,γ₂] = {!   !}
-fp (⊢`var_ {i = i} x) r[γ₁,γ₂] .(_ #[ i ]) .(_ #[ i ]) e1 e2 ⟨ ⊢`var ↯ , ⊢`var ↯ ⟩ = L7 r[γ₁,γ₂] e1 e2
--- ... | G = {!   !}
+fp (⊢`var_ {i = i} x) r[γ₁,γ₂] .(_ #[ i ]) .(_ #[ i ]) e₁ e₂ ⟨ ⊢`var ↯ , ⊢`var ↯ ⟩ = L7 r[γ₁,γ₂] e₁ e₂
 fp ⊢`tt r[γ₁,γ₂] .tt .tt ⊢tt ⊢tt ⟨ ⊢`tt , ⊢`tt ⟩ = ⟨ ↯ , ↯ ⟩
 fp {Σ′ = Σ′} (⊢`inl {Σ₁ = Σ₁} e₁) r[γ₁,γ₂] .(inl 𝓋₁) .(inl 𝓋₂) (⊢inl jv₁) (⊢inl jv₂) ⟨ ⊢`inl {𝓋 = 𝓋₁} r₁ , ⊢`inl {𝓋 = 𝓋₂} r₂ ⟩
   with fp e₁ r[γ₁,γ₂] 𝓋₁ 𝓋₂ jv₁ jv₂ ⟨ r₁ , r₂ ⟩
@@ -64,9 +52,9 @@ fp {Σ′ = Σ′} (⊢`inr {Σ₂ = Σ₂} e₁) r[γ₁,γ₂] .(inr 𝓋₁) 
   | lunit[+][qty]< (Σ′ ⨰ Σ₂) >
   | L5 Σ′ Σ₂ = IH
 fp (⊢`case e₁ e₂ e₃ tyjoin) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`case/l {𝓋₁ = 𝓋₁₁} r₁ r₂ , ⊢`case/l {𝓋₁ = 𝓋₁₂} r₃ r₄ ⟩
-  with fp e₁ r[γ₁,γ₂] (inl 𝓋₁₁) (inl 𝓋₁₂) (⊢inl {!!}) (⊢inl {!!}) ⟨ r₁ , r₃ ⟩
+  with fp e₁ r[γ₁,γ₂] (inl 𝓋₁₁) (inl 𝓋₁₂) (⊢inl {! !}) (⊢inl {!!}) ⟨ r₁ , r₃ ⟩
 ... | IH₁ with fp e₂ ⟨∃ {!!} , ⟨∃ {!!} , ⟨ IH₁ , r[γ₁,γ₂] ⟩ ⟩ ⟩ v₁ v₂
-… | IH₂P {- rewrite ... -} with IH₂P {!ε₁!} {!ε₂!} ⟨ r₂ , r₄ ⟩
+… | IH₂P with IH₂P {!ε₁!} {!ε₂!} ⟨ r₂ , r₄ ⟩
 … | IH₂ = {!!}
 fp (⊢`case e₁ e₂ e₃ tyjoin) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`case/l r₁ r₂ , ⊢`case/r r₃ r₄ ⟩
   with fp e₁ r[γ₁,γ₂] {!   !} {!   !} (⊢inl {!   !}) (⊢inr {!   !}) ⟨ r₁ , r₃ ⟩
@@ -76,27 +64,22 @@ fp (⊢`case e₁ e₂ e₃ tyjoin) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢
 ... | IH  = {!   !}
 fp (⊢`case e₁ e₂ e₃ tyjoin) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`case/r r₁ r₂ , ⊢`case/r r₃ r₄ ⟩
   with fp e₁ r[γ₁,γ₂] {!   !} {!   !} (⊢inr {!   !}) (⊢inr {!   !}) ⟨ r₁ , r₃ ⟩
-... | IH  = {!   !}
+... | IH  = {!IH   !}
 fp (⊢`if e₁ e₃ e₄) r[γ₁,γ₂] = {!   !}
 fp (⊢`let e₁ e₃) r[γ₁,γ₂] = {!   !}
-fp (⊢`λ ⊢e) r[γ₁,γ₂] .(ƛ⦂ e₁ ∥ γ₁) .(ƛ⦂ e₂ ∥ γ₂) (⊢λ {ℾ = ℾ₁} ⊢γ₁ ⊢e₁ ε₁₁ ε₁₂ ε₁₃) (⊢λ {ℾ = ℾ₂} ⊢γ₂ ⊢e₂ ε₂₁ ε₂₂ ε₂₃) ⟨ ⊢`λ {γ = γ₁} {e = e₁} , ⊢`λ {γ = γ₂} {e = e₂} ⟩ =
-  ⟨∃ ↯ , P {- λ where ↯ r[γ₁,γ₂]′ r[v₁,v₂]′ v₃ v₄ ⊢v₃ ⊢v₄ ⟨ e₁⇓v₃ , e₂⇓v₄ ⟩ →
-                    let IH = fp ⊢e ⟨∃ {!!} , ⟨∃ {!!} , ⟨ {!!} , r[γ₁,γ₂] ⟩ ⟩ ⟩ v₃ v₄ {!!} {!!} ⟨ e₁⇓v₃ , e₂⇓v₄ ⟩
-                    in {!!} -}⟩
+fp {Σ′ = Σ′} (⊢`λ {τ₂ = τ₂} ⊢e) r[γ₁,γ₂] .(ƛ⦂ e₁ ∥ γ₁) .(ƛ⦂ e₂ ∥ γ₂) (⊢λ {ℾ = ℾ₁} ⊢γ₁ ⊢e₁ ε₁₁ ε₁₂ ε₁₃) (⊢λ {ℾ = ℾ₂} ⊢γ₂ ⊢e₂ ε₂₁ ε₂₂ ε₂₃) ⟨ ⊢`λ {γ = γ₁} {e = e₁} , ⊢`λ {γ = γ₂} {e = e₂} ⟩ =
+  ⟨∃ ↯ , P ⟩
   where
     P : ℾ₁ ≡ ℾ₂ → ∀ {v₁ v₂ : 𝓋} {ε₁ : ⊢ v₁ ⦂ (_ ⟨⟨ _ ⟩⟩)} {ε₂ : ⊢ v₂ ⦂ (_ ⟨⟨ _ ⟩⟩)} {s s′ s′′ Σ Σ′}
       → ⟨ γ₁ , γ₂ ⟩∈𝒢⟦ Σ′ ː mapⱽ (instantiateΣ/τ Σ′) ℾ₂ ⟧
       → ⟨ v₁ , v₂ ⟩∈𝒱′⟦ _ ⟨⟨ _ ⟩⟩ ː ε₁ , ε₂ ː s′′ ⟧
       → ⟨ v₁ ∷ γ₁ ⊢ e₁ , v₂ ∷ γ₂ ⊢ e₁ ⟩∈ℰ⟦ (s + (Σ ⨰ Σ′)) + (s′ × s′′) ː substSx/τ s′′ (⇧ᵗ ((⇧ˢ _ ⟨⟨ _ ⟩⟩))) ⟧
-    P ε r[γ₁,γ₂]′ r[v₁,v₂]′ v₃ v₄ ⊢v₃ ⊢v₄ ⟨ e₁⇓v₃ , e₂⇓v₄ ⟩
-      with fp ⊢e ⟨∃ {!!} , ⟨∃ {!!} , ⟨ {!!} , r[γ₁,γ₂] ⟩ ⟩ ⟩ v₃ v₄ {!!} {!!} ⟨ e₁⇓v₃ , e₂⇓v₄ ⟩
-    … | IH = {!!}
-  -- ⟨∃ ↯ , LAM ⟩
-  -- where
-  --   LAM : …
-  --   LAM ε x₁₁ x₁₂ v₃ v₄ ε₃ ε₄ x₁₃ rewrite ε = …
-  -- with fp e {!   !} {!   !} {!   !} {!   !} {!   !} ⟨ {!   !} , {!   !} ⟩
--- ... | IH = ⟨∃ ↯ , ⟨ {! vGammaEq ℾ₁ ℾ₂  !} , (λ x₁₀ x₁₁ v₃ v₄ ε₃ ε₄ x₁₂ → {!   !}) ⟩ ⟩
+    P ε {v₁} {v₂} {ε₁} {ε₂} {s} {s′} {s′′} {Σ} {Σ′} r[γ₁,γ₂]′ r[v₁,v₂]′ v₃ v₄ ⊢v₃ ⊢v₄ ⟨ e₁⇓v₃ , e₂⇓v₄ ⟩
+      with L8 ⊢v₃
+        | L8 ⊢v₄
+    ... | ⊢v₃′ | ⊢v₄′ with fp ⊢e ⟨∃ ε₁ , ⟨∃ ε₂ , ⟨ r[v₁,v₂]′ , r[γ₁,γ₂] ⟩ ⟩ ⟩ v₃ v₄ ⊢v₃′ ⊢v₄′ ⟨ e₁⇓v₃ , e₂⇓v₄ ⟩
+    … | IH with L9
+    ... | L99 = {! IH !}
 fp (⊢`app e₁ e₂) r[γ₁,γ₂] = {!   !}
 fp {Σ′ = Σ′} (⊢`_pair_ {Σ₁ = Σ₁} {Σ₂ = Σ₂} e₁ e₂) r[γ₁,γ₂] .(𝓋₁₁ pair 𝓋₁₂) .(𝓋₂₁ pair 𝓋₂₂) (⊢pair t₁ t₂) (⊢pair t₃ t₄) ⟨ ⊢`_pair_ {𝓋₁ = 𝓋₁₁} {𝓋₂ = 𝓋₁₂} r₁ r₂ , ⊢`_pair_ {𝓋₁ = 𝓋₂₁} {𝓋₂ = 𝓋₂₂} r₃ r₄ ⟩
   with fp e₁ r[γ₁,γ₂] 𝓋₁₁ 𝓋₂₁ t₁ t₃ ⟨ r₁ , r₃ ⟩
