@@ -9,8 +9,8 @@ open import logical-relations public
 
 fp : ∀ {N} {Γ : Γ[ N ]} {ℾ e τ Σ γ₁ γ₂ Σ′} → Γ ⊢ e ⦂ τ , Σ → ⟨ γ₁ , γ₂ ⟩∈𝒢⟦ Σ′ ː ℾ ⟧ → ⟨ γ₁ ⊢ e , γ₂ ⊢ e ⟩∈ℰ⟦ Σ ⨰ Σ′ ː (Σ′ ⟨⟨ τ ⟩⟩) ⟧
 fp {Σ′ = Σ′} ⊢`ℝ e₂ (𝓇 r₁) (𝓇 r₁) ⊢𝓇 ⊢𝓇 ⟨ ⊢`ℝ , ⊢`ℝ ⟩ rewrite lzero[⨰]< Σ′ > = [≡] (L2 r₁)
-fp ⊢`𝔹 r[γ₁,γ₂] .(𝒷 ᴏ) .(𝒷 ᴏ) (⊢𝒷 {ᴏ}) ⊢𝒷 ⟨ ⊢`𝔹 {b = .ᴏ} , ⊢`𝔹 {b = .ᴏ} ⟩ = {!   !}
-fp ⊢`𝔹 r[γ₁,γ₂] .(𝒷 ɪ) .(𝒷 ɪ) (⊢𝒷 {ɪ}) ⊢𝒷 ⟨ ⊢`𝔹 {b = .ɪ} , ⊢`𝔹 {b = .ɪ} ⟩ = {!   !}
+fp ⊢`𝔹 r[γ₁,γ₂] .(𝒷 ᴏ) .(𝒷 ᴏ) (⊢𝒷 {ᴏ}) ⊢𝒷 ⟨ ⊢`𝔹 {b = .ᴏ} , ⊢`𝔹 {b = .ᴏ} ⟩ = •
+fp ⊢`𝔹 r[γ₁,γ₂] .(𝒷 ɪ) .(𝒷 ɪ) (⊢𝒷 {ɪ}) ⊢𝒷 ⟨ ⊢`𝔹 {b = .ɪ} , ⊢`𝔹 {b = .ɪ} ⟩ = •
 fp {Σ′ = Σ′} (⊢_`+_ {Σ₁ = Σ₁} {Σ₂ = Σ₂} δ₁ δ₂) r[γ₁,γ₂] (𝓇 .(r₁₁ + r₁₂)) (𝓇 .(r₂₁ + r₂₂)) ⊢𝓇 ⊢𝓇 ⟨ ⊢_`+_ {r₁ = r₁₁} {r₂ = r₁₂} jr₁₁ jr₂₁ , ⊢_`+_  {r₁ = r₂₁} {r₂ = r₂₂} jr₁₂ jr₂₂ ⟩
   with fp δ₁ r[γ₁,γ₂] (𝓇 r₁₁) (𝓇 r₂₁) ⊢𝓇 ⊢𝓇 ⟨ jr₁₁ , jr₁₂ ⟩
      | fp δ₂ r[γ₁,γ₂] (𝓇 r₁₂) (𝓇 r₂₂) ⊢𝓇 ⊢𝓇 ⟨ jr₂₁ , jr₂₂ ⟩
@@ -19,7 +19,8 @@ fp {Σ′ = Σ′} (⊢_`×_ {Σ₁ = Σ₁} {Σ₂ = Σ₂} e₁ e₂) r[γ₁,
   with fp e₁ r[γ₁,γ₂] (𝓇 r₁₁) (𝓇 r₂₁) ⊢𝓇 ⊢𝓇 ⟨ jr₁₁ , jr₁₂ ⟩
      | fp e₂ r[γ₁,γ₂] (𝓇 r₁₂) (𝓇 r₂₂) ⊢𝓇 ⊢𝓇 ⟨ jr₂₁ , jr₂₂ ⟩
      | L6 (Σ₁ + Σ₂) Σ′
-… | IH₁ | IH₂ | ʟ ε rewrite ε = [≡] {!   !}
+-- typo in latex? (l2.2)
+… | IH₁ | IH₂ | ʟ ε rewrite ε = [≡] (L13 ε IH₁ IH₂)
 … | IH₁ | IH₂ | ʀ ε rewrite ε = [<] `∞
 fp {Σ′ = Σ′} (⊢_`≤_ {Σ₁ = Σ₁} {Σ₂ = Σ₂} e₁ e₂) r[γ₁,γ₂] .(𝒷 (r₁ ≤? r₂)) .(𝒷 (r₃ ≤? r₄)) ε₁ ε₂ ⟨ ⊢_`≤_ {r₁ = r₁} {r₂ = r₂} δ₁  δ₂ , ⊢_`≤_ {r₁ = r₃} {r₂ = r₄} δ₃ δ₄ ⟩
   with fp e₁ r[γ₁,γ₂] (𝓇 r₁) (𝓇 r₃) ⊢𝓇 ⊢𝓇 ⟨ δ₁ , δ₃ ⟩
@@ -48,18 +49,26 @@ fp {Σ′ = Σ′} (⊢`case e₁ e₂ e₃ tyjoin) r[γ₁,γ₂] v₁ v₂ ε�
   with fp e₁ r[γ₁,γ₂] (inl 𝓋₁₁) (inl 𝓋₁₂) (typeSafety e₁ r₁) (typeSafety e₁ r₃) ⟨ r₁ , r₃ ⟩
 ... | IH₁ with fp e₂ ⟨∃ L10 ((typeSafety e₁ r₁)) , ⟨∃ L10 ((typeSafety e₁ r₃)) , ⟨ L12 IH₁ , r[γ₁,γ₂] ⟩ ⟩ ⟩ v₁ v₂
 … | IH₂P with IH₂P (typeSafety e₂ r₂) (typeSafety e₂ r₄) ⟨ r₂ , r₄ ⟩
-… | IH₂ = {! IH₂!}
+… | IH₂ = {! IH₂ !}
 fp (⊢`case e₁ e₂ e₃ tyjoin) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`case/l {𝓋₁ = 𝓋₁₁} r₁ r₂ , ⊢`case/r {𝓋₁ = 𝓋₁₂} r₃ r₄ ⟩
   with fp e₁ r[γ₁,γ₂] ((inl 𝓋₁₁)) ((inr 𝓋₁₂)) (typeSafety e₁ r₁) (typeSafety e₁ r₃) ⟨ r₁ , r₃ ⟩
-... | IH = {!   !}
+... | IH = {!   !} -- ??
 fp (⊢`case e₁ e₂ e₃ tyjoin) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`case/r {𝓋₁ = 𝓋₁₁} r₁ r₂ , ⊢`case/l {𝓋₁ = 𝓋₁₂} r₃ r₄ ⟩
   with fp e₁ r[γ₁,γ₂] (inr 𝓋₁₁) (inl 𝓋₁₂) (typeSafety e₁ r₁) (typeSafety e₁ r₃) ⟨ r₁ , r₃ ⟩
 ... | IH  = {!   !}
 fp (⊢`case e₁ e₂ e₃ tyjoin) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`case/r {𝓋₁ = 𝓋₁₁} r₁ r₂ , ⊢`case/r {𝓋₁ = 𝓋₁₂} r₃ r₄ ⟩
   with fp e₁ r[γ₁,γ₂] (inr 𝓋₁₁) (inr 𝓋₁₂) (typeSafety e₁ r₁) (typeSafety e₁ r₃) ⟨ r₁ , r₃ ⟩
 ... | IH  = {!IH   !}
-fp (⊢`if e₁ e₃ e₄) r[γ₁,γ₂] = {!   !}
-fp (⊢`let e₁ e₃) r[γ₁,γ₂] = {!   !}
+fp (⊢`if e₁ e₂ e₃) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`if-true r₁ r₂ , ⊢`if-true r₃ r₄ ⟩
+  with fp e₂ r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ r₂ , r₄ ⟩
+... | IH = {!   !}
+fp (⊢`if e₁ e₂ e₃) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`if-true r₁ r₂ , ⊢`if-false r₃ r₄ ⟩ = {!   !}
+fp (⊢`if e₁ e₂ e₃) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`if-false r₁ r₂ , ⊢`if-true r₃ r₄ ⟩ = {!   !}
+fp (⊢`if e₁ e₂ e₃) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`if-false r₁ r₂ , ⊢`if-false r₃ r₄ ⟩ = {!   !}
+fp (⊢`let e₁ e₂) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`let {𝓋₁ = 𝓋₁₁} r₁ r₂ , ⊢`let {𝓋₁ = 𝓋₁₂} r₃ r₄ ⟩
+  with fp e₁ r[γ₁,γ₂] 𝓋₁₁ 𝓋₁₂ (typeSafety e₁ r₁) (typeSafety e₁ r₃) ⟨ r₁ , r₃ ⟩
+... | IH₁ with fp e₂ ⟨∃ (typeSafety e₁ r₁) , ⟨∃ (typeSafety e₁ r₃) , ⟨ IH₁ , r[γ₁,γ₂] ⟩ ⟩ ⟩ v₁ v₂ (typeSafety e₂ r₂) (typeSafety e₂ r₄) ⟨ r₂ , r₄ ⟩
+... | IH₂ = {! IH₂  !}
 fp {Σ′ = Σ′} (⊢`λ {τ₂ = τ₂} ⊢e) r[γ₁,γ₂] .(ƛ⦂ e₁ ∥ γ₁) .(ƛ⦂ e₂ ∥ γ₂) (⊢λ {ℾ = ℾ₁} ⊢γ₁ ⊢e₁ ε₁₁ ε₁₂ ε₁₃) (⊢λ {ℾ = ℾ₂} ⊢γ₂ ⊢e₂ ε₂₁ ε₂₂ ε₂₃) ⟨ ⊢`λ {γ = γ₁} {e = e₁} , ⊢`λ {γ = γ₂} {e = e₂} ⟩ =
   ⟨∃ ↯ , P ⟩
   where
