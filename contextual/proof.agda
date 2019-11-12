@@ -54,9 +54,12 @@ fp {Σ′ = Σ′} (⊢`case e₁ e₂ e₃ tyjoin) r[γ₁,γ₂] v₁ v₂ ε�
 ... | IH₁ with fp e₂ ⟨∃ L10 ((typeSafety e₁ r₁)) , ⟨∃ L10 ((typeSafety e₁ r₃)) , ⟨ L12 IH₁ , r[γ₁,γ₂] ⟩ ⟩ ⟩ v₁ v₂
 … | IH₂P with IH₂P (typeSafety e₂ r₂) (typeSafety e₂ r₄) ⟨ r₂ , r₄ ⟩
 … | IH₂ = {! IH₂ !}
-fp (⊢`case e₁ e₂ e₃ tyjoin) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`case/l {𝓋₁ = 𝓋₁₁} r₁ r₂ , ⊢`case/r {𝓋₁ = 𝓋₁₂} r₃ r₄ ⟩
-  with fp e₁ r[γ₁,γ₂] ((inl 𝓋₁₁)) ((inr 𝓋₁₂)) (typeSafety e₁ r₁) (typeSafety e₁ r₃) ⟨ r₁ , r₃ ⟩
-... | IH = {!   !} -- ??
+-}
+fp {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`case e₁ e₂ e₃ tyjoin) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`case/l {𝓋₁ = 𝓋₁₁} r₁ r₂ , ⊢`case/r {𝓋₁ = 𝓋₁₂} r₃ r₄ ⟩
+  with fp ⊢γ₁ ⊢γ₂ e₁ r[γ₁,γ₂] ((inl 𝓋₁₁)) ((inr 𝓋₁₂)) (typeSafety e₁ r₁) (typeSafety e₁ r₃) ⟨ r₁ , r₃ ⟩
+... | IH with typeSafety {Σ′ = Σ′} e₁ r₁ | typeSafety {Σ′ = Σ′} e₁ r₃
+… | ⊢inl X | ⊢inr Y = {!IH!} -- ??
+{-
 fp (⊢`case e₁ e₂ e₃ tyjoin) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`case/r {𝓋₁ = 𝓋₁₁} r₁ r₂ , ⊢`case/l {𝓋₁ = 𝓋₁₂} r₃ r₄ ⟩
   with fp e₁ r[γ₁,γ₂] (inr 𝓋₁₁) (inl 𝓋₁₂) (typeSafety e₁ r₁) (typeSafety e₁ r₃) ⟨ r₁ , r₃ ⟩
 ... | IH  = {!   !}
@@ -73,7 +76,6 @@ fp (⊢`let e₁ e₂) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`let {𝓋₁
   with fp e₁ r[γ₁,γ₂] 𝓋₁₁ 𝓋₁₂ (typeSafety e₁ r₁) (typeSafety e₁ r₃) ⟨ r₁ , r₃ ⟩
 ... | IH₁ with fp e₂ ⟨∃ (typeSafety e₁ r₁) , ⟨∃ (typeSafety e₁ r₃) , ⟨ IH₁ , r[γ₁,γ₂] ⟩ ⟩ ⟩ v₁ v₂ (typeSafety e₂ r₂) (typeSafety e₂ r₄) ⟨ r₂ , r₄ ⟩
 ... | IH₂ = {! IH₂  !}
--}
 fp {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`λ {τ₂ = τ₂} ⊢e) r[γ₁,γ₂] .(ƛ⦂ e₁ ∥ γ₁) .(ƛ⦂ e₂ ∥ γ₂) (⊢λ {ℾ = ℾ₁} ⊢γ₁′ ⊢e₁ ε₁₁ ε₁₂ ε₁₃) (⊢λ {ℾ = ℾ₂} ⊢γ₂′ ⊢e₂ ε₂₁ ε₂₂ ε₂₃) ⟨ ⊢`λ {γ = γ₁} {e = e₁} , ⊢`λ {γ = γ₂} {e = e₂} ⟩ {- rewrite L ⊢γ₁ ⊢γ₁′ | L ⊢γ₂ ⊢γ₂′ -} =
   ⟨∃ ↯ , ⟨ {!↯!} , P ⟩ ⟩
   where
@@ -113,7 +115,6 @@ fp {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`λ {τ₂ = τ₂} ⊢e) r[γ₁,γ₂
       --    ((s′′ ∷ Σ′) ⟨⟨ τ₂ ⟩⟩)
 
 -- L9′ : ((s′′ ∷ Σ′) ⟨⟨ τ₂ ⟩⟩) ≡ substSx/τ< ᴢ > s′′ (⇧ᵗ< ᴢ > ((⟨ 0 ⟩ ∷ Σ′) ⟨⟨ τ₂ ⟩⟩))
-{-
 fp {Σ′ = Σ′} (⊢`app e₁ e₂) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`app {γ′ = γ′₁} {e′ = e′₁} {𝓋₁ = 𝓋₁}  r₁ r₂ r₃ , ⊢`app {γ′ = γ′₂} {e′ = e′₂} {𝓋₁ = 𝓋₂} r₄ r₅ r₆ ⟩
   with fp e₁ r[γ₁,γ₂] (ƛ⦂ e′₁ ∥ γ′₁) (ƛ⦂ e′₂ ∥ γ′₂) (typeSafety e₁ r₁) (typeSafety e₁ r₄) ⟨ r₁ , r₄ ⟩
      | fp e₂ r[γ₁,γ₂] 𝓋₁ 𝓋₂ (typeSafety e₂ r₂) (typeSafety e₂ r₅) ⟨ r₂ , r₅ ⟩
