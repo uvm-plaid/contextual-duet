@@ -7,7 +7,7 @@ open import logical-relations public
 
 -- Theorem 1.1 (Fundamental Property / (Metric Preservation in Fuzz)).
 
-change-Σ-𝒱 : ∀ {t t′ : τ ᴢ} {v₁ v₂ : 𝓋} {s : Sens} (⊢v₁ : ⊢ v₁ ⦂ t′) (⊢v₂ : ⊢ v₂ ⦂ t′) (ε : t′ ≡ t) → ⟨ v₁ , v₂ ⟩∈𝒱′⟦ t ː subst[( λ X → ⊢ v₁ ⦂ X )] ε ⊢v₁ , subst[( λ X → ⊢ v₂ ⦂ X )] ε ⊢v₂ ː s ⟧ → ⟨ v₁ , v₂ ⟩∈𝒱′⟦ t′ ː ⊢v₁ , ⊢v₂ ː s ⟧ 
+change-Σ-𝒱 : ∀ {t t′ : τ ᴢ} {v₁ v₂ : 𝓋} {s : Sens} (⊢v₁ : ⊢ v₁ ⦂ t′) (⊢v₂ : ⊢ v₂ ⦂ t′) (ε : t′ ≡ t) → ⟨ v₁ , v₂ ⟩∈𝒱′⟦ t ː subst[( λ X → ⊢ v₁ ⦂ X )] ε ⊢v₁ , subst[( λ X → ⊢ v₂ ⦂ X )] ε ⊢v₂ ː s ⟧ → ⟨ v₁ , v₂ ⟩∈𝒱′⟦ t′ ː ⊢v₁ , ⊢v₂ ː s ⟧
 change-Σ-𝒱 ⊢v₁ ⊢v₂ ↯ r[v₁,v₂] = r[v₁,v₂]
 
 fp : ∀ {N} {Γ : Γ[ N ]} {ℾ e τ Σ γ₁ γ₂ Σ′} → ℾ ⊢ γ₁ → ℾ ⊢ γ₂ → Γ ⊢ e ⦂ τ , Σ → ⟨ γ₁ , γ₂ ⟩∈𝒢⟦ Σ′ ː ℾ ⟧ → ⟨ γ₁ ⊢ e , γ₂ ⊢ e ⟩∈ℰ⟦ Σ ⨰ Σ′ ː (Σ′ ⟨⟨ τ ⟩⟩) ⟧
@@ -76,8 +76,13 @@ fp (⊢`let e₁ e₂) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`let {𝓋₁
   with fp e₁ r[γ₁,γ₂] 𝓋₁₁ 𝓋₁₂ (typeSafety e₁ r₁) (typeSafety e₁ r₃) ⟨ r₁ , r₃ ⟩
 ... | IH₁ with fp e₂ ⟨∃ (typeSafety e₁ r₁) , ⟨∃ (typeSafety e₁ r₃) , ⟨ IH₁ , r[γ₁,γ₂] ⟩ ⟩ ⟩ v₁ v₂ (typeSafety e₂ r₂) (typeSafety e₂ r₄) ⟨ r₂ , r₄ ⟩
 ... | IH₂ = {! IH₂  !}
-fp {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`λ {τ₂ = τ₂} ⊢e) r[γ₁,γ₂] .(ƛ⦂ e₁ ∥ γ₁) .(ƛ⦂ e₂ ∥ γ₂) (⊢λ {ℾ = ℾ₁} ⊢γ₁′ ⊢e₁ ε₁₁ ε₁₂ ε₁₃) (⊢λ {ℾ = ℾ₂} ⊢γ₂′ ⊢e₂ ε₂₁ ε₂₂ ε₂₃) ⟨ ⊢`λ {γ = γ₁} {e = e₁} , ⊢`λ {γ = γ₂} {e = e₂} ⟩ {- rewrite L ⊢γ₁ ⊢γ₁′ | L ⊢γ₂ ⊢γ₂′ -} =
-  ⟨∃ ↯ , ⟨ {!↯!} , P ⟩ ⟩
+-}
+-- ⊢ ƛ⦂ e₁ ∥ γ₂ ⦂
+--       (ƛ⦂ Σ′ ⟨⟨ .τ₁ ⟩⟩ ⇒[ (⟨ 0 ⟩ ∷ Σ′ ⨰ .Σ₁) +[qty] ⟨ 0 ⟩ ∔ [ ⟨ 0 ⟩ ] ]
+--        ⇧ᵗ< ᴢ > (⇧ˢ Σ′ ⟨⟨ τ₂ ⟩⟩))
+
+fp {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`λ {τ₂ = τ₂} ⊢e) r[γ₁,γ₂] .(ƛ⦂ e₁ ∥ γ₁) .(ƛ⦂ e₂ ∥ γ₂) (⊢λ {ℾ = ℾ₁} ⊢γ₁′ ⊢e₁ ε₁₁ ε₁₂ ε₁₃) (⊢λ {ℾ = ℾ₂} ⊢γ₂′ ⊢e₂ ε₂₁ ε₂₂ ε₂₃) ⟨ ⊢`λ {γ = γ₁} {e = e₁} , ⊢`λ {γ = γ₂} {e = e₂} ⟩ = --rewrite L14 ⊢γ₁′ ⊢γ₁ | L14 ⊢γ₂′ ⊢γ₂  =
+  ⟨∃ ↯ , ⟨ L15 ⊢γ₁ ⊢γ₂ ⊢γ₁′ ⊢γ₂′ r[γ₁,γ₂] , P ⟩ ⟩
   where
     P : ∀ {v₁ v₂ : 𝓋} {ε₁ : ⊢ v₁ ⦂ (_ ⟨⟨ _ ⟩⟩)} {ε₂ : ⊢ v₂ ⦂ (_ ⟨⟨ _ ⟩⟩)} {s s′ s′′ Σ Σ′}
       → ⟨ γ₁ , γ₂ ⟩∈𝒢⟦ Σ′ ː mapⱽ (instantiateΣ/τ Σ′) ℾ₂ ⟧
@@ -87,39 +92,15 @@ fp {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`λ {τ₂ = τ₂} ⊢e) r[γ₁,γ₂
       with (L9 s′′ Σ′ τ₂)
     … | E with fp (⊢s ε₁ ⊢γ₁) (⊢s ε₂ ⊢γ₂) ⊢e ⟨∃ ε₁ , ⟨∃ ε₂ , ⟨ r[v₁,v₂]′ , r[γ₁,γ₂] ⟩ ⟩ ⟩ v₃ v₄ (subst[( λ X → ⊢ v₃ ⦂ X )] E ⊢v₃) (subst[( λ X → ⊢ v₄ ⦂ X )] E ⊢v₄) ⟨ e₁⇓v₃ , e₂⇓v₄ ⟩
     … | IH with change-Σ-𝒱 ⊢v₃ ⊢v₄ E IH
-    … | IH′ = {!!}
-    --   with substSx/τ< ᴢ > s′′ (⇧ᵗ< ᴢ > ((⟨ 0 ⟩ ∷ Σ′) ⟨⟨ τ₂ ⟩⟩))
-    --      | (substSx/τ s′′ (⇧ᵗ (⇧ˢ Σ′ ⟨⟨ τ₂ ⟩⟩)))
-    --      | ⊢v₃ | ⊢v₄
-    -- … | ZZZ | YYY | ⊢v₃′ | ⊢v₄′ = {!!}
-              -- (let E = 
-              --    in change[
-              --       (λ X →
-              --          ⟨ v₃ , v₄ ⟩∈𝒱′⟦ X ː subst[ (λ Y → ⊢ v₃ ⦂ Y) ] {!E!} ⊢v₃ ,
-              --          subst[ (λ Y → ⊢ v₄ ⦂ Y) ] {!!} ⊢v₄ ː _ ⟧)
-              --       ]
-              --       E)
-              --   {!!} -- rewrite L9 s′′ Σ′ τ₂ = {!subst[( λ X → ⊢ v₄ ⦂ X )] (L9 s′′ Σ′ τ₂) ⊢v₄!}
-    --   with L8 ⊢v₃
-    --     | L8 ⊢v₄
-    --     | ()
-    -- ... | ⊢v₃′ | ⊢v₄′ | L9′ with fp ⊢e ⟨∃ ε₁ , ⟨∃ ε₂ , ⟨ r[v₁,v₂]′ , r[γ₁,γ₂] ⟩ ⟩ ⟩ v₃ v₄ ⊢v₃′ ⊢v₄′ ⟨ e₁⇓v₃ , e₂⇓v₄ ⟩
-    -- … | IH rewrite L9′ = {!subst[( λ Y → ⊢ v₃ ⦂ Y )] L9′ ⊢v₃  !}
-    -- with substSx/τ< ᴢ > s′′ (⇧ᵗ< ᴢ > ((⟨ 0 ⟩ ∷ Σ′) ⟨⟨ τ₂ ⟩⟩)) | ⊢v₃ | ⊢v₄
-    -- … | X | ⊢v₃″ | ⊢v₄″ 
-      
-      -- Goal: ⟨ v₃ , v₄ ⟩∈𝒱′⟦Goal: ⟨ v₃ , v₄ ⟩∈𝒱′⟦
-      -- substSx/τ< ᴢ > s′′ (⇧ᵗ< ᴢ > ((⟨ 0 ⟩ ∷ Σ′) ⟨⟨ τ₂ ⟩⟩)) ː ⊢v₃ , ⊢v₄ ː
-      -- (s +[qty] (Σ ⨰ Σ′)) +[qty] (s′ ×[qty] s′′) ⟧
-      --  substSx/τ< ᴢ > s′′ (⇧ᵗ< ᴢ > ((⟨ 0 ⟩ ∷ Σ′) ⟨⟨ τ₂ ⟩⟩)) ≡
-      --    ((s′′ ∷ Σ′) ⟨⟨ τ₂ ⟩⟩)
+    … | IH′ = {!IH′ !}
 
--- L9′ : ((s′′ ∷ Σ′) ⟨⟨ τ₂ ⟩⟩) ≡ substSx/τ< ᴢ > s′′ (⇧ᵗ< ᴢ > ((⟨ 0 ⟩ ∷ Σ′) ⟨⟨ τ₂ ⟩⟩))
-fp {Σ′ = Σ′} (⊢`app e₁ e₂) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`app {γ′ = γ′₁} {e′ = e′₁} {𝓋₁ = 𝓋₁}  r₁ r₂ r₃ , ⊢`app {γ′ = γ′₂} {e′ = e′₂} {𝓋₁ = 𝓋₂} r₄ r₅ r₆ ⟩
-  with fp e₁ r[γ₁,γ₂] (ƛ⦂ e′₁ ∥ γ′₁) (ƛ⦂ e′₂ ∥ γ′₂) (typeSafety e₁ r₁) (typeSafety e₁ r₄) ⟨ r₁ , r₄ ⟩
-     | fp e₂ r[γ₁,γ₂] 𝓋₁ 𝓋₂ (typeSafety e₂ r₂) (typeSafety e₂ r₅) ⟨ r₂ , r₅ ⟩
+fp {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`app e₁ e₂) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`app {γ′ = γ′₁} {e′ = e′₁} {𝓋₁ = 𝓋₁}  r₁ r₂ r₃ , ⊢`app {γ′ = γ′₂} {e′ = e′₂} {𝓋₁ = 𝓋₂} r₄ r₅ r₆ ⟩
+  with fp ⊢γ₁ ⊢γ₂ e₁ r[γ₁,γ₂] (ƛ⦂ e′₁ ∥ γ′₁) (ƛ⦂ e′₂ ∥ γ′₂) (typeSafety e₁ r₁) (typeSafety e₁ r₄) ⟨ r₁ , r₄ ⟩
+     | fp ⊢γ₁ ⊢γ₂ e₂ r[γ₁,γ₂] 𝓋₁ 𝓋₂ (typeSafety e₂ r₂) (typeSafety e₂ r₅) ⟨ r₂ , r₅ ⟩
 ... | IH₁ | IH₂ with typeSafety {Σ′ = Σ′} e₁ r₁ | typeSafety {Σ′ = Σ′} e₁ r₄ | IH₁
-… | ⊢λ x x₁ x₂ x₃ x₄ | ⊢λ x₅ x₆ x₇ x₈ x₉ | ⟨∃ ↯ , IH₁′ ⟩ = {!IH₁′!}
+… | ⊢λ x x₁ x₂ x₃ x₄ | ⊢λ x₅ x₆ x₇ x₈ x₉ | ⟨∃ ↯ , IH₁′⟩ ⟩ {- ⟨∃ ↯ , IH₁′ ⟩ -} = {!   !} -- {!IH₁′!}
+
+{-
 fp {Σ′ = Σ′} (⊢`_pair_ {Σ₁ = Σ₁} {Σ₂ = Σ₂} e₁ e₂) r[γ₁,γ₂] .(𝓋₁₁ pair 𝓋₁₂) .(𝓋₂₁ pair 𝓋₂₂) (⊢pair t₁ t₂) (⊢pair t₃ t₄) ⟨ ⊢`_pair_ {𝓋₁ = 𝓋₁₁} {𝓋₂ = 𝓋₁₂} r₁ r₂ , ⊢`_pair_ {𝓋₁ = 𝓋₂₁} {𝓋₂ = 𝓋₂₂} r₃ r₄ ⟩
   with fp e₁ r[γ₁,γ₂] 𝓋₁₁ 𝓋₂₁ t₁ t₃ ⟨ r₁ , r₃ ⟩
     | fp e₂ r[γ₁,γ₂] 𝓋₁₂ 𝓋₂₂ t₂ t₄ ⟨ r₂ , r₄ ⟩

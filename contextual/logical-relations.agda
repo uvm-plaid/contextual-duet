@@ -24,7 +24,7 @@ mutual
 
   {-# TERMINATING #-}
   ⟨_,_⟩∈𝒱′⟦_ː_,_ː_⟧ : ∀ (v₁ v₂ : 𝓋) (t : τ ᴢ) → ⊢ v₁ ⦂ t → ⊢ v₂ ⦂ t → Sens →  Set
-  ⟨ .(ƛ⦂ e₁ ∥ γ₁) , .(ƛ⦂ e₂ ∥ γ₂) ⟩∈𝒱′⟦ ƛ⦂ τ₁ ⇒[ s′′ ∔ s‴ ] τ₂
+  ⟨ .(ƛ⦂ e₁ ∥ γ₁) , .(ƛ⦂ e₂ ∥ γ₂) ⟩∈𝒱′⟦ ƛ⦂ τ₁ ⇒[ s′′′ ∔ s′ ] τ₂
                                  ː ⊢λ {N = N₁} {ℾ = ℾ₁} {e = e₁} {γ = γ₁} H₁₁ H₁₂ H₁₃ H₁₄ H₁₅
                                  , ⊢λ {N = N₂} {ℾ = ℾ₂} {e = e₂} {γ = γ₂} H₂₁ H₂₂ H₂₃ H₂₄ H₂₅
                                  ː s ⟧ =
@@ -32,7 +32,8 @@ mutual
     -- this should go back to existential
     (subst[(λ N → ⟬ τ N ⟭[ N ] )] ε ℾ₁ ≡ ℾ₂
     ∧
-    (∀ {v₁ v₂ ε₁ ε₂ s s′ s′′ Σ Σ′} → ⟨ subst[(λ N → γ[ N ] )] ε γ₁ , γ₂ ⟩∈𝒢⟦ Σ′ ː mapⱽ (instantiateΣ/τ Σ′) ℾ₂ ⟧
+    (∀ {v₁ v₂ ε₁ ε₂ s′ s′′ Σ Σ′}
+    → ⟨ subst[(λ N → γ[ N ] )] ε γ₁ , γ₂ ⟩∈𝒢⟦ Σ′ ː mapⱽ (instantiateΣ/τ Σ′) ℾ₂ ⟧
     → ⟨ v₁ , v₂ ⟩∈𝒱′⟦ τ₁ ː ε₁ , ε₂ ː s′′ ⟧
     → ⟨ (v₁ ∷ subst[(λ N → γ[ N ] )] ε γ₁) ⊢ subst[(λ N → Term (ꜱ N) )] ε e₁ , (v₂ ∷ γ₂) ⊢ e₂ ⟩∈ℰ⟦ (s + (Σ ⨰ Σ′) + (s′ × s′′)) ː (substSx/τ s′′ τ₂) ⟧))
   ⟨ v₁₁ pair v₁₂ , v₂₁ pair v₂₂ ⟩∈𝒱′⟦ τ₁ ∥ s₁ ∔ [] ⊗ s₂ ∔ [] ∥ τ₂ ː ⊢pair δ₁₁ δ₁₂ , ⊢pair δ₂₁ δ₂₂ ː s ⟧ =
