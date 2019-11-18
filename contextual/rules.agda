@@ -320,7 +320,8 @@ mutual
 
     ⊢λ : ∀ {N} {ℾ : ⟬ τ N ⟭[ N ]} {e : Term (ꜱ N)} {γ : γ[ N ]} {τ₁ : τ N} {τ₂ : τ (ꜱ N)} {τ₁′ τ₂′} {s s′} {Σ : Σ[ N ]}
       → mapⱽ (instantiateΣ/τ zero) ℾ ⊢ γ
-      → mapⱽ ⇧ᵗ (τ₁ ∷ ℾ) ⊢ e ⦂ τ₂ , s ∷ Σ
+      → ℾ ⊢ ƛ⦂ τ₁ ⇒ e ⦂ (ƛ⦂ τ₁ ⇒[ zero ∔ s ∷ Σ ] τ₂) , zero
+      -- → mapⱽ ⇧ᵗ (τ₁ ∷ ℾ) ⊢ e ⦂ τ₂ , Σ₂
       → τ₁′ ≡ instantiateΣ/τ zero τ₁
       → τ₂′ ≡ instantiateΣ/τ zero τ₂
       → s′ ≡ zero
