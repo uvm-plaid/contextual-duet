@@ -216,10 +216,10 @@ data _⊢_⦂_,_ : ∀ {N} → Γ[ N ] → Term N → τ N → Σ[ N ] → Set w
     → Γ ⊢ (`let e₁ ∥ e₂) ⦂  cut Σ₁ τ₂ , (s ⨵ Σ₁) + Σ₂
 
   -- LAM
-  ⊢`λ : ∀ {N} {Γ : Γ[ N ]} {Σ₁ : Σ[ ꜱ N ]} {i : idx N} {e : Term (ꜱ N)} {τ₁ : τ N} {τ₂ : τ (ꜱ N)}
-    →  (mapⱽ ⇧ᵗ (τ₁ ∷ Γ)) ⊢ e ⦂ τ₂ , Σ₁
+  ⊢`λ : ∀ {N} {Γ : Γ[ N ]} {s} {Σ₁ : Σ[ N ]} {i : idx N} {e : Term (ꜱ N)} {τ₁ : τ N} {τ₂ : τ (ꜱ N)}
+    →  (mapⱽ ⇧ᵗ (τ₁ ∷ Γ)) ⊢ e ⦂ τ₂ , s ∷ Σ₁ -- why don't we talk about scaling here?
     -----------------------------------------------
-    → Γ ⊢ (ƛ⦂ τ₁ ⇒ e) ⦂ (ƛ⦂ τ₁ ⇒[ zero ∔ Σ₁ ] τ₂) , zero
+    → Γ ⊢ (ƛ⦂ τ₁ ⇒ e) ⦂ (ƛ⦂ τ₁ ⇒[ zero ∔ s ∷ Σ₁ ] τ₂) , zero
 
   -- APP
   ⊢`app : ∀ {N} {i : idx (ꜱ N)} {Γ : Γ[ N ]} {Σ₁ Σ₂ : Σ[ N ]} {e₁ e₂ : Term N} {τ₁ : τ N} {τ₂ : τ (ꜱ N)} {s : Sens}
@@ -318,9 +318,9 @@ mutual
         --------------------------------
       → ⊢ (v₁ pair v₂) ⦂ τ₁ ∥ s₁ ∔ zero ⊗ s₂ ∔ zero ∥ τ₂
 
-    ⊢λ : ∀ {N} {ℾ : ⟬ τ N ⟭[ N ]} {e : Term (ꜱ N)} {γ : γ[ N ]} {τ₁ : τ N} {τ₂ : τ (ꜱ N)} {τ₁′ τ₂′} {s s′} {Σ : Σ[ N ]}
-      → mapⱽ (instantiateΣ/τ zero) ℾ ⊢ γ
-      → ℾ ⊢ ƛ⦂ τ₁ ⇒ e ⦂ (ƛ⦂ τ₁ ⇒[ zero ∔ s ∷ Σ ] τ₂) , zero
+    ⊢λ : ∀ {N} {Γ : Γ[ N ]} {e : Term (ꜱ N)} {γ : γ[ N ]} {τ₁ : τ N} {τ₂ : τ (ꜱ N)} {τ₁′ τ₂′} {s s′} {Σ : Σ[ N ]}
+      → mapⱽ (instantiateΣ/τ zero) Γ ⊢ γ
+      → Γ ⊢ ƛ⦂ τ₁ ⇒ e ⦂ (ƛ⦂ τ₁ ⇒[ zero ∔ s ∷ Σ ] τ₂) , zero
       -- → mapⱽ ⇧ᵗ (τ₁ ∷ ℾ) ⊢ e ⦂ τ₂ , Σ₂
       → τ₁′ ≡ instantiateΣ/τ zero τ₁
       → τ₂′ ≡ instantiateΣ/τ zero τ₂
