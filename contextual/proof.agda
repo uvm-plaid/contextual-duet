@@ -2,7 +2,7 @@
 module proof where
 
 open import rules public
-open import post public
+open import lemmas public
 open import logical-relations public
 
 -- Theorem 1.1 (Fundamental Property / (Metric Preservation in Fuzz)).

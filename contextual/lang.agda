@@ -207,6 +207,10 @@ data τ : ℕ → Set where
 Γ[_] : ℕ → Set
 Γ[ N ] =  ⟬ τ N ⟭[ N ]
 
+-- value type environment 
+ℾ[_] : ℕ → Set
+ℾ[ N ] =  ⟬ τ ᴢ ⟭[ N ]
+
 infix 9 `ℝ_
 infix 9 `𝔹_
 infix 7 _`+_

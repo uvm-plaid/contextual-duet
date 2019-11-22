@@ -265,9 +265,6 @@ _ = ↯
 postulate
   ∣_-_∣ : ℕ → ℕ → ℕ
 
--- value type environment (alias)
-ℾ[_] : ℕ → Set
-ℾ[ N ] =  ⟬ τ ᴢ ⟭[ N ]
 -- ℾ[ N ] =  Γ[ N ]
 
 -- TYPING JUDGEMENT FOR VALUE ENVIRONMENT --
