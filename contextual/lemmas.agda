@@ -4,6 +4,13 @@ module lemmas where
 open import rules public
 open import logical-relations public
 
+L1′ : ∀ (Σ₁ Σ₂ : Sens) → (Σ₁ +[qty] Σ₂) ≡ (Σ₂ +[qty] Σ₁)
+L1′ Σ₁ Σ₂ = commu[+]< Σ₁ , Σ₂ >
+
+L1 : ∀ {N} (Σ₁ Σ₂ : Σ[ N ]) → (Σ₁ ⨰ Σ₂) ≡ (Σ₂ ⨰ Σ₁)
+L1 [] [] = ↯
+L1 (x ∷ a) (x₁ ∷ b) rewrite commu[×]< x , x₁ > | L1 a b = ↯
+
 L0-1 : ∀ {N} (Σ : Σ[ N ]) → zero ⨰ Σ ≡< qty ℕ > ⟨ 0 ⟩
 L0-1 e = lzero[⨰]< e >
 
@@ -20,19 +27,14 @@ L0-4 s = runit[+][qty]< s >
 L0-4′ : ∀ (s : Sens) → s ≡< qty ℕ > s +[qty] ⟨ 0 ⟩
 L0-4′ s = ◇ (runit[+][qty]< s >)
 
+L0-5 : ∀ {N} (Σ₁ : Σ[ N ]) (Σ₂ : Σ[ ꜱ N ]) → ((⟨ 0 ⟩ ∷ Σ₁ ⨰ Σ₂) +[qty] ⟨ 0 ⟩) ≡ (⟨ 0 ⟩ ∷ Σ₁ ⨰ Σ₂)
+L0-5 Σ₁ Σ₂ = runit[+][qty]< (⟨ 0 ⟩ ∷ Σ₁ ⨰ Σ₂) >
+
 L0-7 : ∀ (s₁ s₂ : Sens) → (s₁ +[qty] s₂) ≡< qty ℕ > (s₂ +[qty] s₁)
 L0-7 s₁ s₂ = commu[+]< s₁ , s₂ >
 
-L1′ : ∀ (Σ₁ Σ₂ : Sens) → (Σ₁ +[qty] Σ₂) ≡ (Σ₂ +[qty] Σ₁)
-L1′ Σ₁ Σ₂ = commu[+]< Σ₁ , Σ₂ >
-
-L1 : ∀ {N} (Σ₁ Σ₂ : Σ[ N ]) → (Σ₁ ⨰ Σ₂) ≡ (Σ₂ ⨰ Σ₁)
-L1 [] [] = ↯
-L1 (x ∷ a) (x₁ ∷ b) rewrite commu[×]< x , x₁ > | L1 a b = ↯
-
 postulate
   L0-2 : ∀ (s : Sens) → ⟨ 0 ⟩ ×[qty] s ≡< qty ℕ > ⟨ 0 ⟩
-  L0-5 : ∀ {N} (Σ₁ : Σ[ N ]) (Σ₂ : Σ[ ꜱ N ]) → ((⟨ 0 ⟩ ∷ Σ₁ ⨰ Σ₂) +[qty] ⟨ 0 ⟩) ≡ (⟨ 0 ⟩ ∷ Σ₁ ⨰ Σ₂)
   L0-6 : ∀ {N} (s : Sens) (Σ Σ′ : Σ[ N ]) → mapⱽ (_×[qty]_ s) Σ ⨰ Σ′ ≡ s ×[qty] (Σ ⨰ Σ′)
   L0-8 : ∀ (N : ℕ) → ⟨ ∣ N - N ∣ ⟩ ≡< qty ℕ > ⟨ 0 ⟩
   ▵ : ∀ {a b c d N : ℕ} {Σ₁ Σ₂ Σ₃ : Σ[ N ]} → ⟨ ∣ a - b ∣ ⟩ ≤ (Σ₁ ⨰ Σ₃) → ⟨ ∣ c - d ∣ ⟩ ≤ (Σ₂ ⨰ Σ₃) → ⟨ ∣ (a + c) - (b + d) ∣ ⟩ ≤ ((Σ₁ + Σ₂) ⨰ Σ₃)
