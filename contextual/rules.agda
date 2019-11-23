@@ -138,6 +138,7 @@ data _⊢_⇓_ : ∀ {N} → γ[ N ] → Term N → 𝓋 → Set where
     → γ ⊢ snd e ⇓ 𝓋₂
 
 mutual
+
   -- TYPING JUDGEMENT FOR PRIVACY TERMS --
   infix 6 _,_⊢ₚ_⦂_,_
 
