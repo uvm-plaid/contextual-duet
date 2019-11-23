@@ -255,7 +255,7 @@ mutual
     -- variables, functions, application
     `_ : ∀ {N} → idx N → Term N
     sƛ⦂_∥_⇒_ : ∀ {N} → τ N → Sens → Term (ꜱ N) → Term N
-    pƛ⦂_∥_⇒_ : ∀ {N} → τ N → Sens → Term (ꜱ N) → Term N
+    pƛ⦂_∥_⇒_ : ∀ {N} → τ N → Sens → PTerm (ꜱ N) → Term N
     _`app_ : ∀ {N} → Term N → Term N → Term N
     -- unit
     tt : ∀ {N} → Term N
@@ -280,7 +280,8 @@ infix 9 inr_
 infix 9 𝓇_
 infix 9 𝒷_
 infix 9 _pair_
-infix 5 ƛ⦂_∥_
+infix 5 sƛ⦂_∥_
+infix 5 pƛ⦂_∥_
 
 -- VALUES --
 mutual
@@ -289,7 +290,8 @@ mutual
     inl_ : 𝓋 → 𝓋
     inr_ : 𝓋 → 𝓋
     _pair_ : 𝓋 → 𝓋 → 𝓋
-    ƛ⦂_∥_ : ∀ {N} → Term (ꜱ N) → γ[ N ] → 𝓋
+    sƛ⦂_∥_ : ∀ {N} → Term (ꜱ N) → γ[ N ] → 𝓋
+    pƛ⦂_∥_ : ∀ {N} → PTerm (ꜱ N) → γ[ N ] → 𝓋
     𝒷_ : 𝔹 → 𝓋
     𝓇_ : ℕ → 𝓋
 
