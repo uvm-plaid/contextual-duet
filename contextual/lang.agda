@@ -241,34 +241,39 @@ infix 6 `let_∥_
 
 -- TERMS --
 
-data Term : ℕ → Set where
-  -- real numbers
-  `ℝ_ : ∀ {N} → ℕ → Term N
-  _`+_ : ∀ {N} → Term N → Term N → Term N
-  _`×_ : ∀ {N} → Term N → Term N → Term N
-  _`≤_ : ∀ {N} → Term N → Term N → Term N
-  -- variables, functions, application
-  `_ : ∀ {N} → idx N → Term N
-  sƛ⦂_∥_⇒_ : ∀ {N} → τ N → Sens → Term (ꜱ N) → Term N
-  pƛ⦂_∥_⇒_ : ∀ {N} → τ N → Sens → Term (ꜱ N) → Term N
-  _`app_ : ∀ {N} → Term N → Term N → Term N
-  -- unit
-  tt : ∀ {N} → Term N
-  -- sums
-  inl_∥_ : ∀ {N} → τ N → Term N → Term N
-  inr_∥_ : ∀ {N} → τ N → Term N → Term N
-  case_of_∥_ : ∀ {N} → Term N → Term (ꜱ N) → Term (ꜱ N) → Term N
-  -- products
-  _`pair_ : ∀ {N} → Term N → Term N → Term N
-  fst_ : ∀ {N} → Term N → Term N
-  snd_ : ∀ {N} → Term N → Term N
-  -- ascription
-  _::_ : ∀ {N} → Term N → τ N → Term N
-  -- booleans
-  `𝔹_ : ∀ {N} → 𝔹 → Term N
-  if_∥_∥_ : ∀ {N} → Term N → Term N → Term N → Term N
-  -- let
-  `let_∥_ : ∀ {N} → Term N → Term (ꜱ N) → Term N
+mutual
+
+  data PTerm : ℕ → Set where
+    _`papp_ : ∀ {N} → Term N → Term N → PTerm N
+
+  data Term : ℕ → Set where
+    -- real numbers
+    `ℝ_ : ∀ {N} → ℕ → Term N
+    _`+_ : ∀ {N} → Term N → Term N → Term N
+    _`×_ : ∀ {N} → Term N → Term N → Term N
+    _`≤_ : ∀ {N} → Term N → Term N → Term N
+    -- variables, functions, application
+    `_ : ∀ {N} → idx N → Term N
+    sƛ⦂_∥_⇒_ : ∀ {N} → τ N → Sens → Term (ꜱ N) → Term N
+    pƛ⦂_∥_⇒_ : ∀ {N} → τ N → Sens → Term (ꜱ N) → Term N
+    _`app_ : ∀ {N} → Term N → Term N → Term N
+    -- unit
+    tt : ∀ {N} → Term N
+    -- sums
+    inl_∥_ : ∀ {N} → τ N → Term N → Term N
+    inr_∥_ : ∀ {N} → τ N → Term N → Term N
+    case_of_∥_ : ∀ {N} → Term N → Term (ꜱ N) → Term (ꜱ N) → Term N
+    -- products
+    _`pair_ : ∀ {N} → Term N → Term N → Term N
+    fst_ : ∀ {N} → Term N → Term N
+    snd_ : ∀ {N} → Term N → Term N
+    -- ascription
+    _::_ : ∀ {N} → Term N → τ N → Term N
+    -- booleans
+    `𝔹_ : ∀ {N} → 𝔹 → Term N
+    if_∥_∥_ : ∀ {N} → Term N → Term N → Term N → Term N
+    -- let
+    `let_∥_ : ∀ {N} → Term N → Term (ꜱ N) → Term N
 
 infix 9 inl_
 infix 9 inr_
