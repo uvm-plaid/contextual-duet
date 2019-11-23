@@ -419,3 +419,10 @@ substSx/τ< ι > s 𝔹T = 𝔹T
 
 substSx/τ : ∀ {N} → Sens → τ (ꜱ N) → τ N
 substSx/τ = substSx/τ< ᴢ >
+
+_ : (do x ← return $ 𝕣 1
+        y ← laplace
+        return $ x + y)
+  ≡ (do y ← laplace
+        return $ 𝕣 1 + y)
+_ = lunit[≫=]
