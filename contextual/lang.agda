@@ -202,6 +202,9 @@ Priv = qty ℕ
 Σₚ[_] : ℕ → Set
 Σₚ[ N ] = ⟬ Priv ⟭[ N ]
 
+L1 : ∀ {N} → Σₚ[ N ] → Priv
+L1 σ = foldrⱽ ⟨ zero ⟩ _+_ σ
+
 infix 5 sƛ⦂_∥_⇒[_∔_]_
 infix 5 pƛ⦂_∥_⇒[_∔_]_
 
