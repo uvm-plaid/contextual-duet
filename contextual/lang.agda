@@ -202,6 +202,9 @@ Priv = qty ℕ
 Σₚ[_] : ℕ → Set
 Σₚ[ N ] = ⟬ Priv ⟭[ N ]
 
+infix 5 sƛ⦂_∥_⇒[_∔_]_
+infix 5 pƛ⦂_∥_⇒[_∔_]_
+
 -- TYPES --
 data τ : ℕ → Set where
   sƛ⦂_∥_⇒[_∔_]_ : ∀ {N} → τ N → Sens → Sens → Σ[ ꜱ N ] → τ (ꜱ N) → τ N
@@ -280,8 +283,8 @@ infix 9 inr_
 infix 9 𝓇_
 infix 9 𝒷_
 infix 9 _pair_
-infix 5 sƛ⦂_∥_
-infix 5 pƛ⦂_∥_
+infix 6 sƛ⦂_∥_
+infix 6 pƛ⦂_∥_
 
 -- VALUES --
 mutual
