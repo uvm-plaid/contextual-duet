@@ -5,7 +5,7 @@ open import rules public
 open import lemmas public
 open import logical-relations public
 
--- Theorem 1.1 (Fundamental Property / (Metric Preservation in Fuzz)).
+-- Theorem 1.1.1 (Fundamental Property / (Metric Preservation in Fuzz)).
 
 change-Σ-𝒱 : ∀ {t t′ : τ ᴢ} {v₁ v₂ : 𝓋} {s : Sens} (⊢v₁ : ⊢ v₁ ⦂ t′) (⊢v₂ : ⊢ v₂ ⦂ t′) (ε : t′ ≡ t) → ⟨ v₁ , v₂ ⟩∈𝒱′⟦ t ː subst[( λ X → ⊢ v₁ ⦂ X )] ε ⊢v₁ , subst[( λ X → ⊢ v₂ ⦂ X )] ε ⊢v₂ ː s ⟧ → ⟨ v₁ , v₂ ⟩∈𝒱′⟦ t′ ː ⊢v₁ , ⊢v₂ ː s ⟧
 change-Σ-𝒱 ⊢v₁ ⊢v₂ ↯ r[v₁,v₂] = r[v₁,v₂]
