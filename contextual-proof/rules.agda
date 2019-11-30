@@ -221,7 +221,7 @@ mutual
       → Γ , Σ₀ ⊢ pƛ⦂ τ₁ ∥ sb ⇒ e ⦂ (pƛ⦂ τ₁ ∥ sb ⇒[ zero ∔ p ∷ Σ ] τ₂) , zero
       → τ₁′ ≡ instantiateΣ/τ zero τ₁
       → τ₂′ ≡ instantiateΣ/τ zero τ₂
-      → p′ ≡ zero
+      → p′ ≡ L1N Σ
         --------------------------------
       → ⊢ (pƛ⦂ e ∥ γ ) ⦂ (pƛ⦂ τ₁′ ∥ sb ⇒[ p′ ∔ [ p ] ] τ₂′)
 

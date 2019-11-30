@@ -211,7 +211,7 @@ infix 5 pƛ⦂_∥_⇒[_∔_]_
 -- TYPES --
 data τ : ℕ → Set where
   sƛ⦂_∥_⇒[_∔_]_ : ∀ {N} → τ N → Sens → Sens → Σ[ ꜱ N ] → τ (ꜱ N) → τ N
-  pƛ⦂_∥_⇒[_∔_]_ : ∀ {N} → τ N → Sens → Sens → Σₚ[ ꜱ N ] → τ (ꜱ N) → τ N
+  pƛ⦂_∥_⇒[_∔_]_ : ∀ {N} → τ N → Sens → Priv → Σₚ[ ꜱ N ] → τ (ꜱ N) → τ N
   _∥_∔_⊗_∔_∥_ : ∀ {N} → τ N → Sens → Σ[ N ] → Sens → Σ[ N ] → τ N → τ N
   _∥_∔_⊕_∔_∥_ : ∀ {N} → τ N → Sens → Σ[ N ] → Sens → Σ[ N ] → τ N → τ N
   unit : ∀ {N} → τ N
