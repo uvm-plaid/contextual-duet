@@ -46,3 +46,81 @@ fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`papp {Σ₁ = Σ₁
 ... | IH′′ rewrite lzero[⨰]< Σ′ >
     -- | runit[+][qty]< ([vec]⌉ Σ′ ⌈⸢ ⟨ 1 ⟩ ⸣ ⨰ Σ₁) >
     | L0-3 (([vec]⌉ Σ′ ⌈⸢ ⟨ 1 ⟩ ⸣ ⨰ Σ₁) +[qty] ⟨ 0 ⟩) = {! IH′′  !}
+
+
+{-
+
+General outline:
+- intro (summary of problem, contributions and background)
+- introduce key ideas, proofs and techniques
+- combine things from (2) to complete the final proof and relate results back to examples shown in background section
+
+Notes:
+
+CORE LANGUAGE FORMALIZATION
+  - assumption of well-typing in the logical relation
+  - substitution lemmas
+  - probability monad
+  - modeling sensitivity/privacy as a "toppable" number
+  - modeling sensitivity/privacy arithmetic
+  - truncation operation
+  - DeBruijn Indices: environment
+  - formalizing: sensitivity/privacy environments, types & type environments, **value** type environments
+  - values, value environments
+  - mutual: pterms & sterms
+  - substitution: predecessor (why?), pluck etc
+  - substitution: substΣ/Σ, substΣ/Σₚ, substΣ/τ, cut
+  - substitution of one variable: substSx/τ<_>
+  - weakening: wkΣ, ⇧ˢ<_>, ⇧ᵗ<_>
+  - instantiation: instantiateΣ/Σ, Σ ⟨⟨ τ ⟩⟩
+
+CORE LANGUAGE RULES
+  - mutual: typing judgements for sensitivity and privacy terms
+  - typing judgements for values and value environments
+  - ground truth dynamic semantics
+  - probabilistic semantics
+
+LOGICAL RELATIONS
+  - describe each one?
+
+SENSITIVITY LANGUAGE FP PROOF: By induction on language terms
+
+PRIVACY LANGUAGE FP PROOF: By induction on language terms
+
+-}
+
+{-
+
+INTRO
+
+Problem Statement
+​
+  Implementing a language for differential privacy where researchers/analysts can build new differential privacy techniques into their programs.
+
+​  To solve the above problem, the PLAID lab at UVM created the programming language: Duet.
+  This is a general purpose programming language with the rules or differential privacy built into the type system.
+  It is therefore very important that the type system correctly follows the fundamental properties and promises of differential privacy.
+  We would like to prove the correctness of Duet’s type system. However, writing a proof in english/standard math can be error prone, so we plan to use
+  the proof assistant Agda to model and write our proof of correctness for Duet’s type system.
+
+  ​	The process for proving correctness of Duet’s type system is as follows:
+  (1) formalize the syntax, typing judgements, and logical relations of the Duet language
+  (2) formalize the fundamental property of metric preservation in Agda (3) prove the fundamental property (to the best of our ability)
+
+Novel Contributions
+
+  - Duet Language Contributions
+  - Duet Mechanization Contributions
+
+  ​So far the progress made has been making a proof for the correctness of Duet 1 and a proof for the correctness of Duet 2 following the above process.
+  The proof for Duet 1 found an issue with the semantics for the treatment of case splitting expressions as well as generally finding correctness for
+  most of the Duet type system. The proof for Duet 2 has to consider more complexity in the type system,
+  as Duet 2 now has the added features of contextual types and delayed sensitivity and privacy environments.
+
+Background
+
+  - Language-based approach to DP
+  - Related Work
+
+
+-}
