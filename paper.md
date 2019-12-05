@@ -1,10 +1,81 @@
 # General outline:
 
 - intro (summary of problem, contributions and background)
-
 - introduce key ideas, proofs and techniques
-
 - combine things from (2) to complete the final proof and relate results back to examples shown in background section
+
+
+## Key ideas, proofs and techniques:
+
+The general structure of the proof of the fundamental property of metric preservation in contextual Duet is as follows:
+
+* formalization of the core language: expressions (terms), types, values and environments.
+* formalization of the language rules: ground truth dynamic semantics, typing judgements and probabilistic semantics.
+* formalization of the logical relations of the language.
+* necessary lemmas and the main proof body.
+
+### Key idea: De Bruijn Indices
+
+In our formalization of Duet in Agda, we replace named variables with a unique index into an *N*-length vector for each variable, where *N* is the number of free variables in the program. The major advantage of using De Bruijn Indices is not having to deal with uniqueness under scoping and alpha renaming issues.
+
+A drawback of using De Bruijn Indices is that sometimes they can be conceptually tricky and hard to decipher. Particularly it can be difficult to define substitution using De Bruijn Indices. This problem is somewhat exacerbated in the formalization of contextual Duet, which has delayed "contexts" or environments embedded in types. These contexts are involved in several specialized substitution operations particular to contextual Duet as discussed below: 
+
+We define *pred* (predecessor) as a index specific decrement of an index type. This is useful for specifying the result type of closing over an environment by one variable, as we will see later on. 
+
+```haskell
+pred : ∀ (N : ℕ) → idx N → ℕ
+pred (ꜱ N) ᴢ = N
+pred (ꜱ N) (ꜱ ι) = ꜱ (pred N ι)
+```
+
+We define the *pluck* operation to remove a specific variable from a De Bruijn vector representation, given its particular index. We usually pluck a free variable when we are about to replace it with another term and close over it.
+
+```haskell
+pluck : ∀ {ℓ} {A : Set ℓ} {N} (ι : idx N) → ⟬ A ⟭[ N ] → ⟬ A ⟭[ pred N ι ]
+```
+
+In contextual Duet, we formalize sensitivity and privacy environments as Σ and Σₚ respectively using the De Bruijn vector representation. We then define operations *substΣ/Σ* and *substΣ/Σ*ₚ respectively to represent the substitution of the appropriate environment (sensitivity or privacy) for a single variable in the corresponding environment. In both cases this operation involves an indexing to find the variable in question, some form of scaling or truncation on the incoming environment based on the variable's current reference, a pluck on that variable, and then elementwise addition of both environments. This takes us, in both cases, from an N-length vector, to a pred N-length vector (i.e. N-1 at a specific index).
+
+```haskell
+substΣ/Σ : ∀ {N} → (ι : idx N) → Σ[ pred N ι ] → Σ[ N ] → Σ[ pred N ι ]
+substΣ/Σₚ : ∀ {N} → (ι : idx N) → Σ[ pred N ι ] → Σₚ[ N ] → Σₚ[ pred N ι ]
+```
+
+We define several weakening operations to represent the addition/inclusion of a new free variable into an environment, typically used when a new variable comes into scope such as in a lambda or let expression. We define weakening on sensitivity/privacy environments (which are essentially equivalent). Weakening on types, which contain these environments, calls out to environment weakening. Weakening in some cases must be defined as index specific, such as in *⇧ᵗ<_>* while in other cases we assume/know that the new variable will be at the 0th position as in *⇧ᵗ* .
+
+```haskell
+wkΣ : ∀ {N} → (ι : idx N) → Σ[ pred N ι ] → Σ[ N ]
+⇧ˢ′<_> : ∀ {N} → idx N → Σ[ N ] → Σ[ ꜱ N ]
+⇧ˢ<_> : ∀ {N} → idx (ꜱ N) → Σ[ N ] → Σ[ ꜱ N ]
+⇧ᵗ<_> : ∀ {N} → idx (ꜱ N) → τ N → τ (ꜱ N)
+⇧ᵗ : ∀ {N} → τ N → τ (ꜱ N)
+⇧ˢ : ∀ {N} → Σ[ N ] → Σ[ (ꜱ N) ]
+```
+
+Just as we have substitution for De Bruijn vectors into other De Bruijn vectors, another level up we define substitution for De Bruijn vectors into types that contain De Bruijn vectors. This is essentially a call out to the former substitution operation when appropriate. *substΣ/τ* accepts a specific index, while *cut* assumes again that the index is 0.
+
+```haskell
+substΣ/τ : ∀ {N} → (ι : idx N) → Σ[ pred N ι ] → τ N → τ (pred N ι)
+cut : ∀ {N} → Σ[ N ] → τ (ꜱ N) → τ N
+```
+
+We define instantiation to represent closing over a set of *N* free variables in a De Bruijn vector or types containing these, with an incoming vector of sensitivity values. Instantiation usually boils down to the dot product of two equal-length vectors, or equal length subsets of these vectors. In privacy instantiation we usually truncate the incoming vector to 1 elementwise before taking the dot product.
+
+
+```haskell
+instantiateΣ/Σ : ∀ {N N′} → Σ[ N ] → Σ[ N′ + N ] → qty ℕ ∧ Σ[ N′ ]
+instantiateΣ/τ : ∀ {N N′} → Σ[ N ] → τ (N′ + N) → τ N′
+_⟨⟨_⟩⟩ : ∀ {N} → Σ[ N ] → τ N → τ ᴢ
+```
+
+*substSx/τ<_>* is defined to represent the substitution of a single variable for a sensitivity value in a type. In practice this is usually the first (most recently bound) variable in the De Bruijn vector, and we assume this in the *substSx/τ* operation. This usually comes into play in function application.
+
+
+```haskell
+substSx/τ<_> : ∀ {N} (ι : idx N) → Sens → τ N → τ (pred N ι)
+substSx/τ : ∀ {N} → Sens → τ (ꜱ N) → τ N
+```
+
 
 Notes:
 
@@ -126,47 +197,6 @@ mutual
     `let_∥_ : ∀ {N} → Term N → Term (ꜱ N) → Term N
 
 ```
-
-
-
-```haskell
-pred : ∀ (N : ℕ) → idx N → ℕ
-pred (ꜱ N) ᴢ = N
-pred (ꜱ N) (ꜱ ι) = ꜱ (pred N ι)
-```
-
-
-
-```haskell
-pluck : ∀ {ℓ} {A : Set ℓ} {N} (ι : idx N) → ⟬ A ⟭[ N ] → ⟬ A ⟭[ pred N ι ]
-substΣ/Σ : ∀ {N} → (ι : idx N) → Σ[ pred N ι ] → Σ[ N ] → Σ[ pred N ι ]
-substΣ/ΣP : ∀ {N} → (ι : idx N) → Σ[ pred N ι ] → Σₚ[ N ] → Σₚ[ pred N ι ]
-wkΣ : ∀ {N} → (ι : idx N) → Σ[ pred N ι ] → Σ[ N ]
-substΣ/τ : ∀ {N} → (ι : idx N) → Σ[ pred N ι ] → τ N → τ (pred N ι)
-cut : ∀ {N} → Σ[ N ] → τ (ꜱ N) → τ N
-instantiateΣ/Σ : ∀ {N N′} → Σ[ N ] → Σ[ N′ + N ] → qty ℕ ∧ Σ[ N′ ]
-instantiateΣ/ΣP : ∀ {N N′} → Σ[ N ] → Σ[ N′ + N ] → qty ℕ ∧ Σ[ N′ ]
-instantiateΣ/τ : ∀ {N N′} → Σ[ N ] → τ (N′ + N) → τ N′
-⇧ˢ′<_> : ∀ {N} → idx N → Σ[ N ] → Σ[ ꜱ N ]
-⇧ˢ<_> : ∀ {N} → idx (ꜱ N) → Σ[ N ] → Σ[ ꜱ N ]
-⇧ᵗ<_> : ∀ {N} → idx (ꜱ N) → τ N → τ (ꜱ N)
-⇧ᵗ : ∀ {N} → τ N → τ (ꜱ N)
-⇧ˢ : ∀ {N} → Σ[ N ] → Σ[ (ꜱ N) ]
-_⟨⟨_⟩⟩ : ∀ {N} → Σ[ N ] → τ N → τ ᴢ
-substSx/τ<_> : ∀ {N} (ι : idx N) → Sens → τ N → τ (pred N ι)
-```
-
-
-
-
-
-
-
-
-
-# Write Here
-
-
 
 
 
