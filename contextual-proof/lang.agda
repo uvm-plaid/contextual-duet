@@ -101,6 +101,7 @@ module _ {ℓ} {A : Set ℓ} {{_ : has[+] A}} {{_ : cor[+] A}} {{_ : has[≡?] A
     one[qty] : qty A
     one[qty] = ⟨ one ⟩
 
+    -- DCD: worried about this... we will want to fix this eventually
     _×[qty]_ : qty A → qty A → qty A
     `∞ ×[qty] _ = `∞
     _ ×[qty] `∞ = `∞
@@ -398,6 +399,19 @@ mutual
   postulate
     _τ[⊔]_ : ∀ {N} → τ N → τ N → ⦉ τ N ⦊
     _τ[⊓]_ : ∀ {N} → τ N → τ N → ⦉ τ N ⦊
+    _τ[≤]_ : ∀ {N} → τ N → τ N → Set
+
+-- DCD: could define τ[≤] as
+--
+--     τ₁ ≤ τ₂ ⟺ (τ₁ ⊔ τ₂ ≡ τ₂)
+--
+-- but this might not give you good inversion principles, e.g., if you
+-- know (τ₁₁ × τ₁₂) ≤ (τ₂₁ × τ₂₂) then it should be that (τ₁₁ ≤ τ₂₁)
+-- and (τ₁₂ ≤ τ₂₂). To get easy access to all of these inversion
+-- principles, we are probably better off defining ≤ on types directly
+-- as an inductive datatype. It should still be the case that
+-- τ₁ ≤ τ₂ ⟺ (τ₁ ⊔ τ₂ ≡ τ₂), and we could prove this correspondance if
+-- we wanted, although it most likely it be necessary.
 
 
 _⟨⟨_⟩⟩ : ∀ {N} → Σ[ N ] → τ N → τ ᴢ
