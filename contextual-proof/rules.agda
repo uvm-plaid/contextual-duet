@@ -2,6 +2,11 @@
 {-# OPTIONS --allow-unsolved-metas #-}
 module rules where
 
+-- DCD NOTES:
+-- we want these to be true, and we need to prove them as lemmas
+-- e : τ , τ ≤ τ′ → e : τ′
+-- v : τ , τ ≤ τ′ → v : τ′
+
 open import lang public
 
 mutual
@@ -55,10 +60,13 @@ mutual
         → Γ , Σ₀ ⊢ e₁ `≤ e₂ ⦂ 𝔹T , [vec]⌉ (Σ₁ + Σ₂) ⌈⸢ `∞ ⸣
 
     -- VAR
-    ⊢`var_ : ∀ {N} {Γ : Γ[ N ]} {Σ₀ : Σ[ N ]} {Σ : Σ[ N ]} {i : idx N} {τ : τ N}
+    ⊢`var_ : ∀ {N} {Γ : Γ[ N ]} {Σ₀ : Σ[ N ]} {Σ : Σ[ N ]} {i : idx N} {τ : τ N} -- {s : Sens}
       → Γ #[ i ] ≡ τ
+      -- DCD: will need this for weakening
+      -- ⟨ 1 ⟩ ≤ s
       --------------------------------------------------
       → Γ , Σ₀ ⊢  ` i ⦂ τ , Σ + zero #[ i ↦ ⟨ 1 ⟩ ]
+      -- → Γ , Σ₀ ⊢  ` i ⦂ τ , Σ + zero #[ i ↦ s ]
 
     -- UNIT
     ⊢`tt : ∀ {N} {Γ : Γ[ N ]} {Σ₀ : Σ[ N ]} {i : idx N} -- {τ : τ N}
