@@ -5,7 +5,7 @@
 - combine things from (2) to complete the final proof and relate results back to examples shown in background section
 
 
-## Key ideas, proofs and techniques:
+## Key concepts, proofs and techniques:
 
 The general structure of the proof of the fundamental property of metric preservation in contextual Duet is as follows:
 
@@ -14,7 +14,7 @@ The general structure of the proof of the fundamental property of metric preserv
 * formalization of the logical relations of the language.
 * necessary lemmas and the main proof body.
 
-### Key idea: De Bruijn Indices
+### Key concept: De Bruijn Indices
 
 In our formalization of Duet in Agda, we replace named variables with a unique index into an *N*-length vector for each variable, where *N* is the number of free variables in the program. The major advantage of using De Bruijn Indices is not having to deal with uniqueness under scoping and alpha renaming issues.
 
@@ -77,40 +77,142 @@ substSx/τ : ∀ {N} → Sens → τ (ꜱ N) → τ N
 ```
 
 
-Notes:
 
-CORE LANGUAGE FORMALIZATION
-  - substitution: predecessor (why?), pluck etc
-  - modeling sensitivity/privacy as a "toppable" number
-  - modeling sensitivity/privacy arithmetic
-  - truncation operation
-  - DeBruijn Indices: environment
-  - probability monad
+### Key concept: Probabilistic Semantics
 
-  - assumption of well-typing in the logical relation
-  - substitution lemmas
-  - formalizing: sensitivity/privacy environments, types & type environments, **value** type environments
-  - values, value environments
-  - mutual: pterms & sterms
-  - substitution: `substΣ/Σ`, `substΣ/Σₚ`, `substΣ/τ`, `cut`
-  - substitution of one variable: `substSx/τ<_>`
-  - weakening: `wkΣ`, `⇧ˢ<_>`, `⇧ᵗ<_>`
-  - instantiation: `instantiateΣ/Σ, Σ ⟨⟨ τ ⟩⟩`
-
-CORE LANGUAGE RULES
-  - mutual: typing judgements for sensitivity and privacy terms
-  - typing judgements for values and value environments
-  - ground truth dynamic semantics
-  - probabilistic semantics
-
-LOGICAL RELATIONS
-  - describe each one?
-
-SENSITIVITY LANGUAGE FP PROOF: By induction on language terms
-
-PRIVACY LANGUAGE FP PROOF: By induction on language terms
+To formalize non-determinism in the semantics of the privacy language we introduce the probability distribution monad 𝒟. This allows us to reason about probability with monad laws bind and return, appealing to the differential privacy literature for known facts about probabilty distributions when necessary.
 
 
+```haskell
+𝒟 : ∀ {ℓ} → Set ℓ → Set ℓ
+-- this represents the probability of a specific sample coming from 
+-- a distribution of the corresponding type
+Pr[_⩦_]≡[_] : ∀ {ℓ} {A : Set ℓ} → 𝒟 A → A → ℝ → Set
+instance
+  has[≫=][𝒟] : ∀ {ℓ} → has[≫=] {ℓ} 𝒟
+gauss : 𝒟 ℝ
+laplace : 𝒟 ℝ
+_ : (do x ← return $ 𝕣 1
+        y ← laplace
+        return $ x + y)
+  ≡ (do y ← laplace
+        return $ 𝕣 1 + y)
+_ = lunit[≫=]
+```
+
+This allows us to formalize the probabilistic semantics as a set of monadic inference rules.
+
+A straightforward example is the *return* term in the privacy language, which makes use of the *return* monad law to talk about distributions of known well-typed values.
+
+```haskell
+
+-- RETURN
+⊢`return: ∀ {N} {γ : γ[N]} {e : Term N} {𝓋₁ : 𝓋} {τ} {⊢τ : ⊢ 𝓋₁ ⦂ τ }
+→ γ ⊢ e ⇓ 𝓋₁
+-----------------------------------------------------------
+→ γ ⊢ (`return e) ⇓ₚ return ⟨∃ 𝓋₁ , ⊢τ ⟩
+```
+
+Privacy function application assumes the distribution of output values directly. 
+
+```haskell
+-- APP
+⊢`papp: ∀ {N} {γ : γ[N]} {e′ : PTerm (ꜱ N)} {e₁ e₂ : Term N} {𝓋₁ : 𝓋} {τ} {𝓋₂ : 𝒟 (∃ v ⦂ 𝓋 ST ⊢ v ⦂ τ )}
+  → γ ⊢ e₁ ⇓ (pƛ⦂ e′ ∥ γ )
+  → γ ⊢ e₂ ⇓ 𝓋₁
+  → 𝓋₁ ∷ γ ⊢ e′ ⇓ₚ 𝓋₂
+  -----------------------------------------------------------
+  → γ ⊢ (e₁ `papp e₂) ⇓ₚ 𝓋₂
+```
+
+For *bind* we rely on the probability distribution sample existential to draw a sample from *e₁*'s output, which is then bound in *e₂*. The output of *bind* can then be defined as the first projection of the *E* existential dependent pair premise. 
+
+
+```haskell
+
+-- BIND
+⊢`bind: ∀ {N} {γ : γ[N]} {e₂ : PTerm (ꜱ N)} {e₁ : PTerm N} {v₁ : 𝓋} {τ} {⊢τ : ⊢ v₁ ⦂ τ }
+  → γ ⊢ e₁ ⇓ₚ return ⟨∃ v₁ , ⊢τ ⟩
+  → (E : ∃ v₂ ST v₁ ∷ γ ⊢ e₂ ⇓ₚ v₂)
+  → let v₃ = do ⟨∃ v₁ , ⊢v₁ ⟩ ← (return ⟨∃ v₁ , ⊢τ ⟩) ; dπ₁ E in
+  -----------------------------------------------------------
+  γ ⊢ (`bind e₁ ∥ e₂) ⇓ₚ v₃
+
+```
+
+
+
+### Key concept: Logical Relations
+
+The proof of the fundamental property of metric preservation in contextual Duet requires that we state hypotheses and prove facts about the relationship between two members of the same set or category. For example, we may wish to prove something about the relationship between two values of the same "type", or two expressions. In particular, we usually want to say something about their type (that they have the same type) and the sensitivity or privacy "distance" between them. 
+
+In comparison with the paper/English version of this proof, the mechanization of the logical relations requires extra machinery to push through. Specifically, because many of the relations involve talking about values in the Duet language, we need to formalize "value types", value type judgements and value type environments. Also, in cases involving reduction of expressions to values, or typing of expressions, we also assume well-typedness of corresponding values, which is sound under assumption/proof of type preservation and progress in contextual Duet.
+
+Each logical relation is briefly discussed below:
+
+The sensitivity expression relation relates two different expressions evaluated under two different value environments by deferring to the value relation of the values produced after evaluation by the ground truth dynamic semantics. As mentioned earlier, since we relate expressions via the value relation, expressions are related by a value type at some sensitivity. Note that we must also assume well-typedness of the relevant values.
+```haskell
+-- sensitivity expression relation
+⟨_⊢_,_⊢_⟩∈ℰ⟦_ː_⟧: ∀ {N} γ[N] → Term N → γ[N] → Term N → Sens → τ ᴢ → Set
+⟨γ₁⊢e₁,γ₂⊢e₂⟩∈ℰ⟦sːτ⟧ = ∀ v₁ v₂ → (ε₁: ⊢ v₁ ⦂ τ) → (ε₂: ⊢ v₂ ⦂ τ) → (γ₁ ⊢ e₁ ⇓ v₁) ∧ (γ₂ ⊢ e₂ ⇓ v₂) → ⟨ v₁ , v₂ ⟩∈𝒱′⟦ τ ː ε₁ , ε₂ ː s ⟧
+
+```
+
+The privacy expression relation is less straightforward due to non-determinism in the privacy language. This makes use of the probability monad and the sample probability operator to formalize the distance between two privacy expressions via the standard differential privacy inequality.
+
+```haskell
+-- privacy expression relation
+⟨_⊢_,_⊢_⟩∈ℰₚ⟦_ː_⟧: ∀ {N} γ[N] → PTerm N → γ[N] → PTerm N → Priv → τᴢ → Set
+  ⟨ γ₁ ⊢ e₁ , γ₂ ⊢ e₂ ⟩∈ℰₚ⟦ p ː τ ⟧ = ∀ v₁ v₂ r₁ r₂ →
+    (ε₁ : ⊢ v₁ ⦂ τ) →
+    (ε₂ : ⊢ v₂ ⦂ τ) →
+    (γ₁ ⊢ e₁ ⇓ₚ return ⟨∃ v₁ , ε₁ ⟩) ∧ (γ₂ ⊢ e₂ ⇓ₚ return ⟨∃ v₂ , ε₂ ⟩) →
+    Pr[ return v₁ ⩦ v₁ ]≡[ r₁ ] →
+    Pr[ return v₂ ⩦ v₂ ]≡[ r₂ ] → r₁ ≤ᵣ ((𝑒^ᴿ (p2r p)) × r₂)
+
+
+```
+The value environment relation is assumed in the proof of the fundamental property, however, in certain cases in the mechanization it becomes necessary to manually extend the relation to include new values in the value environments. For this reason, we formalize the value environment relation as the *null* and *cons* constructor functions where the constructor case accepts an instance of the value relation to extend the value environment relation. 
+
+```haskell
+-- value environment relation
+⟨_,_⟩∈𝒢⟦_ː_⟧: ∀ {N} → γ[ N ] → γ[ N ] → Σ[ N ] → ℾ[ N ] → Set
+⟨ [] , [] ⟩∈𝒢⟦ [] ː [] ⟧ = 𝟙
+⟨ v₁ ∷ γ₁ , v₂ ∷ γ₂ ⟩∈𝒢⟦ s ∷ Σ ː τ ∷ ℾ ⟧ = ∃ δ₁ ⦂ (⊢ v₁ ⦂ τ) ST ∃ δ₂ ⦂ (⊢ v₂ ⦂ τ) ST ⟨ v₁ , v₂ ⟩∈𝒱′⟦ τ ː δ₁ , δ₂ ː s ⟧ ∧ ⟨ γ₁ , γ₂ ⟩∈𝒢⟦ Σ ː ℾ ⟧
+
+
+```
+
+The value relation is straightforward, assuming all-typedness of values as discussed earlier.
+
+```haskell
+-- value relation
+⟨_,_⟩∈𝒱′⟦_ː_,_ː_⟧: ∀ (v₁ v₂ : 𝓋) (t : τ ᴢ) → ⊢ v₁ ⦂ t → ⊢ v₂ ⦂ t → Sens →  Set
+
+```
+
+## proof of fundamental property of metric preservation: sensitivity and privacy language
+
+
+
+$$
+\begin{align*}
+fp :\: &\forall\: \lbrace N\rbrace\:\lbrace Γ : Γ[ N ]\rbrace \lbrace ℾ \: e \: τ \: Σ \: γ₁ \: γ₂ \: Σ′ \: Σ₀\rbrace 
+ \\& → ℾ ⊢ γ₁ → ℾ ⊢ γ₂ → Γ , Σ₀ ⊢ e ⦂ τ , Σ 
+ \\& → \langle γ₁ , γ₂ \rangle\in\cal{G}⟦ Σ′ \:ː\: ℾ ⟧ 
+ \\& → ⟨ γ₁ ⊢ e , γ₂ ⊢ e ⟩∈\cal{E}⟦\: Σ \dot \times Σ' \: ː \: Σ' \langle\langle τ \rangle\rangle \:⟧
+
+\\fp_2 :\: &\forall\: \lbrace N\rbrace\:\lbrace Γ : Γ[ N ]\rbrace \lbrace ℾ \: e \: τ \: Σ \: γ₁ \: γ₂ \: Σ′ \: Σ₀\rbrace 
+ \\& → ℾ ⊢ γ₁ → ℾ ⊢ γ₂ → Γ , Σ₀ ⊢_p e ⦂ τ , Σ 
+ \\& → ⟨ γ₁ , γ₂ ⟩∈\cal{G}⟦ Σ′ ː ℾ ⟧
+ \\& → ⟨ γ₁ ⊢ e , γ₂ ⊢ e ⟩∈\cal{E}_p⟦ [vec]⌉ Σ′ ⌈⸢ one ⸣ ⨰ Σ ː (Σ′ ⟨⟨ τ ⟩⟩) ⟧
+
+\end{align*}
+$$
+
+
+
+The fundamental property proof is by induction on the terms of the language. In the mechanization we need to explicitly assume well-typednedness of the value environments, which is implicit in the value environment relation.
 
 INTRO
 
@@ -144,21 +246,6 @@ Background
   - Related Work
 
 # Random Latex Stuff
-
-$$
-\begin{align*}
-fp :\: &\forall\: \lbrace N\rbrace\:\lbrace Γ : Γ[ N ]\rbrace \lbrace ℾ \: e \: τ \: Σ \: γ₁ \: γ₂ \: Σ′ \: Σ₀\rbrace 
- \\& → ℾ ⊢ γ₁ → ℾ ⊢ γ₂ → Γ , Σ₀ ⊢ e ⦂ τ , Σ 
- \\& → \langle γ₁ , γ₂ \rangle\in\cal{G}⟦ Σ′ \:ː\: ℾ ⟧ 
- \\& → ⟨ γ₁ ⊢ e , γ₂ ⊢ e ⟩∈\cal{E}⟦\: Σ \dot \times Σ' \: ː \: Σ' \langle\langle τ \rangle\rangle \:⟧
-
-\\fp_2 :\: &\forall\: \lbrace N\rbrace\:\lbrace Γ : Γ[ N ]\rbrace \lbrace ℾ \: e \: τ \: Σ \: γ₁ \: γ₂ \: Σ′ \: Σ₀\rbrace 
- \\& → ℾ ⊢ γ₁ → ℾ ⊢ γ₂ → Γ , Σ₀ ⊢_p e ⦂ τ , Σ 
- \\& → ⟨ γ₁ , γ₂ ⟩∈\cal{G}⟦ Σ′ ː ℾ ⟧
- \\& → ⟨ γ₁ ⊢ e , γ₂ ⊢ e ⟩∈\cal{E}_p⟦ [vec]⌉ Σ′ ⌈⸢ one ⸣ ⨰ Σ ː (Σ′ ⟨⟨ τ ⟩⟩) ⟧
-
-\end{align*}
-$$
 
 
 

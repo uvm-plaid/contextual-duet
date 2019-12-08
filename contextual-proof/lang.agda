@@ -252,6 +252,9 @@ mutual
 
   data PTerm : ℕ → Set where
     _`papp_ : ∀ {N} → Term N → Term N → PTerm N
+    `return_ : ∀ {N} → Term N → PTerm N
+    `bind_∥_ : ∀ {N} → PTerm N → PTerm (ꜱ N) → PTerm N
+
 
   data Term : ℕ → Set where
     -- real numbers
