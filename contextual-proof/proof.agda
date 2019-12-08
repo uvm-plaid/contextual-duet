@@ -80,7 +80,7 @@ fp {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`case {Σ₁ = Σ₁} {Σ₁₁ = Σ₁
 ... | IH with typeSafety {Σ′ = Σ′} e₁ r₁ | typeSafety {Σ′ = Σ′} e₁ r₃
 … | ⊢inl X | ⊢inr Y rewrite L4 s₂ s₃ Σ₁ Σ₁₁ Σ₁₂ Σ₂ Σ₃ Σ′ IH = L5 ε₁ ε₂
 
--- these cases are analogous to those above
+-- TODO: these cases are analogous to those above
 {-
 fp ⊢γ₁ ⊢γ₂ (⊢`case e₁ e₂ e₃ tyjoin) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`case/r {𝓋₁ = 𝓋₁₁} r₁ r₂ , ⊢`case/l {𝓋₁ = 𝓋₁₂} r₃ r₄ ⟩
   with fp ⊢γ₁ ⊢γ₂ e₁ r[γ₁,γ₂] (inr 𝓋₁₁) (inl 𝓋₁₂) (typeSafety e₁ r₁) (typeSafety e₁ r₃) ⟨ r₁ , r₃ ⟩
@@ -89,6 +89,7 @@ fp ⊢γ₁ ⊢γ₂ (⊢`case e₁ e₂ e₃ tyjoin) r[γ₁,γ₂] v₁ v₂ �
   with fp ⊢γ₁ ⊢γ₂ e₁ r[γ₁,γ₂] (inr 𝓋₁₁) (inr 𝓋₁₂) (typeSafety e₁ r₁) (typeSafety e₁ r₃) ⟨ r₁ , r₃ ⟩
 ... | IH  = {!IH   !}
 
+-- TODO: derived terms
 -- IF
 fp ⊢γ₁ ⊢γ₂ (⊢`if e₁ e₂ e₃) r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ ⊢`if-true r₁ r₂ , ⊢`if-true r₃ r₄ ⟩
   with fp ⊢γ₁ ⊢γ₂ e₂ r[γ₁,γ₂] v₁ v₂ ε₁ ε₂ ⟨ r₂ , r₄ ⟩
