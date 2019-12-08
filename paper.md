@@ -1,11 +1,12 @@
-# General outline:
 
-- intro (summary of problem, contributions and background)
-- introduce key ideas, proofs and techniques
-- combine things from (2) to complete the final proof and relate results back to examples shown in background section
+### Problem Statement
 
+Our goal is to implement a language for differential privacy where researchers/analysts can build new differential privacy techniques into their programs.
 
-## Key concepts, proofs and techniques:
+To solve the above problem, the PLAID lab at UVM created the programming language: Duet.
+This is a general purpose programming language with the rules or differential privacy built into the type system.
+It is therefore very important that the type system correctly follows the fundamental properties and promises of differential privacy.
+We would like to prove the correctness of Duet’s type system. However, writing a proof in english/standard math can be error prone, so we plan to use the proof assistant Agda to model and write our proof of correctness for Duet’s type system.
 
 The general structure of the proof of the fundamental property of metric preservation in contextual Duet is as follows:
 
@@ -14,13 +15,94 @@ The general structure of the proof of the fundamental property of metric preserv
 * formalization of the logical relations of the language.
 * necessary lemmas and the main proof body.
 
+So far the progress made has been making a proof for the correctness of Duet 1 and a proof for the correctness of Duet 2 following the above process.
+
+The proof for Duet 1 found an issue with the semantics for the treatment of case splitting expressions as well as generally finding correctness for most of the Duet type system. The proof for Duet 2 has to consider more complexity in the type system, as Duet 2 now has the added features of contextual types and delayed sensitivity and privacy environments.
+
+### Key Concept: Formalizing core language
+
+Formalizing the core language is the process of modeling Duet’s AST and semantics in Agda.  For example the data type `Term` is the AST of the sensitivity language. In `Term` we have constructors for every piece of AST such as ``𝔹_ : ∀ {N} → 𝔹 → Term N` which is the boolean constructor.  This takes an implicit argument `N` as the number of free variables in scope, and a boolean value, and then returns a `Term` with `N` free variables in scope. Another example is the sensitivity lambda:
+
+```haskell
+sƛ⦂_∥_⇒_ : ∀ {N} → (τ₁ : τ N) → (s : Sens) → (e : Term (ꜱ N)) → Term N
+```
+
+which takes 
+
+- $N$: the number of  free variables in scope
+-  $\tau_1$: the type of the input parameter
+- $s$: the sensitivity bound on the input parameter
+- $e$: the body of the lambda, which is a `Term` with `N + 1` free variables.
+
+and is a `Term` with `N` free variables.
+
+This was the process for every piece of syntax we wanted to formalize in the proof. The rest of the `Term` data type can be found in the source code.
+
+
+
+### Key Concept: Quantities and Algebra with Quantities
+
+Sensitivity and privacy values in Differential Privacy can be unbounded, this is a property that we also model in Duet with a data type called `qty` pronounced “quantity". Below is the definition of the `qty` data structure. The two cases allow for an embedded value of the type `A`,  or the unbounded value `` `∞``.
+
+```haskell
+data qty {ℓ} (A : Set ℓ) : Set ℓ where
+  ⟨_⟩ : A → qty A
+  `∞ : qty A
+```
+
+We then define algebraic operations for the `qty` type that deal with the unbounded value and then when both values are embedded, pass through to the definitions for the operation on the embedded type `A`. For example, addition is defined very simply as follows:
+
+```haskell
+_+[qty]_ : qty A → qty A → qty A
+  _ +[qty] `∞ = `∞
+  `∞ +[qty] _ = `∞
+  ⟨ x ⟩ +[qty] ⟨ y ⟩ = ⟨ x + y ⟩
+```
+
+The key here is that \<anything> plus infinity is infinity and an embedded value plus and an embedded value is an embedding of the addition. However this could not be done for all operations. 
+
+
+
+### Key Concept: Truncation
+
+An important operator we use in the privacy language a lot is the truncation operation. It’s definition is:
+
+```haskell
+⌉_⌈⸢_⸣ : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂}
+  {{_ : has[+] A}} {{_ : has[≡?] A}} {{_ : has[+] B}}
+  → qty A → qty B → qty B
+⌉ x ⌈⸢ y ⸣ with x ≡? ⟨ zero ⟩
+… | [≢] = y
+… | [≡] = ⟨ zero ⟩
+```
+
+Truncation is a binary operation. It checks if $x$ is zero, if not then return $y$ else return zero. This is useful to the privacy language because we don’t scale $\epsilon$ privacy costs by any value we just care if an $\epsilon$ value is used or not.  We also have truncation for vectors `[vec]⌉ xs ⌈⸢ q ⸣` which  will truncate all values in $xs$ to $q$.
+
+
+
+### Findings: Issue in Duet 1
+
+During the first proof of Duet 1, we found a bug in the sensitivity of variables case splitting on a value. The bug happened when there was a program like so:
+
+```haskell
+if x == 0
+then 1
+else 100000
+```
+
+This should have a sensitivity of $100000$ because the value can change by at most $100000$ depending on the value of $x$. However, Duet 1 would only get a sensitivity of $1$ because $x$ is used once. 
+
+Let the above expression be called $e$.  When we evaluate $e$ we would get noise added to the answer of $[[e]] + Lap(\frac s \epsilon)$ which is a very small amount of noise when $s = 1$ so if $x$ were zero then it would be $100000 + Lap(\frac 1 \epsilon)$ rather than $100000 + Lap(\frac {100000} \epsilon)$ and the signal would heavily outweigh the noise, removing ambiguity from the answer given by Duet.
+
+
+
 ### Key concept: De Bruijn Indices
 
 In our formalization of Duet in Agda, we replace named variables with a unique index into an *N*-length vector for each variable, where *N* is the number of free variables in the program. The major advantage of using De Bruijn Indices is not having to deal with uniqueness under scoping and alpha renaming issues.
 
-A drawback of using De Bruijn Indices is that sometimes they can be conceptually tricky and hard to decipher. Particularly it can be difficult to define substitution using De Bruijn Indices. This problem is somewhat exacerbated in the formalization of contextual Duet, which has delayed "contexts" or environments embedded in types. These contexts are involved in several specialized substitution operations particular to contextual Duet as discussed below: 
+A drawback of using De Bruijn Indices is that sometimes they can be conceptually tricky and hard to decipher. Particularly it can be difficult to define substitution using De Bruijn Indices. This problem is somewhat exacerbated in the formalization of contextual Duet, which has delayed "contexts" or environments embedded in types. These contexts are involved in several specialized substitution operations particular to contextual Duet as discussed below:
 
-We define *pred* (predecessor) as a index specific decrement of an index type. This is useful for specifying the result type of closing over an environment by one variable, as we will see later on. 
+We define *pred* (predecessor) as a index specific decrement of an index type. This is useful for specifying the result type of closing over an environment by one variable, as we will see later on.
 
 ```haskell
 pred : ∀ (N : ℕ) → idx N → ℕ
@@ -85,7 +167,7 @@ To formalize non-determinism in the semantics of the privacy language we introdu
 
 ```haskell
 𝒟 : ∀ {ℓ} → Set ℓ → Set ℓ
--- this represents the probability of a specific sample coming from 
+-- this represents the probability of a specific sample coming from
 -- a distribution of the corresponding type
 Pr[_⩦_]≡[_] : ∀ {ℓ} {A : Set ℓ} → 𝒟 A → A → ℝ → Set
 instance
@@ -113,7 +195,7 @@ A straightforward example is the *return* term in the privacy language, which ma
 → γ ⊢ (`return e) ⇓ₚ return ⟨∃ 𝓋₁ , ⊢τ ⟩
 ```
 
-Privacy function application assumes the distribution of output values directly. 
+Privacy function application assumes the distribution of output values directly.
 
 ```haskell
 -- APP
@@ -125,7 +207,7 @@ Privacy function application assumes the distribution of output values directly.
   → γ ⊢ (e₁ `papp e₂) ⇓ₚ 𝓋₂
 ```
 
-For *bind* we rely on the probability distribution sample existential to draw a sample from *e₁*'s output, which is then bound in *e₂*. The output of *bind* can then be defined as the first projection of the *E* existential dependent pair premise. 
+For *bind* we rely on the probability distribution sample existential to draw a sample from *e₁*'s output, which is then bound in *e₂*. The output of *bind* can then be defined as the first projection of the *E* existential dependent pair premise.
 
 
 ```haskell
@@ -144,7 +226,7 @@ For *bind* we rely on the probability distribution sample existential to draw a 
 
 ### Key concept: Logical Relations
 
-The proof of the fundamental property of metric preservation in contextual Duet requires that we state hypotheses and prove facts about the relationship between two members of the same set or category. For example, we may wish to prove something about the relationship between two values of the same "type", or two expressions. In particular, we usually want to say something about their type (that they have the same type) and the sensitivity or privacy "distance" between them. 
+The proof of the fundamental property of metric preservation in contextual Duet requires that we state hypotheses and prove facts about the relationship between two members of the same set or category. For example, we may wish to prove something about the relationship between two values of the same "type", or two expressions. In particular, we usually want to say something about their type (that they have the same type) and the sensitivity or privacy "distance" between them.
 
 In comparison with the paper/English version of this proof, the mechanization of the logical relations requires extra machinery to push through. Specifically, because many of the relations involve talking about values in the Duet language, we need to formalize "value types", value type judgements and value type environments. Also, in cases involving reduction of expressions to values, or typing of expressions, we also assume well-typedness of corresponding values, which is sound under assumption/proof of type preservation and progress in contextual Duet.
 
@@ -172,7 +254,7 @@ The privacy expression relation is less straightforward due to non-determinism i
 
 
 ```
-The value environment relation is assumed in the proof of the fundamental property, however, in certain cases in the mechanization it becomes necessary to manually extend the relation to include new values in the value environments. For this reason, we formalize the value environment relation as the *null* and *cons* constructor functions where the constructor case accepts an instance of the value relation to extend the value environment relation. 
+The value environment relation is assumed in the proof of the fundamental property, however, in certain cases in the mechanization it becomes necessary to manually extend the relation to include new values in the value environments. For this reason, we formalize the value environment relation as the *null* and *cons* constructor functions where the constructor case accepts an instance of the value relation to extend the value environment relation.
 
 ```haskell
 -- value environment relation
@@ -191,19 +273,17 @@ The value relation is straightforward, assuming all-typedness of values as discu
 
 ```
 
-## proof of fundamental property of metric preservation: sensitivity and privacy language
-
-
+### Proof of fundamental property of metric preservation
 
 $$
 \begin{align*}
-fp :\: &\forall\: \lbrace N\rbrace\:\lbrace Γ : Γ[ N ]\rbrace \lbrace ℾ \: e \: τ \: Σ \: γ₁ \: γ₂ \: Σ′ \: Σ₀\rbrace 
- \\& → ℾ ⊢ γ₁ → ℾ ⊢ γ₂ → Γ , Σ₀ ⊢ e ⦂ τ , Σ 
- \\& → \langle γ₁ , γ₂ \rangle\in\cal{G}⟦ Σ′ \:ː\: ℾ ⟧ 
+fp :\: &\forall\: \lbrace N\rbrace\:\lbrace Γ : Γ[ N ]\rbrace \lbrace ℾ \: e \: τ \: Σ \: γ₁ \: γ₂ \: Σ′ \: Σ₀\rbrace
+ \\& → ℾ ⊢ γ₁ → ℾ ⊢ γ₂ → Γ , Σ₀ ⊢ e ⦂ τ , Σ
+ \\& → \langle γ₁ , γ₂ \rangle\in\cal{G}⟦ Σ′ \:ː\: ℾ ⟧
  \\& → ⟨ γ₁ ⊢ e , γ₂ ⊢ e ⟩∈\cal{E}⟦\: Σ \dot \times Σ' \: ː \: Σ' \langle\langle τ \rangle\rangle \:⟧
 
-\\fp_2 :\: &\forall\: \lbrace N\rbrace\:\lbrace Γ : Γ[ N ]\rbrace \lbrace ℾ \: e \: τ \: Σ \: γ₁ \: γ₂ \: Σ′ \: Σ₀\rbrace 
- \\& → ℾ ⊢ γ₁ → ℾ ⊢ γ₂ → Γ , Σ₀ ⊢_p e ⦂ τ , Σ 
+\\fp_2 :\: &\forall\: \lbrace N\rbrace\:\lbrace Γ : Γ[ N ]\rbrace \lbrace ℾ \: e \: τ \: Σ \: γ₁ \: γ₂ \: Σ′ \: Σ₀\rbrace
+ \\& → ℾ ⊢ γ₁ → ℾ ⊢ γ₂ → Γ , Σ₀ ⊢_p e ⦂ τ , Σ
  \\& → ⟨ γ₁ , γ₂ ⟩∈\cal{G}⟦ Σ′ ː ℾ ⟧
  \\& → ⟨ γ₁ ⊢ e , γ₂ ⊢ e ⟩∈\cal{E}_p⟦ [vec]⌉ Σ′ ⌈⸢ one ⸣ ⨰ Σ ː (Σ′ ⟨⟨ τ ⟩⟩) ⟧
 
@@ -212,78 +292,5 @@ $$
 
 
 
-The fundamental property proof is by induction on the terms of the language. In the mechanization we need to explicitly assume well-typednedness of the value environments, which is implicit in the value environment relation.
-
-INTRO
-
-Problem Statement
-​
-  Implementing a language for differential privacy where researchers/analysts can build new differential privacy techniques into their programs.
-
-  To solve the above problem, the PLAID lab at UVM created the programming language: Duet.
-  This is a general purpose programming language with the rules or differential privacy built into the type system.
-  It is therefore very important that the type system correctly follows the fundamental properties and promises of differential privacy.
-  We would like to prove the correctness of Duet’s type system. However, writing a proof in english/standard math can be error prone, so we plan to use
-  the proof assistant Agda to model and write our proof of correctness for Duet’s type system.
-
-  ​	The process for proving correctness of Duet’s type system is as follows:
-  (1) formalize the syntax, typing judgements, and logical relations of the Duet language
-  (2) formalize the fundamental property of metric preservation in Agda (3) prove the fundamental property (to the best of our ability)
-
-Novel Contributions
-
-  - Duet Language Contributions
-  - Duet Mechanization Contributions
-
-  ​So far the progress made has been making a proof for the correctness of Duet 1 and a proof for the correctness of Duet 2 following the above process.
-  The proof for Duet 1 found an issue with the semantics for the treatment of case splitting expressions as well as generally finding correctness for
-  most of the Duet type system. The proof for Duet 2 has to consider more complexity in the type system,
-  as Duet 2 now has the added features of contextual types and delayed sensitivity and privacy environments.
-
-Background
-
-  - Language-based approach to DP
-  - Related Work
-
-# Random Latex Stuff
-
-
-
-```haskell
-mutual
-  data PTerm : ℕ → Set where
-    _`papp_ : ∀ {N} → Term N → Term N → PTerm N
-
-  data Term : ℕ → Set where
-    -- real numbers
-    `ℝ_ : ∀ {N} → ℕ → Term N
-    _`+_ : ∀ {N} → Term N → Term N → Term N
-    _`×_ : ∀ {N} → Term N → Term N → Term N
-    _`≤_ : ∀ {N} → Term N → Term N → Term N
-    -- variables, functions, application
-    `_ : ∀ {N} → idx N → Term N
-    sƛ⦂_∥_⇒_ : ∀ {N} → τ N → Sens → Term (ꜱ N) → Term N
-    pƛ⦂_∥_⇒_ : ∀ {N} → τ N → Sens → PTerm (ꜱ N) → Term N
-    _`app_ : ∀ {N} → Term N → Term N → Term N
-    -- unit
-    tt : ∀ {N} → Term N
-    -- sums
-    inl_∥_ : ∀ {N} → τ N → Term N → Term N
-    inr_∥_ : ∀ {N} → τ N → Term N → Term N
-    case_of_∥_ : ∀ {N} → Term N → Term (ꜱ N) → Term (ꜱ N) → Term N
-    -- products
-    _`pair_ : ∀ {N} → Term N → Term N → Term N
-    fst_ : ∀ {N} → Term N → Term N
-    snd_ : ∀ {N} → Term N → Term N
-    -- ascription
-    _::_ : ∀ {N} → Term N → τ N → Term N
-    -- booleans
-    `𝔹_ : ∀ {N} → 𝔹 → Term N
-    if_∥_∥_ : ∀ {N} → Term N → Term N → Term N → Term N
-    -- let
-    `let_∥_ : ∀ {N} → Term N → Term (ꜱ N) → Term N
-
-```
-
-
+The fundamental property proof is by induction on the terms of the language. In the mechanization we need to explicitly assume well-typednedness of the value environments, which is implicit in the value environment relation. Above we have two fundamental properties, the first is for the sensitivity language and the second is for the privacy language. Each are explained in the Duet 2 paper.
 
