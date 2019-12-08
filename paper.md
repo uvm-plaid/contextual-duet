@@ -13,7 +13,7 @@ The general structure of the proof of the fundamental property of metric preserv
 * formalization of the core language: expressions (terms), types, values and environments.
 * formalization of the language rules: ground truth dynamic semantics, typing judgements and probabilistic semantics.
 * formalization of the logical relations of the language.
-* necessary lemmas and the main proof body.
+* necessary lemmas and the main proof body. 
 
 So far the progress made has been making a proof for the correctness of Duet 1 and a proof for the correctness of Duet 2 following the above process.
 

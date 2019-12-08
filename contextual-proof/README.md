@@ -11,4 +11,4 @@ The structure of the project is as follows:
 - *proof.agda* : proof of the fundamental property of metric preservation for Duet's sensitivity language
 - *proof2.agda* : cont. proof of the fundamental property of metric preservation for Duet's sensitivity language: closed terms and sensitivity type soundness at base types
 - *red-proof.agda* : proof of the fundamental property of metric preservation for Duet's privacy language
-- *README.md* : contains this README, which you are currently reading :)
+- *README.md* : contains this README, which you are currently reading :) 
