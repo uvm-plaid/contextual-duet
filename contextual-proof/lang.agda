@@ -254,7 +254,7 @@ mutual
     _`papp_ : ∀ {N} → Term N → Term N → PTerm N
     `return_ : ∀ {N} → Term N → PTerm N
     `bind_∥_ : ∀ {N} → PTerm N → PTerm (ꜱ N) → PTerm N
-
+    pcase_of_∥_ : ∀ {N} → Term N → PTerm (ꜱ N) → PTerm (ꜱ N) → PTerm N
 
   data Term : ℕ → Set where
     -- real numbers
@@ -337,7 +337,7 @@ wkΣ (ꜱ ι) (x ∷ Σ) = x ∷ wkΣ ι Σ
 
 substΣ/τ : ∀ {N} → (ι : idx N) → Σ[ pred N ι ] → τ N → τ (pred N ι)
 substΣ/τ i Σ (sƛ⦂ τ₁ ∥ s ⇒[ x₀ ∔ Σ′ ] τ₂) = sƛ⦂ substΣ/τ i Σ τ₁ ∥ s ⇒[  x₀ ∔ substΣ/Σ (ꜱ i) (wkΣ ᴢ Σ) Σ′ ] substΣ/τ (ꜱ i) (wkΣ ᴢ Σ) τ₂
-substΣ/τ i Σ (pƛ⦂ τ₁ ∥ s ⇒[ x₀ ∔ Σ′ ] τ₂) = pƛ⦂ substΣ/τ i Σ τ₁ ∥ s ⇒[  x₀ ∔ substΣ/Σ (ꜱ i) (wkΣ ᴢ Σ) Σ′ ] substΣ/τ (ꜱ i) (wkΣ ᴢ Σ) τ₂
+substΣ/τ i Σ (pƛ⦂ τ₁ ∥ s ⇒[ x₀ ∔ Σ′ ] τ₂) = pƛ⦂ substΣ/τ i Σ τ₁ ∥ s ⇒[  x₀ ∔ substΣ/Σₚ (ꜱ i) (wkΣ ᴢ Σ) Σ′ ] substΣ/τ (ꜱ i) (wkΣ ᴢ Σ) τ₂
 substΣ/τ i Σ (τ₁ ∥ x₀₀ ∔ x ⊗ x₀₁ ∔ x₁ ∥ τ₂) = substΣ/τ i Σ τ₁ ∥ x₀₀ ∔ substΣ/Σ i Σ x ⊗ x₀₁ ∔ substΣ/Σ i Σ x₁ ∥ substΣ/τ i Σ τ₂
 substΣ/τ i Σ (τ₁ ∥ x₀₀ ∔ x ⊕ x₀₁ ∔ x₁ ∥ τ₂) =  substΣ/τ i Σ τ₁ ∥ x₀₀ ∔ substΣ/Σ i Σ x ⊕ x₀₁ ∔ substΣ/Σ i Σ x₁ ∥ substΣ/τ i Σ τ₂
 substΣ/τ i Σ unit = unit
