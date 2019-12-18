@@ -59,7 +59,8 @@ fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`papp {Σ₁ = Σ₁
 fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`pcase e₁ e₂ e₃ τε) r[γ₁,γ₂]
   v₁ v₂ r₁ r₂ ε₁ ε₂
   ⟨ ⊢`pcase/l re₁ re₂ , ⊢`pcase/l re₃ re₄ ⟩
-  pr₁ pr₂ with fp₂ {!   !} {!   !} e₂ {!   !} {!   !} {!   !} {!   !} {!   !} {!   !} {!   !} {!   !} {!   !} {!   !}
+  pr₁ pr₂ with typeSafety {Σ′ = Σ′} e₁ re₁ | typeSafety {Σ′ = Σ′} e₁ re₃
+... | ⊢inl ⊢v₁ | ⊢inl ⊢v₂ with fp₂ (⊢s ⊢v₁ ⊢γ₁) (⊢s ⊢v₂ ⊢γ₂) e₂ ⟨∃ ⊢v₁ , ⟨∃ ⊢v₂ , ⟨ {!   !} , r[γ₁,γ₂] ⟩ ⟩ ⟩ v₁ v₂ r₁ r₂ (typeSafety₂ e₂ _) (typeSafety₂ e₂ _) ⟨ {!   !} , {!   !} ⟩ pr₁ pr₂
 ... | IH₁ = {!   !}
 
 fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`pcase e₁ e₂ e₃ τε) r[γ₁,γ₂]
