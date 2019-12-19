@@ -35,6 +35,8 @@ fp₂ : ∀ {N} {Γ : Γ[ N ]} {ℾ e τ Σ Σ₀ γ₁ γ₂ Σ′} → ℾ ⊢
   → ⟨ γ₁ , γ₂ ⟩∈𝒢⟦ Σ′ ː ℾ ⟧
   → ⟨ γ₁ ⊢ e , γ₂ ⊢ e ⟩∈ℰₚ⟦ [vec]⌉ Σ′ ⌈⸢ one ⸣ ⨰ Σ ː (Σ′ ⟨⟨ τ ⟩⟩) ⟧
 {-
+
+-- PRIVACY FUNCTION APPLICATION
 fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`papp {Σ₁ = Σ₁} {Σ₂ = Σ₂} {τ₂ = τ₂} {p = p} e₁ e₂) r[γ₁,γ₂]
   v₁ v₂ r₁ r₂ ε₁ ε₂
   ⟨ ⊢`papp {γ = γ₁} {e′ = e′₁} {𝓋₁ = 𝓋₁} ⊢e₁₁ ⊢e₁₂ ⊢e₁₂′ , ⊢`papp {γ = γ₂} {e′ = e′₂} {𝓋₁ = 𝓋₂} ⊢e₂₁ ⊢e₂₂ ⊢e₂₂′ ⟩
@@ -59,6 +61,7 @@ fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`papp {Σ₁ = Σ₁
 
 -}
 {-
+-- PRIVACY CASE LEFT-LEFT
 fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`pcase {Σ₁₁ = Σ₁₁} {Σ₁₂ = Σ₁₂} {Σ₂ = Σ₂} e₁ e₂ e₃ τε) r[γ₁,γ₂]
   v₁ v₂ r₁ r₂ ε₁ ε₂
   ⟨ ⊢`pcase/l {𝓋₁ = 𝓋₁₁} re₁ re₂ , ⊢`pcase/l {𝓋₁ = 𝓋₁₂} re₃ re₄ ⟩
@@ -69,6 +72,7 @@ fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`pcase {Σ₁₁ = �
 ... | IH₂ rewrite L0-3 (Σ′ ⨰ Σ₁₁) = subsumption₂ τε IH₂
 -}
 
+-- PRIVACY CASE LEFT-RIGHT
 fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′}
   ⊢γ₁ ⊢γ₂
   (⊢`pcase e₁ e₂ e₃ τε) r[γ₁,γ₂]
@@ -79,12 +83,15 @@ fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′}
   ∈sup𝓋₁
   ∈sup𝓋₂
   pr₁ pr₂
-  = {! fp ⊢γ₁ ⊢γ₂ e₁ r[γ₁,γ₂] (inl 𝓋₁₁) (inr 𝓋₁₂) (typeSafety {Σ′ = Σ′} e₁ re₁) (typeSafety {Σ′ = Σ′} e₁ re₃) ⟨ re₁ , re₃ ⟩  !}
+  with  fp ⊢γ₁ ⊢γ₂ e₁ r[γ₁,γ₂] (inl 𝓋₁₁) (inr 𝓋₁₂) (typeSafety {Σ′ = Σ′} e₁ re₁) (typeSafety {Σ′ = Σ′} e₁ re₃) ⟨ re₁ , re₃ ⟩
+... | IH with typeSafety {Σ′ = Σ′} e₁ re₁ | typeSafety {Σ′ = Σ′} e₁ re₃
+… | ⊢inl X | ⊢inr Y = {! IH !}
 
 
 -- fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`pcase e₁ e₂ e₃ τε) r[γ₁,γ₂] v₁ v₂ r₁ r₂ ε₁ ε₂ ⟨ ⊢`pcase/r x π₃ , ⊢`pcase/l x₁ π₄ ⟩ pr₁ pr₂ = {!   !}
 -- fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`pcase e₁ e₂ e₃ τε) r[γ₁,γ₂] v₁ v₂ r₁ r₂ ε₁ ε₂ ⟨ ⊢`pcase/r x π₃ , ⊢`pcase/r x₁ π₄ ⟩ pr₁ pr₂ = {!   !}
 
+-- RETURN
 fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′}
   ⊢γ₁ ⊢γ₂
   (⊢`return e) r[γ₁,γ₂]
@@ -95,7 +102,23 @@ fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′}
   ∈sup𝓋₁
   ∈sup𝓋₂
   pr₁ pr₂
-  = {!!}
+  = {!   !}
+
+-- BIND
+fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′}
+  ⊢γ₁ ⊢γ₂
+  (⊢`bind e₁ e₂) r[γ₁,γ₂]
+  𝓋₁ 𝓋₂ ⊢𝓋₁ ⊢𝓋₂
+  ⟨ ⊢`bind {𝓋₁ = 𝓋₁₁} ε₁ F , ⊢`bind {𝓋₁ = 𝓋₁₂} ε₂ F₁ ⟩
+  v r₁ r₂
+  ⊢v
+  ∈sup𝓋₁
+  ∈sup𝓋₂
+  pr₁ pr₂ with typeSafety₂ {Σ′ = Σ′} e₁ ε₁ | typeSafety₂ {Σ′ = Σ′} e₁ ε₂
+... | ⊢v₁′ | ⊢v₂′ with fp₂ ⊢γ₁ ⊢γ₂ e₁ r[γ₁,γ₂] 𝓋₁₁ 𝓋₁₂ ⊢v₁′ ⊢v₂′ ⟨ ε₁ , ε₂ ⟩ _ _ _ _ _ _ _ _
+-- how do we extend with value well-typedness now that they're different
+... | IH₁ with fp₂ _ _ e₂ _ 𝓋₁ 𝓋₂ {!⊢𝓋₁   !} _ _  v r₁ r₂ {! ⊢v  !} ∈sup𝓋₁ ∈sup𝓋₂ pr₁ pr₂
+... | IH₂ = {!   !}
 
 fp₂ _ = {!   !}
 
