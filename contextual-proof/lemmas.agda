@@ -47,8 +47,8 @@ postulate
     → ⊢ᴰ dπ₁ (F₁ x s₁) ⦂ τ₂
     → ⊢ᴰ dπ₁ (F₂ x s₂) ⦂ τ₂
     → [𝒟]| dπ₁ (F₁ x s₁) - dπ₁ (F₂ x s₂) |≤ ([vec]⌉ Σ′ ⌈⸢ ⟨ 1 ⟩ ⸣ ⨰ Σ₂))
-    → ([𝒟]| bind-support x₁ (λ { ⟨∃ v₁ , ε ⟩ → dπ₁ (F₁ v₁ ε) }) -
-      bind-support x₂ (λ { ⟨∃ v₁ , ε ⟩ → dπ₁ (F₂ v₁ ε) }) |≤
+    → ([𝒟]| bind-support x₁ (λ v₁ε → dπ₁ (F₁ (dπ₁ v₁ε) (dπ₂ v₁ε))) -
+      bind-support x₂ (λ v₁ε → dπ₁ (F₂ (dπ₁ v₁ε) (dπ₂ v₁ε))) |≤
       ([vec]⌉ Σ′ ⌈⸢ ⟨ 1 ⟩ ⸣ ⨰ (Σ₁ +ⱽ Σ₂)))
   LTruncSep : ∀ {N} (p : Priv) → (Σ : Σ[ N ]) → [vec]⌉ Σ ⌈⸢ p ⸣ ≡ p ⨵ [vec]⌉ Σ ⌈⸢ one ⸣
   LVecScale : ∀ {N} (p : Priv)
