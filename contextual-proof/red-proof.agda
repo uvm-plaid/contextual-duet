@@ -73,6 +73,7 @@ fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′} ⊢γ₁ ⊢γ₂ (⊢`pcase {Σ₁₁ = �
 -}
 
 -- PRIVACY CASE LEFT-RIGHT
+{-
 fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′}
   ⊢γ₁ ⊢γ₂
   (⊢`pcase e₁ e₂ e₃ τε) r[γ₁,γ₂]
@@ -105,20 +106,27 @@ fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′}
   with fp ⊢γ₁ ⊢γ₂ e r[γ₁,γ₂] v₁ v₂ (typeSafety {Σ′ = Σ′} e e₁⇓) (typeSafety {Σ′ = Σ′} e e₂⇓) ⟨ e₁⇓ , e₂⇓ ⟩
 … | IH = {! !}
 
+-}
+
 -- BIND
 fp₂ {Σ₀ = Σ₀} {Σ′ = Σ′}
   ⊢γ₁ ⊢γ₂
-  (⊢`bind e₁ e₂) r[γ₁,γ₂]
+  (⊢`bind {Σ₁ = Σ₁} {Σ₂ = Σ₂} e₁ e₂) r[γ₁,γ₂]
   𝓋₁ 𝓋₂ ⊢𝓋₁ ⊢𝓋₂
-  ⟨ ⊢`bind {𝓋₁ = 𝓋₁₁} ε₁ F₁ , ⊢`bind {𝓋₁ = 𝓋₁₂} ε₂ F₂ ⟩
-  v r₁ r₂
-  ⊢v
-  ∈sup𝓋₁
-  ∈sup𝓋₂
-  pr₁ pr₂ with typeSafety₂ {Σ′ = Σ′} e₁ ε₁ | typeSafety₂ {Σ′ = Σ′} e₁ ε₂
-... | ⊢v₁′ | ⊢v₂′ with fp₂ ⊢γ₁ ⊢γ₂ e₁ r[γ₁,γ₂] 𝓋₁₁ 𝓋₁₂ ⊢v₁′ ⊢v₂′ ⟨ ε₁ , ε₂ ⟩
--- how do we extend with value well-typedness now that they're different
-... | IH₁ = {!!}
+  ⟨ ⊢`bind {𝓋₁ = 𝓋₁₁} ε₁ F₁ , ⊢`bind {𝓋₁ = 𝓋₁₂} ε₂ F₂ ⟩ -- v r₁ r₂ ∈sup𝓋₁ ∈sup𝓋₂ pr₁ pr₂
+  with typeSafety₂ {Σ′ = Σ′} e₁ ε₁ | typeSafety₂ {Σ′ = Σ′} e₁ ε₂
+... | ⊢v₁′ | ⊢v₂′
+  with fp₂ ⊢γ₁ ⊢γ₂ e₁ r[γ₁,γ₂] 𝓋₁₁ 𝓋₁₂ ⊢v₁′ ⊢v₂′ ⟨ ε₁ , ε₂ ⟩
+... | IH₁
+  with sequentialComposition Σ′ 𝓋₁₁ 𝓋₁₂ F₁ F₂ Σ₁ Σ₂
+    IH₁ λ x s₁ s₂ ⊢x ⊢ᴰdπ₁₁ ⊢ᴰdπ₁₂
+    → fp₂ (⊢s ⊢x ⊢γ₁) (⊢s ⊢x ⊢γ₂) e₂ _ (dπ₁ (F₁ x s₁)) (dπ₁ (F₂ x s₂)) ⊢ᴰdπ₁₁ ⊢ᴰdπ₁₂
+    ⟨ (dπ₂ (F₁ x s₁)) , (dπ₂ (F₂ x s₂)) ⟩
+... | sC = {! sC !}
+
+--   pr₁ pr₂ with typeSafety₂ {Σ′ = Σ′} e₁ ε₁ | typeSafety₂ {Σ′ = Σ′} e₁ ε₂
+-- ... | ⊢v₁′ | ⊢v₂′ with fp₂ ⊢γ₁ ⊢γ₂ e₁ r[γ₁,γ₂] 𝓋₁₁ 𝓋₁₂ ⊢v₁′ ⊢v₂′ ⟨ ε₁ , ε₂ ⟩
+-- ... | IH₁ = {!!}
 -- with fp₂ _ _ e₂ _ 𝓋₁ 𝓋₂ {!⊢𝓋₁   !} _ _  v r₁ r₂ {! ⊢v  !} ∈sup𝓋₁ ∈sup𝓋₂ pr₁ pr₂
 -- ... | IH₂ = {!   !}
 

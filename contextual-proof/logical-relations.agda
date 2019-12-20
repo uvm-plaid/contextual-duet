@@ -10,17 +10,23 @@ mutual
   ⊢ᴰ_⦂_ : 𝒟 𝓋 → τ ᴢ → Set
   ⊢ᴰ 𝓋 ⦂ τ = ∀ v → v ∈support 𝓋 → ⊢ v ⦂ τ
 
+  -- ε-closeness/ε-DP
+  [𝒟]|_-_|≤_ : 𝒟 𝓋 → 𝒟 𝓋 → Priv → Set
+  [𝒟]| x₁ - x₂ |≤ ε = ∀ (x : 𝓋) →
+    (r₁ r₂ : ℝ) → x ∈support x₁ → x ∈support x₂ → Pr[ x₁ ⩦ x ]≡[ r₁ ] →
+    Pr[ x₂ ⩦ x ]≡[ r₂ ] → r₁ ≤ᵣ ((𝑒^ᴿ (p2r ε)) × r₂)
+
   ⟨_⊢_,_⊢_⟩∈ℰₚ⟦_ː_⟧ : ∀ {N} → γ[ N ] → PTerm N → γ[ N ] → PTerm N → Priv → τ ᴢ → Set
-  ⟨ γ₁ ⊢ e₁ , γ₂ ⊢ e₂ ⟩∈ℰₚ⟦ p ː τ ⟧ = ∀ 𝓋₁ 𝓋₂  →
+  ⟨ γ₁ ⊢ e₁ , γ₂ ⊢ e₂ ⟩∈ℰₚ⟦ p ː τ ⟧ = ∀ 𝓋₁ 𝓋₂ →
     (ε₁ : ⊢ᴰ 𝓋₁ ⦂ τ) →
     (ε₂ : ⊢ᴰ 𝓋₂ ⦂ τ) →
-    (γ₁ ⊢ e₁ ⇓ₚ 𝓋₁) ∧ (γ₂ ⊢ e₂ ⇓ₚ 𝓋₂) →
-    ∀ v r₁ r₂
-    (ε₃ : ⊢ v ⦂ τ) →
-    v ∈support 𝓋₁ →
-    v ∈support 𝓋₂ →
-    Pr[ 𝓋₁ ⩦ v ]≡[ r₁ ] →
-    Pr[ 𝓋₂ ⩦ v ]≡[ r₂ ] → r₁ ≤ᵣ ((𝑒^ᴿ (p2r p)) × r₂) -- this should be funny times which is strict in infinity
+    (γ₁ ⊢ e₁ ⇓ₚ 𝓋₁) ∧ (γ₂ ⊢ e₂ ⇓ₚ 𝓋₂) → [𝒟]| 𝓋₁ - 𝓋₂ |≤ p
+    -- ∀ v r₁ r₂
+    -- (ε₃ : ⊢ v ⦂ τ) →
+    -- v ∈support 𝓋₁ →
+    -- v ∈support 𝓋₂ →
+    -- Pr[ 𝓋₁ ⩦ v ]≡[ r₁ ] →
+    -- Pr[ 𝓋₂ ⩦ v ]≡[ r₂ ] → r₁ ≤ᵣ ((𝑒^ᴿ (p2r p)) × r₂)
 
 
   -- ⟨_,_⟩∈𝒢⟦_ː_⟧ : ∀ {N} → γ[ N ] → γ[ N ] → Σ[ N ] → ℾ[ N ] → Set
