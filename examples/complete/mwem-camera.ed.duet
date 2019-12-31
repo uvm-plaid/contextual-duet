@@ -1,0 +1,35 @@
+-- MWEM in Contextual Duet
+let mwem =  Λ m : ℕ, n  : ℕ, ε  : ℝ⁺, t : ℕ .
+           -- data set B over domain D
+           pλ B : 𝕄 [L∞, U|m, n↦𝔻 ] ⋅ 1.0 ,
+              -- set Q of linear queries
+              Q : 𝕄 [L∞, U|m, n↦ ∀ τ : ☆ . (c : τ₁) ⊸ [c⋅1.0] ℕ ] ⋅ 1.0 ,
+              -- number of iterations T
+              T  : ℕ[t] ⋅ 1.0,
+              -- privacy parameter ϵ > 0
+              ε  : ℝ⁺[ε] ⋅ 1.0,
+              -- starting synthetic data: n times the uniform distribution over D
+              A₀ : 𝕄[L∞, U|m, n↦𝔻] ⋅ 1.0,
+              -- term-level matrix dimensions
+              m  : ℕ[m] ⋅ 1.0,
+              n  : ℕ[n] ⋅ 1.0 ⇒
+  -- for iteration i = 1,...,T
+  seqloop @ ε @ ℝ⁺[0.0] @ T
+    (pλ Aᵢ₋₁ : 𝕄 [L∞, U|m, n↦𝔻 ] ⋅ 1.0 ⇒
+      -- select a query qᵢ ∈ Q using the exponential mechanism
+      -- parameterized with epsilon value ϵ/2T and the score function
+      -- sᵢ(B, q) = |q(Aᵢ₋₁) - q(B)|
+      qᵢ ← exponential @ m @ n @ ∀ τ : ☆ . (c : τ₁) ⊸ [c⋅1.0] ℕ @ ℝ⁺[1.0] @ ϵ/2T @ <B>
+            (sλ B′ : 𝕄 [L∞, U|m, n↦𝔻]
+              ⇒ (sλ q′ : ∀ τ : ☆ . (c : τ₁) ⊸ [c⋅1.0] ℕ
+                ⇒ (abs (q′ @ 𝕄 [L∞, U|m, n↦𝔻] Aᵢ₋₁) (q′ @ 𝕄 [L∞, U|m, n↦𝔻] B))))
+            Q;
+      -- let measurement mᵢ = qᵢ(B) + Lap(2T/ϵ)
+      mᵢ ← laplace @ ϵ/2T @ ℝ⁺[1.0] (qᵢ @ 𝕄[L∞, U|m, n↦𝔻] B)
+      -- let Aᵢ be n times the distribution whose entries satisfy
+      -- Aᵢ(x) ≜ Aᵢ₋₁(x) × exp(qᵢ(x) × (mᵢ - qᵢ(Aᵢ₋₁))/2n)
+      return mmap-row @ m @ n @ 𝔻 @ 𝔻
+        Aᵢ₋₁ (sλ x : 𝕄 [L∞, U|1.0, n↦𝔻]
+        ⇒ (x × (exp ((qᵢ @ 𝕄 [L∞, U|1.0, n↦𝔻] x) ×
+                      (mᵢ - (div (qᵢ @ 𝕄 [L∞, U|m, n↦𝔻] Aᵢ₋₁) (2 × n))))))))
+in mwem

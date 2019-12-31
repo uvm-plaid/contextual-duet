@@ -1,3 +1,6 @@
+## DUET 2.0 (Contextual Duet) Agda Formalization and Proofs 
+
+## Chike Abuah & Jacob Wunder
 
 ### Problem Statement
 
@@ -13,7 +16,7 @@ The general structure of the proof of the fundamental property of metric preserv
 * formalization of the core language: expressions (terms), types, values and environments.
 * formalization of the language rules: ground truth dynamic semantics, typing judgements and probabilistic semantics.
 * formalization of the logical relations of the language.
-* necessary lemmas and the main proof body. 
+* necessary lemmas and the main proof body.
 
 So far the progress made has been making a proof for the correctness of Duet 1 and a proof for the correctness of Duet 2 following the above process.
 
@@ -27,7 +30,7 @@ Formalizing the core language is the process of modeling Duet’s AST and semant
 sƛ⦂_∥_⇒_ : ∀ {N} → (τ₁ : τ N) → (s : Sens) → (e : Term (ꜱ N)) → Term N
 ```
 
-which takes 
+which takes
 
 - $N$: the number of  free variables in scope
 -  $\tau_1$: the type of the input parameter
@@ -59,7 +62,7 @@ _+[qty]_ : qty A → qty A → qty A
   ⟨ x ⟩ +[qty] ⟨ y ⟩ = ⟨ x + y ⟩
 ```
 
-The key here is that \<anything> plus infinity is infinity and an embedded value plus and an embedded value is an embedding of the addition. However this could not be done for all operations. 
+The key here is that \<anything> plus infinity is infinity and an embedded value plus and an embedded value is an embedding of the addition. However this could not be done for all operations.
 
 
 
@@ -90,7 +93,7 @@ then 1
 else 100000
 ```
 
-This should have a sensitivity of $100000$ because the value can change by at most $100000$ depending on the value of $x$. However, Duet 1 would only get a sensitivity of $1$ because $x$ is used once. 
+This should have a sensitivity of $100000$ because the value can change by at most $100000$ depending on the value of $x$. However, Duet 1 would only get a sensitivity of $1$ because $x$ is used once.
 
 Let the above expression be called $e$.  When we evaluate $e$ we would get noise added to the answer of $[[e]] + Lap(\frac s \epsilon)$ which is a very small amount of noise when $s = 1$ so if $x$ were zero then it would be $100000 + Lap(\frac 1 \epsilon)$ rather than $100000 + Lap(\frac {100000} \epsilon)$ and the signal would heavily outweigh the noise, removing ambiguity from the answer given by Duet.
 
@@ -265,7 +268,7 @@ The value environment relation is assumed in the proof of the fundamental proper
 
 ```
 
-The value relation is straightforward, assuming all-typedness of values as discussed earlier.
+The value relation is straightforward, assuming well-typedness of values as discussed earlier.
 
 ```haskell
 -- value relation
@@ -293,4 +296,3 @@ $$
 
 
 The fundamental property proof is by induction on the terms of the language. In the mechanization we need to explicitly assume well-typednedness of the value environments, which is implicit in the value environment relation. Above we have two fundamental properties, the first is for the sensitivity language and the second is for the privacy language.
-
