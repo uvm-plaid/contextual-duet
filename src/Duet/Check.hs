@@ -137,6 +137,9 @@ checkTypeLang e₀ = case (extract e₀) of
     τ ← checkTypeLang e
     return $ SetT τ
   𝕄TE ℓ c rows mexpr → return $ 𝕄T ℓ c rows mexpr
+  ForallTE x κ e → do
+    τ ← checkTypeLang e
+    return $ ForallT x κ τ
   𝔻TE e → do
     τ ← checkTypeLang e
     return $ 𝔻T τ
@@ -474,7 +477,7 @@ inferSens eA = case extract eA of
               TypeK → substType x (checkOption $ checkTypeLang $ tl') τ
               SchemaK → substTypeM x (checkOption $ checkMExpLang tl') τ
         return τ''
-      _ → error $ "expected ForallT, got: " ⧺ pprender τ
+      _ → error $ "expected ForallT, got: " ⧺ pprender τ ⧺ (pprender $ ppLineNumbers $ pretty $ annotatedTag eA)
   SFunSE xsO x τ e → do
       checkType $ extract τ
       let τ' = extract τ
