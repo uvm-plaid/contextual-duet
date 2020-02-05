@@ -54,10 +54,11 @@ instance Pretty Norm where
     L2 → ppKeyPun "L2"
     LInf → ppKeyPun "L∞"
 
-instance Pretty Clip where
+instance (Pretty r) ⇒ Pretty (Clip r) where
   pretty = \case
     NormClip ℓ → pretty ℓ
     UClip → ppKeyPun "U"
+    DNormClip r → pretty r
 
 deriving instance (Pretty r) ⇒ Pretty (Sens r)
 
@@ -139,8 +140,15 @@ instance (Pretty r, Eq r) ⇒ Pretty (Type r) where
       , ppPun ":⊞:"
       , ppBump $ pretty (σ₂ :* τ₂)
       ]
-    τ₁ :⊸: (ς :* τ₂) → ppAtLevel 2 $ ppSeparated $ list
-      [ pretty τ₁
+    (x :* τ₁) :∃: (sσ :* τ₂) → ppAtLevel 2 $ ppSeparated $ list
+      [ ppParens $ ppSeparated $ list [pretty x,ppPun ":",pretty τ₁]
+      , case sσ ≡ dø of
+          False → ppBotLevel $ concat [ppPun "∃[",ppAlign $ pretty sσ,ppPun "]"]
+          True → ppBotLevel $ ppPun "∃"
+      , pretty τ₂
+      ]
+    (x :* τ₁) :⊸: (ς :* τ₂) → ppAtLevel 2 $ ppSeparated $ list
+      [ ppParens $ ppSeparated $ list [pretty x,ppPun ":",pretty τ₁]
       , case ς ≡ dø of
           False → ppBotLevel $ concat [ppPun "⊸[",ppAlign $ pretty ς,ppPun "]"]
           True → ppBotLevel $ ppPun "⊸"

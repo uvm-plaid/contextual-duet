@@ -11,8 +11,15 @@ data Norm = L1 | L2 | LInf
 data ProgramVar = TLVar 𝕏 | TMVar 𝕏
   deriving (Eq,Ord,Show)
 
-data Clip = NormClip Norm | UClip
+data Clip r = NormClip Norm | UClip | DNormClip r
   deriving (Eq,Ord,Show)
+
+instance Functor Clip where
+  map ∷ (a → b) → Clip a → Clip b
+  map f = \case
+    NormClip n → NormClip n
+    UClip → UClip
+    DNormClip r → DNormClip $ f r
 
 newtype Sens r = Sens { unSens ∷ r }
   deriving
@@ -254,7 +261,7 @@ data Type r =
   | 𝔹T
   | 𝕊T
   | SetT (Type r)
-  | 𝕄T Norm Clip (RowsT r) (MExp r)
+  | 𝕄T Norm (Clip r) (RowsT r) (MExp r)
   | 𝔻T (Type r)
   | Type r :⊕: Type r
   | Type r :⊗: Type r
@@ -263,6 +270,7 @@ data Type r =
   | (Type r ∧ (ProgramVar ⇰ Sens r)) :⊠: ((ProgramVar ⇰ Sens r) ∧ Type r)
   | (𝕏 ∧ Type r) :⊸: ((ProgramVar ⇰ Sens r) ∧ Type r)
   | (𝕏 ∧ Type r ∧ Sens r) :⊸⋆: (PEnv r ∧ Type r)
+  | (𝕏 ∧ Type r) :∃: ((ProgramVar ⇰ Sens r) ∧ Type r)
   | ForallT 𝕏 Kind (Type r)
   | CxtT (𝑃 ProgramVar)
   | UnitT
@@ -280,7 +288,7 @@ instance Functor Type where
     𝔹T → 𝔹T
     𝕊T → 𝕊T
     SetT τ → SetT (map f τ)
-    𝕄T ℓ c r₁ r₂ → 𝕄T ℓ c (map f r₁) (map f r₂)
+    𝕄T ℓ c r₁ r₂ → 𝕄T ℓ (map f c) (map f r₁) (map f r₂)
     𝔻T τ → 𝔻T $ map f τ
     τ₁ :⊕: τ₂ → map f τ₁ :⊕: map f τ₂
     τ₁ :⊗: τ₂ → map f τ₁ :⊗: map f τ₂
@@ -291,6 +299,7 @@ instance Functor Type where
     (x :* τ₁) :⊸: (σ :* τ₂) → (x :* map f τ₁) :⊸: (mapp f σ :*  map f τ₂)
     -- pλ
     (x :* τ₁ :* s) :⊸⋆: (PEnv pσ :* τ₂) → (x :* map f τ₁ :* map f s) :⊸⋆: (PEnv (map (map f) pσ) :* map f τ₂)
+    (x :* τ₁) :∃: (σ :* τ₂) → (x :* map f τ₁) :∃: (mapp f σ :*  map f τ₂)
     ForallT α κ τ → ForallT α κ $ map f τ
     CxtT xs → CxtT xs
     UnitT → UnitT
@@ -309,7 +318,7 @@ data TLExpPre r =
   | 𝔹TE
   | 𝕊TE
   | SetTE (TLExp r)
-  | 𝕄TE Norm Clip (RowsT r) (MExp r)
+  | 𝕄TE Norm (Clip r) (RowsT r) (MExp r)
   | 𝔻TE (TLExp r)
   | TLExp r :⊕♭: TLExp r
   | TLExp r :⊗♭: TLExp r
@@ -338,8 +347,6 @@ data TLExpPre r =
   | ConsTE (TLExp r) (TLExp r)
   | AppendTE (TLExp r) (TLExp r)
   | RexpTE (TLExp r) (TLExp r)
-  -- Privacy Stuff
-  -- QUESTION, TODO
   | PairTE (TLExp r) (TLExp r)
   deriving (Eq,Ord,Show)
 makePrettySum ''TLExpPre
@@ -357,7 +364,7 @@ instance Functor TLExpPre where
     SetTE τ → do
       let tag = annotatedTag τ
       SetTE $ Annotated tag (map f (extract τ))
-    𝕄TE ℓ c r₁ r₂ → 𝕄TE ℓ c (map f r₁) (map f r₂)
+    𝕄TE ℓ c r₁ r₂ → 𝕄TE ℓ (map f c) (map f r₁) (map f r₂)
     𝔻TE τ → do
       let tag = annotatedTag τ
       𝔻TE $ Annotated tag (map f (extract τ))
@@ -579,9 +586,13 @@ freshenType ρ β τ''' n = let nplusone = n + one in
     𝕄T l c rows cols →
       let rows' = case rows of
                     StarRT → StarRT
-                    RexpRT r → RexpRT (substAlphaRNF (list ρ) r)
+                    RexpRT r → RexpRT (substAlphaRNF (list ρ) r) in
+      let c' = case c of
+                    UClip → UClip
+                    NormClip l → NormClip l
+                    DNormClip r → DNormClip (substAlphaRNF (list β) r)
       in let (cols' :* n') = (freshenMExp ρ β cols n)
-      in (𝕄T l c rows' cols') :* n'
+      in (𝕄T l c' rows' cols') :* n'
     𝔻T τ → let (τ' :* n') = freshenType ρ β τ n
       in (𝔻T τ') :* n'
     τ₁ :⊕: τ₂ →
@@ -616,6 +627,13 @@ freshenType ρ β τ''' n = let nplusone = n + one in
       let σ₂' = (mapp (\r → substAlphaRNF (list ρ) r) σ₂) in
       let σ₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₂' in
       ((τ₁' :* σ₁'') :⊠: (σ₂'' :* τ₂')) :* n''
+    (x₁ :* τ₁) :∃: (sσ₁ :* τ₂) →
+      let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some n} in
+      let (τ₁' :* n') = freshenType ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₁ nplusone in
+      let (τ₂' :* n'') = freshenType ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₂ n' in
+      let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁) in
+      let sσ₁'' ∷ (ProgramVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ ((x₁↦ x₁ⁿ) ⩌ β) x :* s) $ list sσ₁' in
+      ((x₁ⁿ :* τ₁') :∃: (sσ₁'' :* τ₂') :* n'')
     (x₁ :* τ₁) :⊸: (sσ₁ :* τ₂) →
       let x₁ⁿ = 𝕏 {𝕩name=(𝕩name x₁), 𝕩Gen=Some n} in
       let (τ₁' :* n') = freshenType ρ ((x₁↦ x₁ⁿ) ⩌ β) τ₁ nplusone in
@@ -701,8 +719,8 @@ alphaEquiv ρ β τ₁' τ₂' =
     (𝔹T,𝔹T) → True
     (𝕊T,𝕊T) → True
     (SetT τ₁,SetT τ₂) → alphaEquiv ρ β τ₁ τ₂
-    (𝕄T l₁ c₁ rows₁ cols₁,𝕄T l₂ c₂ rows₂ cols₂) → case (l₁≡l₂,c₁≡c₂) of
-      (True,True) → (alphaEquivRows ρ rows₁ rows₂) ⩓ (alphaEquivMExp ρ β cols₁ cols₂)
+    (𝕄T l₁ c₁ rows₁ cols₁,𝕄T l₂ c₂ rows₂ cols₂) → case l₁≡l₂ of
+      True → (alphaEquivClip β c₁ c₂) ⩓ (alphaEquivRows ρ rows₁ rows₂) ⩓ (alphaEquivMExp ρ β cols₁ cols₂)
       _ → False
     (𝔻T τ₁,𝔻T τ₂) → alphaEquiv ρ β τ₁ τ₂
     (τ₁₁ :⊕: τ₁₂,τ₂₁ :⊕: τ₂₂) → (alphaEquiv ρ β τ₁₁ τ₂₁) ⩓ (alphaEquiv ρ β τ₁₂ τ₂₂)
@@ -733,6 +751,13 @@ alphaEquiv ρ β τ₁' τ₂' =
       let σ₁₂'' = assoc $ map (\(TMVar x :* s) → TMVar (freshenVar β x) :* s) $ list σ₁₂'
       let c₂ = (σ₁₁'' ≡ σ₂₁)
       let c₃ = (σ₁₂'' ≡ σ₂₂)
+      c₁ ⩓ c₂ ⩓ c₃
+    ((x₁ :* τ₁₁) :∃: (sσ₁ :* τ₁₂),(x₂ :* τ₂₁) :∃: (sσ₂ :* τ₂₂)) → do
+      let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁)
+      let sσ₁'' ∷ (ProgramVar ⇰ _) = assoc $ map (\(x :* s) → freshenRef ρ ((x₁↦ x₂) ⩌ β) x :* s) $ list sσ₁'
+      let c₁ = (alphaEquiv ρ ((x₁ ↦ x₂) ⩌ β) τ₁₁ τ₂₁)
+      let c₂ = (alphaEquiv ρ ((x₁ ↦ x₂) ⩌ β) τ₁₂ τ₂₂)
+      let c₃ = (sσ₁'' ≡ sσ₂)
       c₁ ⩓ c₂ ⩓ c₃
     ((x₁ :* τ₁₁) :⊸: (sσ₁ :* τ₁₂),(x₂ :* τ₂₁) :⊸: (sσ₂ :* τ₂₂)) → do
       let sσ₁' = (mapp (\r → substAlphaRNF (list ρ) r) sσ₁)
@@ -774,6 +799,14 @@ alphaEquivRows ∷ (𝕏 ⇰ 𝕏) → RowsT RNF → RowsT RNF → 𝔹
 alphaEquivRows ρ rows₁ rows₂ = case (rows₁,rows₂) of
   (StarRT, StarRT) → True
   (RexpRT r₁, RexpRT r₂) → (substAlphaRNF (list ρ) r₁) ≡ r₂
+  _ → False
+
+
+alphaEquivClip ∷ (𝕏 ⇰ 𝕏) → Clip RNF → Clip RNF → 𝔹
+alphaEquivClip β clip₁ clip₂ = case (clip₁,clip₂) of
+  (UClip, UClip) → True
+  (NormClip l₁, NormClip l₂) → l₁ ≡ l₂
+  (DNormClip r₁, DNormClip r₂) → (substAlphaRNF (list β) r₁) ≡ r₂
   _ → False
 
 tyJoinMExp ∷ (𝕏 ⇰ 𝕏) → (𝕏 ⇰ 𝕏) → MExp RNF → MExp RNF → 𝑂 (MExp RNF)
@@ -1041,6 +1074,8 @@ data SExp (p ∷ PRIV) r where
   SndSE ∷ SExpSource p r → SExp p r
   TupSE ∷ SExpSource p r → 𝑂 (𝐿 ProgramVar) → 𝑂 (𝐿 ProgramVar) → SExpSource p r → SExp p r
   UntupSE ∷ 𝕏 → 𝕏 → SExpSource p r → SExpSource p r → SExp p r
+  PackSE ∷ SExpSource p r → 𝑂 (𝐿 ProgramVar) → 𝑂 (𝐿 ProgramVar) → SExpSource p r → TypeSource r → SExp p r
+  UnpackSE ∷ 𝕏 → 𝕏 → SExpSource p r → SExpSource p r → SExp p r
   deriving (Eq,Ord,Show)
 
 instance Functor (SExp p) where
@@ -1064,6 +1099,8 @@ instance Functor (SExp p) where
   map f (SndSE e) = (SndSE (mapp f e))
   map f (TupSE e₁ xsO₁ xsO₂ e₂) = (TupSE (mapp f e₁) xsO₁ xsO₂ (mapp f e₂))
   map f (UntupSE x₁ x₂ e₁ e₂) = (UntupSE x₁ x₂ (mapp f e₁) (mapp f e₂))
+  map f (PackSE e₁ xsO₁ xsO₂ e₂ τ₂) = (PackSE (mapp f e₁) xsO₁ xsO₂ (mapp f e₂) (mapp f τ₂))
+  map f (UnpackSE x₁ x₂ e₁ e₂) = (UnpackSE x₁ x₂ (mapp f e₁) (mapp f e₂))
   map f (InlSE τ₂ e) = (InlSE (mapp f τ₂) (mapp f e))
   map f (InrSE τ₁ e) = (InrSE (mapp f τ₁) (mapp f e))
   map f (CaseSE e₁ x e₂ y e₃) = (CaseSE (mapp f e₁) x (mapp f e₂) y (mapp f e₃))

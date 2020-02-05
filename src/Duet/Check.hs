@@ -283,6 +283,12 @@ checkType τA = case τA of
       void $ checkProgramVar x'
     eachWith σ₂ $ \ (x' :* _) → do
       void $ checkProgramVar x'
+  (x :* τ₁) :∃: (sσ :* τ₂) → do
+    checkType τ₁
+    mapEnvL contextTypeL ( \ γ → (x ↦ τ₁) ⩌ γ) $ do
+      eachWith sσ $ \ (x' :* s) → do
+        void $ checkProgramVar x'
+      checkType τ₂
   (x :* τ₁) :⊸: (sσ :* τ₂) → do
     checkType τ₁
     mapEnvL contextTypeL ( \ γ → (x ↦ τ₁) ⩌ γ) $ do
@@ -368,15 +374,19 @@ inferType τinit = do
     (τ₁ :* σ₁) :&: (σ₂ :* τ₂) → do
       τ₁' ← inferType τ₁
       τ₂' ← inferType τ₂
-      return $ (τ₁ :* σ₁) :&: (σ₂ :* τ₂)
+      return $ (τ₁' :* σ₁) :&: (σ₂ :* τ₂')
     (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → do
       τ₁' ← inferType τ₁
       τ₂' ← inferType τ₂
-      return $ (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂)
+      return $ (τ₁' :* σ₁) :⊞: (σ₂ :* τ₂')
     (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → do
       τ₁' ← inferType τ₁
       τ₂' ← inferType τ₂
-      return $ (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂)
+      return $ (τ₁' :* σ₁) :⊠: (σ₂ :* τ₂')
+    (x :* τ₁) :∃: (σ :* τ₂) → do
+      τ₁' ← inferType τ₁
+      τ₂' ← inferType τ₂
+      return $ (x :* τ₁') :∃: (σ :* τ₂')
     (x :* τ₁) :⊸: (σ :* τ₂) → do
       mapEnvL contextTypeL ( \ γ → (x ↦ τ₁) ⩌ γ) $ do
         τ₁' ← inferType τ₁
@@ -568,19 +578,19 @@ inferSens eA = case extract eA of
     σ₂ :* τ₂ ← hijack $ inferSens e₂
     let xsO₁' = elim𝑂 pø pow xsO₁
     let xsO₂' = elim𝑂 pø pow xsO₂
-    let σ₁' = without xsO₁' σ₁
-    let σ₂' = without xsO₂' σ₂
-    tell $ restrict xsO₁' σ₁
-    tell $ restrict xsO₂' σ₂
+    let σ₁' = restrict xsO₁' σ₁
+    let σ₂' = restrict xsO₂' σ₂
+    tell $ without xsO₁' σ₁
+    tell $ without xsO₂' σ₂
     return $ (τ₁ :* σ₁') :⊠: (σ₂' :* τ₂)
   TupSE e₁ xsO₁ xsO₂ e₂ → do
     σ₁ :* τ₁ ← hijack $ inferSens e₁
     σ₂ :* τ₂ ← hijack $ inferSens e₂
     let xsO₁' = elim𝑂 pø pow xsO₁
     let xsO₂' = elim𝑂 pø pow xsO₂
-    let σ₁' = without xsO₁' σ₁
-    let σ₂' = without xsO₂' σ₂
-    tell $ (restrict xsO₁' σ₁) ⊔ (restrict xsO₂' σ₂)
+    let σ₁' = restrict xsO₁' σ₁
+    let σ₂' = restrict xsO₂' σ₂
+    tell $ (without xsO₁' σ₁) ⊔ (without xsO₂' σ₂)
     return $ (τ₁ :* σ₁') :&: (σ₂' :* τ₂)
   UntupSE x₁ x₂ e₁ e₂ → do
     σ₀ :* τₜ ← hijack $ inferSens e₁
@@ -594,6 +604,29 @@ inferSens eA = case extract eA of
         tell σ₃''
         tell σ₁
         tell σ₂
+        return τ₃
+      _ → error $ "Untup error: " ⧺ (pprender $ τₜ)
+  PackSE e₁ xsO₁ xsO₂ e₂ τ₂ → do
+    σ₁ :* τ₁ ← hijack $ inferSens e₁
+    σ₂ :* τ₂ ← hijack $ inferSens e₂
+    let xsO₁' = elim𝑂 pø pow xsO₁
+    let xsO₂' = elim𝑂 pø pow xsO₂
+    let σ₁' = without xsO₁' σ₁
+    let σ₂' = without xsO₂' σ₂
+    tell $ σ₁ ⊔ (restrict xsO₂' σ₂)
+    -- case TODO
+    return $ τ₂
+  UnpackSE x₁ x₂ e₁ e₂ → do
+    σ₀ :* τₜ ← hijack $ inferSens e₁
+    case τₜ of
+      (x :* τ₁) :∃: (σ :* τ₂) → do
+        σ₃ :* τ₃ ← hijack $ mapEnvL contextTypeL (\ γ → (x₁ ↦ τ₁) ⩌ (x₂ ↦ τ₂) ⩌ γ) $ inferSens e₂
+        let (ς₁ :* σ₃') = ifNone (zero :* σ₃) $ dview (TMVar x₁) σ₃
+            (ς₂ :* σ₃'') = ifNone (zero :* σ₃') $ dview (TMVar x₂) σ₃'
+        tell $ (ς₁ ⊔ ς₂) ⨵ σ₀
+        tell σ₃''
+        -- tell σ₁
+        tell σ
         return τ₃
       _ → error $ "Untup error: " ⧺ (pprender $ τₜ)
   FstSE e → do
@@ -712,7 +745,7 @@ inferPriv eA = case extract eA of
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             , "\n or sσ: \n"
             , pprender σ₂
-            , "\nhas max sensitivity GT one"
+            , "\nhas max sensitivity GT" ⧺ pprender s
             ]
       _ → error $ concat
             [ "AppPE expected pλ, got: \n"
@@ -806,6 +839,7 @@ substType x₉ τ' τ'' = case τ'' of
   (τ₁ :* σ₁) :&: (σ₂ :* τ₂) → (substType x₉ τ' τ₁ :* σ₁) :&: (σ₂ :* substType x₉ τ' τ₂)
   (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (substType x₉ τ' τ₁ :* σ₁) :⊞: (σ₂ :* substType x₉ τ' τ₂)
   (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (substType x₉ τ' τ₁ :* σ₁) :⊠: (σ₂ :* substType x₉ τ' τ₂)
+  (x' :* τ₁) :∃: (sσ :* τ₂) → (x' :* substType x₉ τ' τ₁) :∃: (sσ :* substType x₉ τ' τ₂)
   (x' :* τ₁) :⊸: (sσ :* τ₂) → (x' :* substType x₉ τ' τ₁) :⊸: (sσ :* substType x₉ τ' τ₂)
   (x' :* τ₁ :* s) :⊸⋆: (pσ :* τ₂) → (x' :* substType x₉ τ' τ₁ :* s) :⊸⋆: (pσ :* substType x₉ τ' τ₂)
   ForallT x' κ τ → ForallT x' κ $ substType x₉ τ' τ
@@ -887,6 +921,7 @@ substTypeCxt x' xs τ' = case τ' of
   (τ₁ :* σ₁) :&: (σ₂ :* τ₂) → (substTypeCxt x' xs τ₁ :* σ₁) :&: (σ₂ :* substTypeCxt x' xs τ₂)
   (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (substTypeCxt x' xs τ₁ :* σ₁) :⊞: (σ₂ :* substTypeCxt x' xs τ₂)
   (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (substTypeCxt x' xs τ₁ :* σ₁) :⊠: (σ₂ :* substTypeCxt x' xs τ₂)
+  (x :* τ₁) :∃: (sσ :* τ₂) → (x :* substTypeCxt x' xs τ₁) :∃: ((spliceCxt x' xs sσ) :* substTypeCxt x' xs τ₂)
   (x :* τ₁) :⊸: (sσ :* τ₂) → (x :* substTypeCxt x' xs τ₁) :⊸: ((spliceCxt x' xs sσ) :* substTypeCxt x' xs τ₂)
   (x :* τ₁ :* s) :⊸⋆: (PEnv pσ :* τ₂) → (x :* substTypeCxt x' xs τ₁ :* s) :⊸⋆: (PEnv (spliceCxt x' xs pσ) :* substTypeCxt x' xs τ₂)
   ForallT x κ τ → ForallT x κ $ substTypeCxt x' xs τ
@@ -923,6 +958,8 @@ substTypeR x' r' τ' = case τ' of
   (τ₁ :* σ₁) :&: (σ₂ :* τ₂) → (substTypeR x' r' τ₁ :* σ₁) :&: (σ₂ :* substTypeR x' r' τ₂)
   (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (substTypeR x' r' τ₁ :* σ₁) :⊞: (σ₂ :* substTypeR x' r' τ₂)
   (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (substTypeR x' r' τ₁ :* σ₁) :⊠: (σ₂ :* substTypeR x' r' τ₂)
+  (x :* τ₁) :∃: (sσ :* τ₂) →
+    (x :* substTypeR x' r' τ₁) :∃: (assoc (map (\(xₐ :* s) → xₐ :* Sens (substRNF x' r' (unSens s))) (iter sσ)) :* substTypeR x' r' τ₂)
   (x :* τ₁) :⊸: (sσ :* τ₂) →
     (x :* substTypeR x' r' τ₁) :⊸: (assoc (map (\(xₐ :* s) → xₐ :* Sens (substRNF x' r' (unSens s))) (iter sσ)) :* substTypeR x' r' τ₂)
   (x :* τ₁ :* s) :⊸⋆: (PEnv pσ :* τ₂) →
@@ -1088,6 +1125,8 @@ substGammaSens σ₉ x₉ τ₉ = case τ₉ of
   (τ₁ :* σ₁) :&: (σ₂ :* τ₂) → (substGammaSens σ₉ x₉ τ₁ :* substGammaSensEnv σ₉ x₉ σ₁) :&: (substGammaSensEnv σ₉ x₉ σ₂ :* substGammaSens σ₉ x₉ τ₂)
   (τ₁ :* σ₁) :⊞: (σ₂ :* τ₂) → (substGammaSens σ₉ x₉ τ₁ :* substGammaSensEnv σ₉ x₉ σ₁) :⊞: (substGammaSensEnv σ₉ x₉ σ₂ :* substGammaSens σ₉ x₉ τ₂)
   (τ₁ :* σ₁) :⊠: (σ₂ :* τ₂) → (substGammaSens σ₉ x₉ τ₁ :* substGammaSensEnv σ₉ x₉ σ₁) :⊠: (substGammaSensEnv σ₉ x₉ σ₂ :* substGammaSens σ₉ x₉ τ₂)
+  (x :* τ₁) :∃: (sσ :* τ₂) → do
+    (x :* substGammaSens σ₉ x₉ τ₁) :∃: ((substGammaSensEnv σ₉ x₉ sσ) :* substGammaSens σ₉ x₉ τ₂)
   (x :* τ₁) :⊸: (sσ :* τ₂) → do
     (x :* substGammaSens σ₉ x₉ τ₁) :⊸: ((substGammaSensEnv σ₉ x₉ sσ) :* substGammaSens σ₉ x₉ τ₂)
   (x :* τ₁ :* s) :⊸⋆: (PEnv pσ :* τ₂) → do
