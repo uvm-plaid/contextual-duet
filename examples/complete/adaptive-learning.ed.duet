@@ -20,9 +20,9 @@ let main =  ∀ m  : ℕ,
   let colnum = (mcols @ m @ n @ 𝔻 xs) in
   let m₀ = mcreate @ ℕ[1.0] @ ℕ[n] @ ℝ ℕ[1] colnum (sλ i : 𝕀[1.0] , j : 𝕀[n] ⇒ 0.0) in
   let C⁰ = 100.0 in
-  aloop @ ε @ δ @ δ′ @ t @ n @ <xs,ys>
+  aloopᵈ @ ε @ δ @ δ′ @ t @ m @ n @ <xs> @ <ys>
     (pλ <xs,ys> θᵗ : 𝕄 [L∞, U|1.0, n↦𝔻 ] ⋅ 1.0, <xs,ys> Cᵗ : ℝ ⋅ 1.0 ⇒
-      gᵖ ← mgaussᵈ @ ε @ δ @ m @ n @ <xs,ys> ε δ
+      gᵖ ← mgaussᵈ @ ε @ δ @ m @ n ε δ
             (mclipᵈ @ m @ n @ ℝ
             (matsub @ ℕ[1.0] @ n θᵗ
             (mLipGrad₁ @ m @ n θᵗ xs ys)) Cᵗ);
