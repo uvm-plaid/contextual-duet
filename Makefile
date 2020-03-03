@@ -42,7 +42,7 @@ default:
 	./examples.sh
 
 all:
-	./all_examples.sh
+	./examples.sh
 
 .PHONY: run
 run: $(NAME).cabal

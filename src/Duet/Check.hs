@@ -613,7 +613,7 @@ inferSens eA = case extract eA of
     let xsO₂' = elim𝑂 pø pow xsO₂
     let σ₁' = without xsO₁' σ₁
     let σ₂' = without xsO₂' σ₂
-    tell $ σ₁ ⊔ (restrict xsO₂' σhvh₂)
+    tell $ σ₁ ⊔ (restrict xsO₂' σ₂)
     -- case TODO: check syntactic category of e₁
     -- check equality after type-level subst
     return $ τ₂
