@@ -15,8 +15,6 @@ Install hpack: https://github.com/sol/hpack/blob/master/get-hpack.sh
 
 To typecheck all case studies: run `make`.
 
-To typecheck all examples: run `make all`.
-
 To typecheck a specific example:
 
 ```shell
@@ -26,7 +24,7 @@ stack run -- check /path/to/examples/${example-name}
 For example  
 
 ```shell
-stack run -- check examples/complete/gd-pb.ed.duet
+stack run -- check examples/complete/mwem.ed.duet
 ```
 
 ## Notes
