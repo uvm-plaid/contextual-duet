@@ -339,11 +339,16 @@ primitive mmapcol : ∀ τ₁: ☆,τ₂: ☆,m: ℕ, n: ℕ,q: ℕ, r: ℕ,s: �
 ⊸ [a⋅q] (b : (c : τ₁) ⊸ [c⋅r] 𝕄 [L∞, U|m, n↦τ₂ ])
 ⊸ [ b⋅s ] 𝕄 [L∞, U|1.0, n↦τ₂ ] ,
 
-primitive mmapcol₂ : ∀ τ₁: ☆,τ₂: ☆,m: ℕ, n: ℕ,q: ℕ, r: ℕ,s: ℕ .
+primitive pmapcol : ∀ τ₁: ☆,τ₂: ☆,m: ℕ, n: ℕ, ε : ℝ⁺ .
 (a : 𝕄 [L∞, U|m, n↦τ₁ ])
-⊸ [a⋅q] (a₁ : 𝕄 [L∞, U|m, n↦τ₁ ])
-⊸ [a₁⋅q] (b : (c : τ₁) ⊸ [c⋅r] 𝕄 [L∞, U|m, n↦τ₂ ])
-⊸ [ b⋅s ] 𝕄 [L∞, U|1.0, n↦τ₂ ] ,
+⊸ [a⋅1.0] (b : (c : τ₁ ⋅ 1.0) ⊸⋆ [c⋅⟨ε,0.0⟩] 𝕄 [L∞, U|m, n↦τ₂ ])
+⊸ [ b⋅1.0 ] 𝕄 [L∞, U|1.0, n↦τ₂ ] ,
+
+primitive mmapcol₂ : ∀ τ₁: ☆,τ₂: ☆,m: ℕ, n: ℕ .
+(a : 𝕄 [L∞, U|m, n↦τ₁ ])
+⊸ [a⋅1.0] (a₁ : 𝕄 [L∞, U|m, n↦τ₁ ])
+⊸ [a₁⋅1.0] (b : (c : τ₁) ⊸ [c⋅1.0] 𝕄 [L∞, U|m, n↦τ₂ ])
+⊸ [ b⋅1.0 ] 𝕄 [L∞, U|1.0, n↦τ₂ ] ,
 
 primitive mmaprow : ∀ m: ℕ, n: ℕ,τ₁: ☆,τ₂: ☆ .
 (a : 𝕄 [L∞, U|m, n↦τ₁ ])
@@ -364,6 +369,10 @@ primitive mfold : ∀ τ₁: ☆,τ₂: ☆,m: ℕ, n: ℕ,q: ℕ, r: ℕ,s: ℕ
 (a : 𝕄 [L∞, U|m, n↦τ₁ ])
 ⊸ [a⋅q] (b : (c : τ₁) ⊸ [c⋅r] τ₂)
 ⊸ [ b⋅s ] τ₂ ,
+
+primitive mfold-row-sum : ∀ τ₁: ☆,m: ℕ, n: ℕ .
+(a : 𝕄 [L∞, U|m, n↦τ₁ ])
+⊸ [ a⋅1.0 ] ℝ ,
 
 primitive sign :
 (a : ℝ)
@@ -453,17 +462,6 @@ primitive exponential₂ : ∀ m: ℕ,n: ℕ,τ: ☆,s: ℝ⁺, s′: ℝ⁺, ϵ
 ⊸ [d⋅0.0] (c : 𝕄 [L∞, U|m, n↦𝔻] ⋅ 1.0)
 ⊸⋆ [ d⋅⟨ϵ,0.0⟩,c⋅⟨ϵ,0.0⟩] 𝕀[n] ,
 
--- type inference?
--- give example then show type with one gamma hopefully
-
--- + examples
--- exponential
--- sample
--- parallel composition
--- mmap and other primitives
--- red let
--- MWEM
-
 primitive mmap : ∀ m: ℕ,n: ℕ, τ₁: ☆,τ₂: ☆, Γ₁: cxt, Γ₂: cxt, Γ₃: cxt .
 (a : 𝕄 [L∞, U|m, n↦τ₁ ])
 ⊸ [a⋅1.0] (b : (c : τ₁) ⊸ [[Γ₁]⋅1.0,[Γ₁]⋅∞,[Γ₁]⋅0.0] τ₂)
@@ -519,6 +517,11 @@ primitive matsub : ∀ m: ℕ, n: ℕ .
 ⊸ [θ⋅0.0] (g : 𝕄 [L∞, U|m, n↦ℝ ])
 ⊸ [θ⋅1.0,g⋅1.0] 𝕄 [L∞, U|m, n↦ℝ ],
 
+primitive mfilter-zip : ∀ m: ℕ, n: ℕ .
+(θ : 𝕄 [L∞, L2|m, n↦ℝ ])
+⊸ [θ⋅0.0] (g : 𝕄 [L∞, U|m, n↦𝔻 ])
+⊸ [θ⋅1.0,g⋅1.0] 𝕄 [L∞, U|m, n↦ℝ ],
+
 primitive mscale₀ : ∀ m: ℕ,n: ℕ.
 (θ : 𝕄 [L∞, U|m, n↦𝔻 ])
 ⊸ [θ⋅0.0] (g : ℝ)
@@ -527,6 +530,11 @@ primitive mscale₀ : ∀ m: ℕ,n: ℕ.
 primitive mscale₂ : ∀ m: ℕ,n: ℕ.
 (θ : 𝕄 [L∞, U|m, n↦ℝ ])
 ⊸ [θ⋅0.0] (g : ℝ)
+⊸ [θ⋅∞,g⋅∞] 𝕄 [L∞, U|m, n↦ℝ ],
+
+primitive mscale₃ : ∀ m: ℕ,n: ℕ.
+(θ : 𝕄 [L∞, U|m, n↦𝔻 ])
+⊸ [θ⋅0.0] (g : 𝔻)
 ⊸ [θ⋅∞,g⋅∞] 𝕄 [L∞, U|m, n↦ℝ ],
 
 primitive mscale : ∀ m: ℕ, c: ℝ⁺, ə: schema .
@@ -675,9 +683,9 @@ primitive loop :
       ] ℝ,
 
 primitive svt :
-   ∀ τ : ☆, ε: ℝ⁺, δ: ℝ⁺ .
+   ∀ τ : ☆, ε: ℝ⁺, δ: ℝ⁺,b: ℝ⁺ .
    (db : τ)
-   ⊸  [db⋅0.0] (thresh : ℝ)
+   ⊸  [db⋅0.0] (thresh : ℝ⁺[b])
    ⊸  [db⋅0.0, thresh⋅0.0] (queries : 𝕄 [L∞,U| ★,1.0↦(a : τ) ⊸ [a⋅1.0] ℝ] ⋅ 1.0)
    ⊸⋆ [queries⋅⟨∞,∞⟩, thresh⋅⟨∞,∞⟩, db⋅⟨ε,δ⟩] ℕ,
 
@@ -694,17 +702,17 @@ primitive sample :
        ys⋅⟨2.0⋅(rows₁/rows₂)⋅ε,(rows₁/rows₂)⋅δ⟩] τ,
 
 primitive pfld-rows :
-    ∀ ε: ℝ⁺, δ: ℝ⁺, m: ℕ, n: ℕ,rows: ℕ,τ: ☆ .
-    (a : ℕ[rows])
-    ⊸  [a⋅0.0] (θ : 𝕄 [L1,U|m,n↦ℝ])
-    ⊸  [a⋅0.0, θ⋅0.0] (xs : 𝕄 [L1,U|m,n↦ℝ])
-    ⊸  [a⋅0.0, xs⋅0.0, θ⋅0.0] (ys : 𝕄 [L1,U|m,1.0↦ℝ])
-    ⊸  [a⋅0.0, xs⋅0.0, θ⋅0.0, ys⋅0.0] (f : (xs' : 𝕄 [L∞, L2|b, n↦𝔻 ] ⋅ 1.0)
-    ⊸⋆ [xs⋅⟨ε,δ⟩] (ys' : 𝕄 [L∞, U|b, 1.0 ↦𝔻 ] ⋅ 1.0)
-    ⊸⋆ [xs⋅⟨ε,δ⟩] (θ' : 𝕄 [L∞, U|1.0, n↦ℝ ] ⋅ 1.0)
-    ⊸⋆ [xs⋅⟨ε,δ⟩,ys⋅⟨ε,δ⟩] 𝕄 [L∞, U|1.0, n↦ℝ ] ⋅ 1.0)
-    ⊸⋆ [xs⋅⟨ε,δ⟩,
-        ys⋅⟨ε,δ⟩] 𝕄 [L1,U|m,n↦ℝ],
+    ∀ ε: ℝ⁺, δ: ℝ⁺,m: ℕ, n: ℕ,rows: ℕ,τ: ☆ .
+   (θ : 𝕄 [L1,U|1.0,n↦ℝ])
+    ⊸  [θ⋅0.0] (xs : 𝕄 [L∞,U|m,n↦𝔻])
+    ⊸  [xs⋅0.0, θ⋅0.0] (ys : 𝕄 [L∞,U|m,1.0↦𝔻])
+    ⊸  [xs⋅0.0, θ⋅0.0, ys⋅0.0] (f : (xs' : 𝕄 [L∞, L2|rows, n↦𝔻 ] ⋅ 1.0)
+    ⊸⋆ ø (ys' : 𝕄 [L∞, U|rows, 1.0 ↦𝔻 ] ⋅ 1.0)
+    ⊸⋆ ø (θ' : 𝕄 [L∞, U|1.0, n↦𝔻 ] ⋅ 1.0)
+    ⊸⋆ [xs'⋅⟨ε,δ⟩,ys'⋅⟨ε,δ⟩] 𝕄 [L∞, U|1.0, n↦ℝ ])
+    ⊸  [f⋅1.0] (a : ℕ[rows] ⋅ 1.0)
+    ⊸⋆ [ys⋅⟨ε,δ⟩,
+        xs⋅⟨ε,δ⟩] 𝕄 [L1,U|m,n↦ℝ],
 
 primitive-zc pfld-rows₁ :
     ∀ ρ: ℝ⁺, m: ℕ, n: ℕ,rows: ℕ,τ: ☆ .

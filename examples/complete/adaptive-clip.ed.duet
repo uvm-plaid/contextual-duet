@@ -1,45 +1,44 @@
-let query = sλ .
+let query = sλ
                b: 𝔻
                ⇒
-               sλ m  : ℕ,
+              ∀  m  : ℕ,
                   n  : ℕ
                   .
-                  xs : 𝕄 [L∞, U|m, n⋅𝔻 ]
+                sλ <> xs : 𝕄 [L∞, U|m, n↦𝔻 ]
                   ⇒
-  let scaled   = mmap xs { x ⇒ b ⋅ x } in
-  let clipped  = mmap (mclip[L2] scaled) { x ⇒ x } in
-  let filtered = mfilter zip[clipped, xs] { row  ⇒
-                   let ⟨clipped, orig⟩ = row#[ℕ[0], ℕ[0]] in
-                   clipped ≡ orig } in
-  ℝ⁺[0.5] ⋅ real (rows filtered)
+  let scaled   = mscale₃ @ m @ n xs b in
+  let clipped  = mclip @ m @ n @ ℝ scaled in
+  let filtered = mfilter-zip @ m @ n clipped xs in
+  times₅ @ ℝ⁺[0.5] @ ℝ⁺[m] ℝ⁺[0.5] (real₂ @ m (mrows @ m @ n @ ℝ filtered))
 in
 
-let pick = pλ m  : ℕ,
+let pick = ∀ m  : ℕ,
               n  : ℕ,
               ε  : ℝ⁺,
               k  : ℕ
               .
-              xs : 𝕄 [L∞, U|m, n⋅𝔻 ] ,
-              ε  : ℝ⁺[ε],
-              bs : 𝕄 [L1, U|1, k⋅𝔻 ]
+            pλ  xs : 𝕄 [L∞, U|m, n↦𝔻 ] ⋅ 1.0 ,
+              ε  : ℝ⁺[ε] ⋅ 1.0 ,
+              bs : 𝕄 [L∞, U|1.0, k↦𝔻 ] ⋅ 1.0
               ⇒
-  let target = 0.9 ⋅ real (rows xs) in
-  let fs = mmap bs { b ⇒ query b } in
-  AboveThreshold [ ε, fs, target ] <xs> { xs }
+  let target = times₅ @ ℝ⁺[0.9] @ ℝ⁺[m] ℝ⁺[0.9] (real₂ @ m (mrows @ m @ n @ 𝔻 xs)) in
+  let fs = mmap @ ℕ[1.0] @ k @ 𝔻 @ ∀ n  : ℕ . (xs : 𝕄 [L∞, U|m, n↦𝔻] ⊸ ø ℝ⁺[0.5⋅m]) @ <> @ <> @ <>
+              bs (sλ <> b : 𝔻 ⇒ query b @ m) in
+  svt @ 𝕄 [L∞, U|m, n↦𝔻 ] @ ε @ δ @ ℝ⁺[0.9⋅m] xs target fs
 in
 
-let scaleAndClip = sλ m  : ℕ,
+let scaleAndClip = ∀ m  : ℕ,
                       n  : ℕ
                       .
-                      xs : 𝕄 [L∞, U|m, n⋅𝔻 ],
+                    sλ  xs : 𝕄 [L∞, U|m, n↦𝔻 ],
                       b: 𝔻
                       ⇒
-  let scaled   = mmap xs { x ⇒ b ⋅ x } in
-  let clipped  = mclip[L2] scaled in
+  let scaled   = mscale₃ @ m @ n xs b in
+  let clipped  = (mclip @ m @ n @ 𝔻 scaled) in
   clipped
 in
 
-let main = pλ m  : ℕ,
+let main =  ∀ m  : ℕ,
               n  : ℕ,
               ε  : ℝ⁺,
               k  : ℕ,
@@ -47,22 +46,27 @@ let main = pλ m  : ℕ,
               δ′ : ℝ⁺,
               k  : ℕ
               .
-              xs : 𝕄 [L∞, U|m, n⋅𝔻 ] ,
-              ys : 𝕄 [L∞, U|m, 1⋅𝔻 ] ,
-              ε  : ℝ⁺[ε],
-              k  : ℕ[k],
-              δ  : ℝ⁺[δ],
-              δ′ : ℝ⁺[δ′],
-              η  : ℝ,
-              bs : 𝕄 [L1, U|1, k⋅𝔻 ]
+          pλ  xs : 𝕄 [L∞, U|m, n↦𝔻 ] ⋅ 1.0  ,
+              ys : 𝕄 [L∞, U|m, 1.0↦𝔻 ] ⋅ 1.0  ,
+              ε  : ℝ⁺[ε] ⋅ 1.0 ,
+              k  : ℕ[k] ⋅ 1.0 ,
+              δ  : ℝ⁺[δ] ⋅ 1.0 ,
+              δ′ : ℝ⁺[δ′] ⋅ 1.0 ,
+              η  : ℝ ⋅ 1.0 ,
+              bs : 𝕄 [L∞, U|1.0, k↦𝔻 ] ⋅ 1.0
               ⇒
-  let m₀ = mcreate[ L∞ | ℕ[1] , cols xs ] { i , j ⇒ 0.0 } in
-  b ← pick@[m, n, ε, k. xs, ε, bs];
-  let c = box (scaleAndClip@[m,n] xs (bs#[idx ℕ[0], b])) in
-  aloop[ δ′ ] k on m₀ <xs,ys> { a, θ ⇒
-    let s = ℝ⁺[1.0] / real (rows xs) in
-    g ← mgauss[ s , ε , δ ] <xs,ys> { ∇[ LR | θ ; unbox c , ys ] } ;
-    return mmap θ , mmap g { x ⇒ η ⋅ x } { x , y ⇒ x - y }
-  }
+  let colnum = (mcols @ m @ n @ 𝔻 xs) in
+  let m₀ = mcreate @ ℕ[1.0] @ ℕ[n] @ ℝ ℕ[1] colnum (sλ i : 𝕀[1.0] , j : 𝕀[n] ⇒ 0.0) in
+  b ← pick @ m @ n @ ε @ k xs ε bs;
+  let c = (scaleAndClip @ m @ n xs (mindex @ m @ n @ 𝔻 bs (idx ℕ[0]) b)) in
+  aloop @ ε @ δ @ δ′ @ k @ n @ <xs,ys>
+    (pλ <xs,ys> θ : 𝕄 [L∞, U|1.0, n↦𝔻 ] ⋅ 1.0 ⇒
+      let s = div₂ ℝ⁺[1.0] (real₁ (rows xs)) in
+      g ← mgauss @ ε @ δ @ ℕ[s] @ n ε δ
+            (mLipGrad @ m @ n θ c ys) ;
+      return (matsub @ ℕ[1.0] @ n θ g))
+    m₀
+    δ′
+
 
 in main

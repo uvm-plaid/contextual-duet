@@ -2,156 +2,156 @@
 -- evaluate a clipping parameter: return how many
 -- rows would be clipped by using that parameter
 let evalClippingParam =
-            sλ .
+            sλ
                b: 𝔻
                ⇒
-               sλ m  : ℕ
+                ∀ m  : ℕ
                   .
-                  xs : 𝕄 [L∞, U|m, 1⋅𝔻 ]
+              sλ  xs : 𝕄 [L∞, U|m, 1.0↦𝔻 ]
                   ⇒
-  let scaled   = mmap xs { x ⇒ b ⋅ x } in
-  let clipped  = mmap (mclip[L2] scaled) { x ⇒ x } in
-  let filtered = mfilter zip[clipped, xs] { row  ⇒ 
-                   let ⟨clipped, orig⟩ = row#[ℕ[0], ℕ[0]] in
-                   clipped ≡ orig } in
-  ℝ⁺[0.5] ⋅ real (rows filtered)
+  let scaled   = mscale₃ @ m @ ℕ[1.0] xs b in
+  let clipped  = (mclip @ m @ ℕ[1.0] @ ℝ scaled) in
+  let filtered = mfilter-zip @ m @ ℕ[1.0] clipped xs in
+  times₅ @ ℝ⁺[0.5] @ ℝ⁺[m] ℝ⁺[0.5] (real₂ @ m (mrows @ m @ ℕ[1.0] @ ℝ filtered))
 in
 
 -- determine the scale of a matrix (i.e. best clipping parameter)
 let selectClippingParam =
-           pλ m  : ℕ,
+           ∀ m  : ℕ,
               ε  : ℝ⁺,
               k  : ℕ
               .
-              xs : 𝕄 [L∞, U|m, 1⋅𝔻 ] ,
-              ε  : ℝ⁺[ε],
-              bs : 𝕄 [L∞, U|1, k⋅𝔻 ]
+          pλ  xs : 𝕄 [L∞, U|m, 1.0↦𝔻 ] ⋅ 1.0 ,
+              ε  : ℝ⁺[ε] ⋅ 1.0 ,
+              bs : 𝕄 [L∞, U|1.0, k↦𝔻 ] ⋅ 1.0
               ⇒
-  let target = 0.9 ⋅ real (rows xs) in
-  let fs = mmap bs { b ⇒ evalClippingParam b } in
-  bIdx ← AboveThreshold [ ε, fs, target ] <xs> { xs };
-  return bs#[idx ℕ[0], bIdx]
+  let target = times₅ @ ℝ⁺[0.9] @ ℝ⁺[m] ℝ⁺[0.9] (real₂ @ m (mrows @ m @ ℕ[1.0] @ 𝔻 xs)) in
+  let fs = mmap @ ℕ[1.0] @ k @ 𝔻 @ ∀ n  : ℕ . (xs : 𝕄 [L∞, U|m, n↦𝔻] ⊸ ø ℝ⁺[0.5⋅m]) @ <> @ <> @ <>
+              bs (sλ <> b : 𝔻 ⇒ evalClippingParam b @ m) in
+  bIdx ← svt @ 𝕄 [L∞, U|m, n↦𝔻 ] @ ε @ δ xs fs;
+  return mindex @ m @ ℕ[1.0] @ 𝔻 bs (idx ℕ[0]) bIdx
 in
 
 -- determine the mean of a single column matrix
-let colMean = pλ m   : ℕ,
+let colMean =  ∀ m   : ℕ,
                  k   : ℕ,
                  ε   : ℝ⁺,
                  δ   : ℝ⁺
                  .
-                 mat : 𝕄 [L∞, U|m, 1⋅𝔻 ],
-                 ε   : ℝ⁺[ε],
-                 δ   : ℝ⁺[δ],
-                 bs  : 𝕄 [L∞, U|1, k⋅𝔻 ]
+              pλ mat : 𝕄 [L∞, U|m, 1.0↦𝔻 ] ⋅ 1.0 ,
+                 ε   : ℝ⁺[ε] ⋅ 1.0 ,
+                 δ   : ℝ⁺[δ] ⋅ 1.0 ,
+                 bs  : 𝕄 [L∞, U|1.0, k↦𝔻 ] ⋅ 1.0,
+                 m   :  ℝ⁺[m] ⋅ 1.0
                  ⇒
-  b ← selectClippingParam@[m, ε, k. mat, ε, bs];
-  mean ← gauss [ℝ⁺[1.0] / (real (rows mat)), ε, δ] <mat> {
-    let scaled   = mmap mat { x ⇒ b ⋅ x } in
-    let clipped  = mconv (mclip[L1] scaled) in
-    let sum      = mfold-row 0.0, clipped { a, r ⇒
-                     a + r#[idx ℕ[0], idx ℕ[0]] } in
-    sum / (real (rows mat))
-  };
-  return (disc mean)
+  b ← selectClippingParam @ m @ ε @ k mat ε bs;
+  let scaled   = mscale₃ @ m @ ℕ[1.0] mat b in
+  let clipped  = mclip @ m @ ℕ[1.0] @ 𝔻 scaled in
+  let sum      = mfold-row-sum @ 𝔻 @ m @ ℕ[1.0] clipped in
+  mean ← gauss @ ε @ δ @ ℝ⁺[1.0/m] ε δ (div₅ ℝ⁺[1.0] m) (div₂ sum (real₁ (rows mat)));
+  return mean
+  -- return (disc mean)
 in
 
 -- determine the mean of each column in the given matrix
-let colMeans = pλ m : ℕ, n : ℕ, k : ℕ, ε : ℝ⁺, δ : ℝ⁺
+let colMeans = ∀ m : ℕ, n : ℕ, k : ℕ, ε : ℝ⁺, δ : ℝ⁺
                   .
-                  mat : 𝕄 [L∞, U|m, n⋅𝔻 ],
-                  ε   : ℝ⁺[ε],
-                  δ   : ℝ⁺[δ],
-                  bs  : 𝕄 [L∞, U|1, k⋅𝔻 ]
+              pλ  mat : 𝕄 [L∞, U|m, n↦𝔻 ] ⋅ 1.0 ,
+                  ε   : ℝ⁺[ε] ⋅ 1.0 ,
+                  δ   : ℝ⁺[δ] ⋅ 1.0 ,
+                  bs  : 𝕄 [L∞, U|1.0, k↦𝔻 ] ⋅ 1.0
                   ⇒
-  pmap-col mat { col ⇒ colMean@[m, k, ε, δ. col, ε, δ, bs] }
+  pmapcol @ 𝔻 @ 𝔻 @ m @ n @ ε mat
+    (sλ col : 𝔻 ⇒ colMean @ m @ k @ ε @ δ col ε δ bs )
 in
 
 
 let center =
-  sλ m : ℕ, n : ℕ
+  ∀ m : ℕ, n : ℕ
      .
-     mat    : 𝕄 [L∞, U|m, n⋅𝔻 ],
-     means  : 𝕄 [L∞, U|1, n⋅𝔻 ]
+    sλ mat    : 𝕄 [L∞, U|m, n↦𝔻 ],
+     means  : 𝕄 [L∞, U|1.0, n↦𝔻 ]
      ⇒
   -- center the values using the column mean
-  mmap-col mat, means { col, mean ⇒
-    mmap col { x ⇒
-      x - mean#[idx ℕ[0], idx ℕ[0]]
-    }
-  }
+  mmapcol₂ @ 𝔻 @ 𝔻 @ m @ n @ ε mat means
+  (sλ col : 𝔻, mean : 𝔻 ⇒
+    mmap ℕ[1] @ k @ 𝔻 @ 𝔻 @ <> @ <> @ <> col
+      (sλ x : 𝔻 ⇒ minus₀ x (mindex @ m @ n @ 𝔻 mean (idx ℕ[0]) (idx ℕ[0])) )
+  )
 in
 
 -- determine the scale of each column in the given matrix
 let colScaleParams =
-  pλ m : ℕ, n : ℕ, ε : ℝ⁺, δ : ℝ⁺, k : ℕ
+   ∀ m : ℕ, n : ℕ, ε : ℝ⁺, δ : ℝ⁺, k : ℕ
      .
-     mat   : 𝕄 [L∞, U|m, n⋅𝔻 ],
-     ε     : ℝ⁺[ε],
-     δ     : ℝ⁺[δ],
-     bs    : 𝕄 [L∞, U|1, k⋅𝔻 ],
-     means : 𝕄 [L∞, U|1, n⋅𝔻 ]
+  pλ mat   : 𝕄 [L∞, U|m, n↦𝔻 ] ⋅ 1.0,
+     ε     : ℝ⁺[ε] ⋅ 1.0,
+     δ     : ℝ⁺[δ] ⋅ 1.0,
+     bs    : 𝕄 [L∞, U|1.0, k↦𝔻 ] ⋅ 1.0,
+     means : 𝕄 [L∞, U|1.0, n↦𝔻 ] ⋅ 1.0
      ⇒
-  pmap-col (center@[m,n] mat means) { col ⇒ selectClippingParam@[m, ε, k. col, ε, bs] }
- -- return center@[m,n] mat means
+  pmap-col @ 𝔻 @ 𝔻 @ m @ n @ ε (center @ m @ n mat means)
+    (sλ col : 𝔻 ⇒ selectClippingParam @ m @ ε @ k col ε bs )
 in
 
 -- given a mean and scale for each column, prepare
 -- the given matrix for clipping
 let normalize =
-  sλ m : ℕ, n : ℕ
+   ∀ m : ℕ, n : ℕ
      .
-     means  : 𝕄 [L∞, U|1, n⋅𝔻 ],
-     scales : 𝕄 [L∞, U|1, n⋅𝔻 ],
-     mat    : 𝕄 [L∞, U|m, n⋅𝔻 ]
+    sλ means  : 𝕄 [L∞, U|1.0, n↦𝔻 ],
+     scales : 𝕄 [L∞, U|1.0, n↦𝔻 ],
+     mat    : 𝕄 [L∞, U|m, n↦𝔻 ]
      ⇒
   -- center the values using the column mean
-  let centered = center@[m,n] mat means in
+  let centered = center @ m @ n mat means in
 
   -- scale the values using the clipping parameters
-  mmap-col centered, scales { col, scale ⇒
-    mmap col { x ⇒
-      x / (scale#[idx ℕ[0], idx ℕ[0]])
-    }
-  }
+  mmapcol₂ @ 𝔻 @ 𝔻 @ ℕ[1.0] @ n centered scales
+
+  ( sλ col : 𝔻, scale : 𝔻 ⇒
+    mmap @ m @ n @ 𝔻 @ 𝔻 @ <> @ <> @ <> col
+    ( sλ x : 𝔻 ⇒ div₂ x  (mindex @ m @ n @ 𝔻 scale (idx ℕ[0]) (idx ℕ[0]))  )
+  )
 in
 
 let noisySGD =
-  pλ m : ℕ, n  : ℕ, ε  : ℝ⁺, k  : ℕ, δ  : ℝ⁺, δ′ : ℝ⁺
+   ∀ m : ℕ, n  : ℕ, ε  : ℝ⁺, k  : ℕ, δ  : ℝ⁺, δ′ : ℝ⁺
      .
-     xs : 𝕄 [L∞, U|m, n⋅𝔻 ] ,
-     ys : 𝕄 [L∞, U|m, 1⋅𝔻 ] ,
-     ε  : ℝ⁺[ε],
-     k  : ℕ[k],
-     δ  : ℝ⁺[δ],
-     δ′ : ℝ⁺[δ′],
-     η  : ℝ
+  pλ xs : 𝕄 [L∞, U|m, n↦𝔻 ] ⋅ 1.0 ,
+     ys : 𝕄 [L∞, U|m, 1.0↦𝔻 ] ⋅ 1.0 ,
+     ε  : ℝ⁺[ε] ⋅ 1.0,
+     k  : ℕ[k] ⋅ 1.0,
+     δ  : ℝ⁺[δ] ⋅ 1.0,
+     δ′ : ℝ⁺[δ′] ⋅ 1.0,
+     η  : ℝ ⋅ 1.0
      ⇒
-  let m₀ = mcreate[ L∞ | ℕ[1] , cols xs ] { i , j ⇒ 0.0 } in
-  let c = box (mclip[L2] xs) in
-  aloop[ δ′ ] k on m₀ <xs,ys> { a, θ ⇒
-    let s = ℝ⁺[1.0] / real (rows xs) in
-    g ← mgauss[ s , ε , δ ] <xs,ys> { ∇[ LR | θ ; unbox c , ys ] } ;
-    return mmap θ , mmap g { x ⇒ η ⋅ x } { x , y ⇒ x - y }
-  }
+   let colnum = (mcols @ m @ n @ 𝔻 xs) in
+   let m₀ = mcreate @ ℕ[1.0] @ ℕ[n] @ ℝ ℕ[1] colnum (sλ i : 𝕀[1.0] , j : 𝕀[n] ⇒ 0.0) in
+   aloop @ ε @ δ @ δ′ @ k @ n @ <xs,ys>
+     (pλ <xs,ys> θ : 𝕄 [L∞, U|1.0, n↦𝔻 ] ⋅ 1.0 ⇒
+       g ← mgauss @ ε @ δ @ ℕ[1.0] @ n ε δ
+             (mLipGrad @ m @ n θ (mclip @ m @ n @ 𝔻 xs) ys) ;
+       return (matsub @ ℕ[1.0] @ n θ g))
+     m₀
+     δ′
 in
 
 let main =
-  pλ m : ℕ, n : ℕ, k : ℕ, ε : ℝ⁺, δ : ℝ⁺, δ′ : ℝ⁺
+  ∀ m : ℕ, n : ℕ, k : ℕ, ε : ℝ⁺, δ : ℝ⁺, δ′ : ℝ⁺
      .
-     xs : 𝕄 [L∞, U|m, n⋅𝔻 ] ,
-     ys : 𝕄 [L∞, U|m, 1⋅𝔻 ] ,
-     ε   : ℝ⁺[ε],
-     k  : ℕ[k],
-     δ  : ℝ⁺[δ],
-     δ′ : ℝ⁺[δ′],
-     η  : ℝ,
-     bs  : 𝕄 [L∞, U|1, k⋅𝔻 ]
+  pλ xs : 𝕄 [L∞, U|m, n↦𝔻 ] ⋅ 1.0 ,
+     ys : 𝕄 [L∞, U|m, 1.0↦𝔻 ] ⋅ 1.0 ,
+     ε   : ℝ⁺[ε] ⋅ 1.0,
+     k  : ℕ[k] ⋅ 1.0,
+     δ  : ℝ⁺[δ] ⋅ 1.0,
+     δ′ : ℝ⁺[δ′] ⋅ 1.0,
+     η  : ℝ ⋅ 1.0,
+     bs  : 𝕄 [L∞, U|1.0, k↦𝔻 ] ⋅ 1.0
      ⇒
-  means  ← colMeans@[m,n,k,ε,δ. xs, ε, δ, bs];
-  scales ← colScaleParams@[m,n,ε,δ,k. xs, ε, δ, bs, means];
-  let normalizeF = normalize@[m,n] means scales in
-  noisySGD@[m,n,ε,k,δ,δ′ . normalizeF xs, ys, ε, k, δ, δ′, η]
---  return (unbox xs′)
-  
-in main
+  means  ← colMeans @ m @ n @ k @ ε @ δ xs ε δ bs;
+  scales ← colScaleParams @ m @ n @ ε δ @ k xs ε δ bs means;
+  let normalizeF = normalize @ m @ n means scales in
+  noisySGD @ m @ n @ ε @ k @ δ @ δ′ normalizeF xs ys ε k δ δ′ η
 
+in main
