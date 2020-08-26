@@ -17,14 +17,14 @@ let pick = ∀ m  : ℕ,
               ε  : ℝ⁺,
               k  : ℕ
               .
-            pλ  xs : 𝕄 [L∞, U|m, n↦𝔻 ] ⋅ 1.0 ,
-              ε  : ℝ⁺[ε] ⋅ 1.0 ,
-              bs : 𝕄 [L∞, U|1.0, k↦𝔻 ] ⋅ 1.0
+            sλ  xs : 𝕄 [L∞, U|m, n↦𝔻 ],
+              ε  : ℝ⁺[ε] ⇒
+            pλ  bs : 𝕄 [L∞, U|1.0, k↦𝔻 ] ⋅ 1.0
               ⇒
   let target = times₅ @ ℝ⁺[0.9] @ ℝ⁺[m] ℝ⁺[0.9] (real₂ @ m (mrows @ m @ n @ 𝔻 xs)) in
-  let fs = mmap @ ℕ[1.0] @ k @ 𝔻 @ ∀ n  : ℕ . (xs : 𝕄 [L∞, U|m, n↦𝔻] ⊸ ø ℝ⁺[0.5⋅m]) @ <> @ <> @ <>
+  let fs = mmap @ ℕ[1.0] @ k @ 𝔻 @ ∀ n  : ℕ . (xs : 𝕄 [L∞, U|m, n↦𝔻]) ⊸ ø ℝ⁺[0.5⋅m] @ <> @ <> @ <>
               bs (sλ <> b : 𝔻 ⇒ query b @ m) in
-  svt @ 𝕄 [L∞, U|m, n↦𝔻 ] @ ε @ δ @ ℝ⁺[0.9⋅m] xs target fs
+  svt @ 𝕄 [L∞, U|m, n↦𝔻 ] @ ε @ δ @ ℝ⁺[0.9⋅m] @ ℕ[k] @ ℝ⁺[m] xs target fs
 in
 
 let scaleAndClip = ∀ m  : ℕ,
@@ -34,7 +34,7 @@ let scaleAndClip = ∀ m  : ℕ,
                       b: 𝔻
                       ⇒
   let scaled   = mscale₃ @ m @ n xs b in
-  let clipped  = (mclip @ m @ n @ 𝔻 scaled) in
+  let clipped  = (mclip @ m @ n @ ℝ scaled) in
   clipped
 in
 
@@ -58,12 +58,12 @@ let main =  ∀ m  : ℕ,
   let colnum = (mcols @ m @ n @ 𝔻 xs) in
   let m₀ = mcreate @ ℕ[1.0] @ ℕ[n] @ ℝ ℕ[1] colnum (sλ i : 𝕀[1.0] , j : 𝕀[n] ⇒ 0.0) in
   b ← pick @ m @ n @ ε @ k xs ε bs;
-  let c = (scaleAndClip @ m @ n xs (mindex @ m @ n @ 𝔻 bs (idx ℕ[0]) b)) in
+  -- let c = (scaleAndClip @ m @ n xs1 (mindex @ ℕ[1.0] @ ℕ[k] @ 𝔻 bs (idx @ ℕ[0.0] ℕ[0]) b)) in
   aloop @ ε @ δ @ δ′ @ k @ n @ <xs,ys>
     (pλ <xs,ys> θ : 𝕄 [L∞, U|1.0, n↦𝔻 ] ⋅ 1.0 ⇒
-      let s = div₂ ℝ⁺[1.0] (real₁ (rows xs)) in
-      g ← mgauss @ ε @ δ @ ℕ[s] @ n ε δ
-            (mLipGrad @ m @ n θ c ys) ;
+      let s = div₄ @ ℝ⁺[1.0] @ ℝ⁺[m] ℝ⁺[1.0] (real₂ @ ℕ[m] (mrows @ m @ n @ 𝔻 xs)) in
+      g ← mgauss₁ @ ε @ δ @ ℕ[1.0] @ n @ <xs,ys> ε δ
+            (mLipGrad @ m @ n θ (mclipscale @ m @ n @ 𝔻 (mindex @ ℕ[1.0] @ ℕ[k] @ 𝔻 bs (idx @ ℕ[0.0] ℕ[0]) b) xs) ys) ;
       return (matsub @ ℕ[1.0] @ n θ g))
     m₀
     δ′
