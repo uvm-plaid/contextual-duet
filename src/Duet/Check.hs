@@ -518,15 +518,11 @@ inferSens eA = case extract eA of
     case (τ₁) of
       (x :* τ₁₁) :⊸: (sσ :* τ₁₂) | alphaEquiv dø dø τ₁₁ τ₂ → do
         case sσ ⋕? (TMVar x) of
-          None → error $ concat
-                [ "AppSE error 3 (missing binder in SEnv): \n"
-                , "\n\n"
-                , "binder: " ⧺ pprender x
-                , "\n\n"
-                , "in the sσ: " ⧺ pprender sσ
-                , "\n\n"
-                , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
-                ]
+          None → do
+            tell $ one ⨵ (restrict xs σ₂)
+            tell $ top ⨵ (without xs σ₂)
+            tell $ without (single $ TMVar x) sσ
+            return $ substGammaSens σ₂ x τ₁₂
           Some s → do
             tell $ s ⨵ (restrict xs σ₂)
             tell $ top ⨵ (without xs σ₂)
@@ -746,7 +742,7 @@ inferPriv eA = case extract eA of
             , pprender $ ppLineNumbers $ pretty $ annotatedTag eA
             , "\n or sσ: \n"
             , pprender σ₂
-            , "\nhas max sensitivity GT" ⧺ pprender s
+            , "\nhas max sensitivity GT " ⧺ pprender s
             ]
       _ → error $ concat
             [ "AppPE expected pλ, got: \n"
