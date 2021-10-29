@@ -1,10 +1,10 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.31.1.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c60c28f91b8b0dbd89e844a499b0b8e2d1d1a308c2ba9188ea25f9dbb2caa577
+-- hash: 978537e8a3f2da83f4d4b24856c2d3664be7843100514d259e614dbc76feb63f
 
 name:           duet
 version:        0.0.0.0
@@ -27,7 +27,39 @@ executable duet
   hs-source-dirs:
       src
       main
-  default-extensions: ConstraintKinds DataKinds ExplicitNamespaces FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MonadComprehensions MultiParamTypeClasses NoImplicitPrelude OverloadedStrings PatternSynonyms PolyKinds QuantifiedConstraints RankNTypes RebindableSyntax ScopedTypeVariables StandaloneDeriving Strict StrictData TemplateHaskell TypeApplications TypeFamilies TypeOperators UndecidableInstances UndecidableSuperClasses UnicodeSyntax ViewPatterns
+  default-extensions:
+      ConstraintKinds
+      DataKinds
+      ExplicitNamespaces
+      FlexibleContexts
+      FlexibleInstances
+      FunctionalDependencies
+      GADTs
+      GeneralizedNewtypeDeriving
+      InstanceSigs
+      KindSignatures
+      LambdaCase
+      MonadComprehensions
+      MultiParamTypeClasses
+      NoImplicitPrelude
+      OverloadedStrings
+      PatternSynonyms
+      PolyKinds
+      QuantifiedConstraints
+      RankNTypes
+      RebindableSyntax
+      ScopedTypeVariables
+      StandaloneDeriving
+      Strict
+      StrictData
+      TemplateHaskell
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      UndecidableInstances
+      UndecidableSuperClasses
+      UnicodeSyntax
+      ViewPatterns
   ghc-options: -Wall -Wno-orphans -Wno-partial-type-signatures -j -O0 -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
